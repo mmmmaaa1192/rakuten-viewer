@@ -437,16 +437,11 @@ function extractShopCode(url) {
   return m ? m[1] : null;
 }
 
-// ===== JSONP =====
-function jsonp(url) {
-  return new Promise((resolve, reject) => {
-    const cb = '_rjcb' + Date.now() + Math.floor(Math.random() * 1e6);
-    const s = document.createElement('script');
-    window[cb] = data => { delete window[cb]; s.remove(); resolve(data); };
-    s.onerror = () => { delete window[cb]; s.remove(); reject(new Error('通信エラー')); };
-    s.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cb;
-    document.head.appendChild(s);
-  });
+// ===== FETCH =====
+async function rakutenFetch(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
 }
 
 // ===== GENRE NAVIGATOR =====
@@ -463,8 +458,7 @@ class GenreNav {
   async _load(genreId) {
     this.grid.innerHTML = '<div class="loading-msg">読み込み中...</div>';
     try {
-      const data = await jsonp(
-        `https://app.rakuten.co.jp/services/api/IchibaGenre/Search/20140222?applicationId=${getAppId()}&genreId=${genreId}&format=json`
+      const data = await rakutenFetch(
         `https://openapi.rakuten.co.jp/ichibagt/api/IchibaGenre/Search/20170711?${authParams()}&genreId=${genreId}&format=json`
       );
       if (data.error) {
@@ -568,8 +562,7 @@ document.getElementById('r-fetch-btn').addEventListener('click', async () => {
   document.getElementById('r-results').innerHTML = '<div class="card loading-msg">データ取得中...</div>';
 
   try {
-    const data = await jsonp(
-      `https://app.rakuten.co.jp/services/api/IchibaItem/Ranking/20220601?applicationId=${getAppId()}${affParam()}&genreId=${genreId}&period=${rankPeriod}&hits=30&page=1&format=json`
+    const data = await rakutenFetch(
       `https://openapi.rakuten.co.jp/ichibaranking/api/IchibaItem/Ranking/20220601?${authParams()}${affParam()}&genreId=${genreId}&period=${rankPeriod}&hits=30&page=1&format=json`
     );
 
@@ -674,7 +667,7 @@ async function runRankSearch({ keyword, genreId, shopCode, maxPages, fillId, sta
       if (genreId) url += '&genreId=' + genreId;
 
       let data;
-      try { data = await jsonp(url); }
+      try { data = await rakutenFetch(url); }
       catch(e) {
         document.getElementById(statusId).textContent = `${page}ページ取得失敗: ${e.message}`;
         await sleep(2000);
