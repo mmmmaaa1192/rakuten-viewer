@@ -165,11 +165,15 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
       <a href="https://webservice.rakuten.co.jp/app/list" target="_blank" rel="noopener" style="color:#bf0000;">楽天アプリ設定</a>で以下を確認してください：<br>
       ・アプリケーションタイプ → <strong>「Webアプリケーション」</strong><br>
       ・許可されたWebサイト → <strong>「mmmmaaa1192.github.io」</strong><br>
-      「API/バックエンドサービス」で登録した場合は上記に変更が必要です。
+      アプリ詳細に <strong>「アクセスキー（accessKey）」</strong> が表示されていることを確認してください。
     </div>
-    <label class="setup-label" for="setup-appid">楽天 Application ID</label>
+    <label class="setup-label" for="setup-appid">楽天 Application ID <span style="color:#cc0000;">必須</span></label>
     <input class="setup-input" type="text" id="setup-appid" placeholder="例: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" spellcheck="false" autocomplete="off">
     <div class="setup-hint">アプリ詳細画面の「アプリID（applicationId）」を入力してください。</div>
+
+    <label class="setup-label" for="setup-acckey" style="margin-top:14px;">アクセスキー（accessKey） <span style="color:#cc0000;">必須</span></label>
+    <input class="setup-input" type="text" id="setup-acckey" placeholder="例: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" spellcheck="false" autocomplete="off">
+    <div class="setup-hint">アプリ詳細画面の「アクセスキー（accessKey）」を入力してください。</div>
 
     <label class="setup-label" for="setup-affid" style="margin-top:14px;">
       アフィリエイトID
@@ -294,6 +298,11 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
       <div class="form-hint">楽天ウェブサービスのアプリ詳細で確認できます</div>
     </div>
     <div class="form-group">
+      <label class="form-label">アクセスキー（accessKey）<span style="color:#cc0000;margin-left:4px;">必須</span></label>
+      <input class="form-input" type="text" id="settings-acckey" spellcheck="false" autocomplete="off">
+      <div class="form-hint">楽天ウェブサービスのアプリ詳細で確認できます</div>
+    </div>
+    <div class="form-group">
       <label class="form-label">アフィリエイトID（affiliateId）<span style="font-size:11px;font-weight:normal;color:#aaa;margin-left:6px;">任意</span></label>
       <input class="form-input" type="text" id="settings-affid" spellcheck="false" autocomplete="off">
       <div class="form-hint">設定するとランキング・検索結果にアフィリエイトリンクが付きます。不要なら空欄のままでOK</div>
@@ -308,16 +317,23 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 <script>
 // ===== CONSTANTS =====
 const STORAGE_KEY_APP  = 'rakuten_app_id';
+const STORAGE_KEY_ACC  = 'rakuten_access_key';
 const STORAGE_KEY_AFF  = 'rakuten_affiliate_id';
 
 // ===== SETTINGS =====
 function getAppId()       { return localStorage.getItem(STORAGE_KEY_APP) || ''; }
+function getAccKey()      { return localStorage.getItem(STORAGE_KEY_ACC) || ''; }
 function getAffId()       { return localStorage.getItem(STORAGE_KEY_AFF) || ''; }
 function saveAppId(id)    { localStorage.setItem(STORAGE_KEY_APP, id.trim()); }
+function saveAccKey(key)  {
+  if (key.trim()) { localStorage.setItem(STORAGE_KEY_ACC, key.trim()); }
+  else            { localStorage.removeItem(STORAGE_KEY_ACC); }
+}
 function saveAffId(id)    {
   if (id.trim()) { localStorage.setItem(STORAGE_KEY_AFF, id.trim()); }
   else           { localStorage.removeItem(STORAGE_KEY_AFF); }
 }
+function authParams()     { return `applicationId=${getAppId()}&accessKey=${encodeURIComponent(getAccKey())}`; }
 function affParam()       { const a = getAffId(); return a ? `&affiliateId=${encodeURIComponent(a)}` : ''; }
 
 // ===== SCREEN MANAGEMENT =====
@@ -336,13 +352,19 @@ function showApp() {
 
 // ===== SETUP SCREEN =====
 document.getElementById('setup-save-btn').addEventListener('click', () => {
-  const appId = document.getElementById('setup-appid').value.trim();
-  const affId = document.getElementById('setup-affid').value.trim();
+  const appId  = document.getElementById('setup-appid').value.trim();
+  const accKey = document.getElementById('setup-acckey').value.trim();
+  const affId  = document.getElementById('setup-affid').value.trim();
   if (!appId) {
     document.getElementById('setup-error').textContent = 'アプリIDを入力してください';
     return;
   }
+  if (!accKey) {
+    document.getElementById('setup-error').textContent = 'アクセスキーを入力してください';
+    return;
+  }
   saveAppId(appId);
+  saveAccKey(accKey);
   saveAffId(affId);
   document.getElementById('setup-error').textContent = '';
   showApp();
@@ -354,18 +376,22 @@ document.getElementById('setup-appid').addEventListener('keydown', e => {
 
 // ===== SETTINGS MODAL =====
 document.getElementById('open-settings-btn').addEventListener('click', () => {
-  document.getElementById('settings-appid').value = getAppId();
-  document.getElementById('settings-affid').value = getAffId();
+  document.getElementById('settings-appid').value  = getAppId();
+  document.getElementById('settings-acckey').value = getAccKey();
+  document.getElementById('settings-affid').value  = getAffId();
   document.getElementById('modal-settings').style.display = 'flex';
 });
 document.getElementById('settings-cancel-btn').addEventListener('click', () => {
   document.getElementById('modal-settings').style.display = 'none';
 });
 document.getElementById('settings-save-btn').addEventListener('click', () => {
-  const appId = document.getElementById('settings-appid').value.trim();
-  const affId = document.getElementById('settings-affid').value.trim();
-  if (!appId) { alert('アプリIDは必須です'); return; }
+  const appId  = document.getElementById('settings-appid').value.trim();
+  const accKey = document.getElementById('settings-acckey').value.trim();
+  const affId  = document.getElementById('settings-affid').value.trim();
+  if (!appId)  { alert('アプリIDは必須です'); return; }
+  if (!accKey) { alert('アクセスキーは必須です'); return; }
   saveAppId(appId);
+  saveAccKey(accKey);
   saveAffId(affId);
   document.getElementById('modal-settings').style.display = 'none';
 });
@@ -429,7 +455,7 @@ class GenreNav {
     this.grid.innerHTML = '<div class="loading-msg">読み込み中...</div>';
     try {
       const data = await jsonp(
-        `https://app.rakuten.co.jp/services/api/IchibaGenre/Search/20140222?applicationId=${getAppId()}&genreId=${genreId}&format=json`
+        `https://openapi.rakuten.co.jp/ichibagt/api/IchibaGenre/Search/20170711?${authParams()}&genreId=${genreId}&format=json`
       );
       if (data.error) {
         this.grid.innerHTML = apiErrorHtml(data);
@@ -533,7 +559,7 @@ document.getElementById('r-fetch-btn').addEventListener('click', async () => {
 
   try {
     const data = await jsonp(
-      `https://app.rakuten.co.jp/services/api/IchibaItem/Ranking/20220601?applicationId=${getAppId()}${affParam()}&genreId=${genreId}&period=${rankPeriod}&hits=30&page=1&format=json`
+      `https://openapi.rakuten.co.jp/ichibaranking/api/IchibaItem/Ranking/20220601?${authParams()}${affParam()}&genreId=${genreId}&period=${rankPeriod}&hits=30&page=1&format=json`
     );
 
     if (data.error) {
@@ -631,7 +657,7 @@ async function runRankSearch({ keyword, genreId, shopCode, maxPages, fillId, sta
       document.getElementById(fillId).style.width = Math.round(page / maxPages * 100) + '%';
       document.getElementById(statusId).textContent = `${page} / ${maxPages} ページ検索中（${(page - 1) * 30}件完了）`;
 
-      let url = `https://app.rakuten.co.jp/services/api/IchibaItem/Search/20170706?applicationId=${getAppId()}${affParam()}&hits=30&page=${page}&format=json`;
+      let url = `https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260401?${authParams()}${affParam()}&hits=30&page=${page}&format=json`;
       if (keyword) url += '&keyword=' + encodeURIComponent(keyword);
       if (genreId) url += '&genreId=' + genreId;
 
@@ -740,11 +766,7 @@ document.getElementById('c-search-btn').addEventListener('click', () => {
 
 // ===== INIT =====
 (function init() {
-  // 旧キー名からの移行
-  const legacy = localStorage.getItem('rakuten_app_id');
-  if (legacy && !getAppId()) { saveAppId(legacy); }
-
-  if (getAppId()) {
+  if (getAppId() && getAccKey()) {
     showApp();
   } else {
     showSetup();
