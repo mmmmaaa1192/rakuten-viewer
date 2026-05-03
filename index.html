@@ -804,6 +804,8 @@ document.getElementById('r-fetch-btn').addEventListener('click', async () => {
     }
 
     const cardsHtml = data.Items
+      .slice()
+      .sort((a, b) => (a.Item.rank || 0) - (b.Item.rank || 0))
       .map((obj, i) => buildItemCard(obj.Item, obj.Item.rank || (i + 1)))
       .join('');
 
