@@ -164,7 +164,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
       <strong>⚠ アプリ登録時の注意</strong><br>
       <a href="https://webservice.rakuten.co.jp/app/list" target="_blank" rel="noopener" style="color:#bf0000;">楽天アプリ設定</a>で以下を確認してください：<br>
       ・アプリケーションタイプ → <strong>「Webアプリケーション」</strong><br>
-      ・許可されたWebサイト → <strong>「localhost」</strong><br>
+      ・許可されたWebサイト → <strong>「mmmmaaa1192.github.io」</strong><br>
       「API/バックエンドサービス」で登録した場合は上記に変更が必要です。
     </div>
     <label class="setup-label" for="setup-appid">楽天 Application ID</label>
@@ -386,9 +386,8 @@ function apiErrorHtml(data) {
       1. <a href="https://webservice.rakuten.co.jp/app/list" target="_blank" rel="noopener" style="color:#bf0000;">楽天ウェブサービス → アプリ情報の確認</a> を開く<br>
       2. アプリを編集：<br>
       &nbsp;&nbsp;・アプリケーションタイプ → <strong>「Webアプリケーション」</strong><br>
-      &nbsp;&nbsp;・許可されたWebサイト → <strong>「localhost」</strong><br>
-      3. 保存後、<code>server.bat</code> をダブルクリックして起動<br>
-      4. ブラウザで <a href="http://localhost:8765" target="_blank" style="color:#bf0000;">http://localhost:8765</a> を開く
+      &nbsp;&nbsp;・許可されたWebサイト → <strong>「mmmmaaa1192.github.io」</strong><br>
+      3. 保存して完了
     </div>`;
   }
   return `<div class="error-box">APIエラー [${esc(data.error)}]: ${esc(data.error_description || '')}</div>`;
