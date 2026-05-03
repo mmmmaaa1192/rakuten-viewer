@@ -168,7 +168,6 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
       「API/バックエンドサービス」で登録した場合は上記に変更が必要です。
       アプリ詳細に <strong>「アクセスキー（accessKey）」</strong> が表示されていることを確認してください。
     </div>
-    <label class="setup-label" for="setup-appid">楽天 Application ID</label>
     <label class="setup-label" for="setup-appid">楽天 Application ID <span style="color:#cc0000;">必須</span></label>
     <input class="setup-input" type="text" id="setup-appid" placeholder="例: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" spellcheck="false" autocomplete="off">
     <div class="setup-hint">アプリ詳細画面の「アプリID（applicationId）」を入力してください。</div>
@@ -354,8 +353,6 @@ function showApp() {
 
 // ===== SETUP SCREEN =====
 document.getElementById('setup-save-btn').addEventListener('click', () => {
-  const appId = document.getElementById('setup-appid').value.trim();
-  const affId = document.getElementById('setup-affid').value.trim();
   const appId  = document.getElementById('setup-appid').value.trim();
   const accKey = document.getElementById('setup-acckey').value.trim();
   const affId  = document.getElementById('setup-affid').value.trim();
