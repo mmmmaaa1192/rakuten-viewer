@@ -533,7 +533,7 @@ document.getElementById('r-fetch-btn').addEventListener('click', async () => {
 
   try {
     const data = await jsonp(
-      `https://app.rakuten.co.jp/services/api/IchibaRanking/Genre/20120927?applicationId=${getAppId()}${affParam()}&genreId=${genreId}&period=${rankPeriod}&hits=30&page=1&format=json`
+      `https://app.rakuten.co.jp/services/api/IchibaItem/Ranking/20220601?applicationId=${getAppId()}${affParam()}&genreId=${genreId}&period=${rankPeriod}&hits=30&page=1&format=json`
     );
 
     if (data.error) {
