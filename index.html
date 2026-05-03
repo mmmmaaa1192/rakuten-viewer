@@ -52,22 +52,58 @@ header {
 .tab-pane { display: none; padding: 20px 24px; max-width: 1200px; margin: 0 auto; }
 .tab-pane.active { display: block; }
 
-/* ===== CARDS (UI panels) ===== */
+/* ===== UI PANELS ===== */
 .card { background: white; border-radius: 8px; padding: 18px 20px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.09); }
 .card-title { font-size: 13px; font-weight: bold; color: #555; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid #f0f0f0; }
 
 /* ===== GENRE NAV ===== */
-.breadcrumb { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-bottom: 12px; min-height: 20px; }
+.breadcrumb { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-bottom: 10px; min-height: 20px; }
 .bc-link { font-size: 12px; color: #bf0000; cursor: pointer; }
 .bc-link:hover { text-decoration: underline; }
 .bc-sep { color: #ccc; font-size: 12px; }
 .bc-current { font-size: 12px; color: #333; font-weight: bold; }
+
+/* genre grid: each item has an inner "drill" button + optional label */
 .genre-grid { display: flex; flex-wrap: wrap; gap: 6px; min-height: 28px; }
-.genre-btn {
-  padding: 5px 11px; border: 1px solid #ddd; background: white;
-  border-radius: 4px; font-size: 12px; color: #444; transition: all 0.12s;
+.genre-item { display: flex; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; transition: border-color 0.12s; }
+.genre-item:hover { border-color: #bf0000; }
+.genre-drill {
+  padding: 5px 10px; background: white; border: none;
+  font-size: 12px; color: #444; transition: background 0.12s, color 0.12s;
 }
-.genre-btn:hover { background: #bf0000; color: white; border-color: #bf0000; }
+.genre-drill:hover { background: #bf0000; color: white; }
+.genre-pick {
+  padding: 5px 7px; background: #f7f7f7; border: none; border-left: 1px solid #ddd;
+  font-size: 11px; color: #bf0000; font-weight: bold; transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+.genre-pick:hover { background: #bf0000; color: white; }
+.genre-pick-only {
+  /* leaf node: no drill button, only pick */
+  padding: 5px 11px; background: white; border: none;
+  font-size: 12px; color: #444; transition: background 0.12s, color 0.12s;
+}
+.genre-pick-only:hover { background: #bf0000; color: white; }
+
+/* leaf node message */
+.genre-leaf-msg {
+  font-size: 12px; color: #aaa; display: flex; align-items: center; gap: 6px;
+}
+
+/* ===== SELECTED CATEGORY DISPLAY ===== */
+.selected-genre-box {
+  display: flex; align-items: center; gap: 10px;
+  background: #fff8f8; border: 1px solid #f5c8c8; border-radius: 6px;
+  padding: 9px 14px; margin-bottom: 14px;
+}
+.selected-genre-label { font-size: 12px; color: #999; white-space: nowrap; }
+.selected-genre-path {
+  font-size: 13px; font-weight: bold; color: #bf0000;
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.selected-genre-unset {
+  font-size: 13px; color: #bbb; flex: 1;
+}
 
 /* ===== PERIOD SELECTOR ===== */
 .period-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
@@ -94,7 +130,7 @@ header {
 input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 .form-hint { font-size: 12px; color: #999; margin-top: 4px; min-height: 16px; }
 
-/* ===== ITEM CARD GRID (ランキング・検索結果) ===== */
+/* ===== ITEM CARD GRID ===== */
 .item-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
@@ -102,43 +138,22 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   margin-top: 4px;
 }
 .item-card {
-  background: white;
-  border-radius: 8px;
-  overflow: hidden;
+  background: white; border-radius: 8px; overflow: hidden;
   box-shadow: 0 1px 4px rgba(0,0,0,0.10);
   transition: box-shadow 0.15s, transform 0.15s;
-  display: flex;
-  flex-direction: column;
-  position: relative;
+  display: flex; flex-direction: column; position: relative;
 }
 .item-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.16); transform: translateY(-2px); }
 .item-card-img-wrap {
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  background: #f8f8f8;
-  display: flex; align-items: center; justify-content: center;
-  overflow: hidden;
+  width: 100%; aspect-ratio: 1 / 1; background: #f8f8f8;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
 }
-.item-card-img {
-  width: 100%; height: 100%;
-  object-fit: contain;
-  padding: 8px;
-}
-.item-card-img-placeholder {
-  font-size: 40px; color: #ddd;
-}
-.item-card-body {
-  padding: 10px 12px 12px;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
+.item-card-img { width: 100%; height: 100%; object-fit: contain; padding: 8px; }
+.item-card-img-placeholder { font-size: 40px; color: #ddd; }
+.item-card-body { padding: 10px 12px 12px; flex: 1; display: flex; flex-direction: column; gap: 5px; }
 .item-card-rank {
-  position: absolute;
-  top: 8px; left: 8px;
-  width: 28px; height: 28px;
-  border-radius: 50%;
+  position: absolute; top: 8px; left: 8px;
+  width: 28px; height: 28px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-weight: bold; font-size: 12px;
   background: rgba(0,0,0,0.45); color: white;
@@ -162,7 +177,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 .progress-fill { height: 100%; background: #bf0000; transition: width 0.25s; border-radius: 3px; width: 0%; }
 .progress-status { font-size: 12px; color: #888; }
 
-/* ===== RESULT BOX (順位チェック結果) ===== */
+/* ===== RESULT BOX ===== */
 .result-box { border: 2px solid #e5e5e5; border-radius: 8px; padding: 24px 20px; text-align: center; }
 .result-box.found { border-color: #bf0000; }
 .result-context { font-size: 13px; color: #888; margin-bottom: 10px; }
@@ -259,7 +274,12 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
       <div class="genre-grid" id="r-genres"><div class="loading-msg">読み込み中...</div></div>
     </div>
     <div class="card">
-      <div class="card-title">期間</div>
+      <div class="card-title">期間と取得</div>
+      <!-- 選択中カテゴリ表示 -->
+      <div class="selected-genre-box" id="r-selected-box">
+        <span class="selected-genre-label">選択中：</span>
+        <span class="selected-genre-path" id="r-selected-path">全体（全カテゴリ）</span>
+      </div>
       <div class="period-row">
         <button class="period-btn active" data-period="realtime">リアルタイム</button>
         <button class="period-btn" data-period="daily">デイリー</button>
@@ -310,6 +330,11 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
     </div>
     <div class="card">
       <div class="card-title">カテゴリ順位チェック</div>
+      <!-- 選択中カテゴリ表示 -->
+      <div class="selected-genre-box" id="c-selected-box">
+        <span class="selected-genre-label">選択中：</span>
+        <span class="selected-genre-unset" id="c-selected-path">カテゴリを選択してください</span>
+      </div>
       <div class="form-group">
         <label class="form-label">対象ショップURL または ショップコード</label>
         <div class="input-row">
@@ -392,7 +417,12 @@ function showSetup() {
 function showApp() {
   document.getElementById('screen-setup').style.display = 'none';
   document.getElementById('screen-app').style.display   = 'block';
-  if (!rNav) { rNav = new GenreNav('r-genres', 'r-bc'); }
+  if (!rNav) {
+    rNav = new GenreNav('r-genres', 'r-bc', ({ path }) => {
+      document.getElementById('r-selected-path').textContent = path;
+      document.getElementById('r-selected-path').className = 'selected-genre-path';
+    });
+  }
 }
 
 // ===== SETUP SCREEN =====
@@ -407,7 +437,6 @@ document.getElementById('setup-save-btn').addEventListener('click', () => {
   saveCredentials(appId, accKey, affId);
   showApp();
 });
-
 document.getElementById('setup-appid').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('setup-save-btn').click();
 });
@@ -471,15 +500,38 @@ async function rakutenFetch(url) {
 }
 
 // ===== GENRE NAVIGATOR =====
+// onChange({ genreId, genreName, path }) is called whenever the selection changes.
+// Clicking a genre button left side → drills into subcategories (navigation).
+// Clicking the right "選択" button (or clicking at a leaf) → sets selected & calls onChange.
+// Navigation itself also updates the selected to reflect "current level".
 class GenreNav {
-  constructor(gridId, bcId) {
-    this.grid  = document.getElementById(gridId);
-    this.bcEl  = document.getElementById(bcId);
-    this.stack = [{ genreId: 0, genreName: '全体' }];
+  constructor(gridId, bcId, onChange) {
+    this.grid     = document.getElementById(gridId);
+    this.bcEl     = document.getElementById(bcId);
+    this.stack    = [{ genreId: 0, genreName: '全体' }];
+    this.selected = { genreId: 0, genreName: '全体' };
+    this.onChange = onChange || null;
     this._load(0);
   }
 
   get current() { return this.stack[this.stack.length - 1]; }
+
+  get selectedPath() {
+    // Build breadcrumb path string up to (and including) selected item.
+    // We store the full path in this.selectedStack.
+    return (this.selectedStack || [{ genreName: '全体' }])
+      .map(g => g.genreName).join(' › ');
+  }
+
+  _notifyChange() {
+    if (this.onChange) {
+      this.onChange({
+        genreId:  this.selected.genreId,
+        genreName: this.selected.genreName,
+        path:     this.selectedPath,
+      });
+    }
+  }
 
   async _load(genreId) {
     this.grid.innerHTML = '<div class="loading-msg">読み込み中...</div>';
@@ -496,18 +548,41 @@ class GenreNav {
     }
   }
 
-  _renderGrid(genres) {
-    if (!genres.length) {
-      this.grid.innerHTML = '<span style="font-size:12px;color:#aaa;">末端カテゴリです（このカテゴリを選択中）</span>';
+  _renderGrid(children) {
+    if (!children.length) {
+      // Leaf node: current is the deepest level; auto-select it.
+      this._selectCurrent();
+      this.grid.innerHTML = `<div class="genre-leaf-msg">
+        <span style="color:#bf0000;font-weight:bold;">✓ 選択済み</span>
+        <span style="color:#555;">${esc(this.current.genreName)}</span>
+        <span style="color:#aaa;font-size:11px;">（末端カテゴリ）</span>
+      </div>`;
       return;
     }
+
     this.grid.innerHTML = '';
-    genres.forEach(g => {
-      const btn = document.createElement('button');
-      btn.className   = 'genre-btn';
-      btn.textContent = g.genreName;
-      btn.addEventListener('click', () => this._drill(g.genreId, g.genreName));
-      this.grid.appendChild(btn);
+
+    children.forEach(g => {
+      const item = document.createElement('div');
+      item.className = 'genre-item';
+
+      // Left: drill-in button (navigate to subcategories)
+      const drill = document.createElement('button');
+      drill.className   = 'genre-drill';
+      drill.textContent = g.genreName;
+      drill.title       = `${g.genreName} のサブカテゴリを見る`;
+      drill.addEventListener('click', () => this._drill(g.genreId, g.genreName));
+
+      // Right: pick button (select this category without drilling further)
+      const pick = document.createElement('button');
+      pick.className   = 'genre-pick';
+      pick.textContent = '選択';
+      pick.title       = `${g.genreName} をこのカテゴリとして使用する`;
+      pick.addEventListener('click', () => this._pick(g.genreId, g.genreName));
+
+      item.appendChild(drill);
+      item.appendChild(pick);
+      this.grid.appendChild(item);
     });
   }
 
@@ -535,6 +610,48 @@ class GenreNav {
     });
   }
 
+  _selectCurrent() {
+    this.selected      = { ...this.current };
+    this.selectedStack = [...this.stack];
+    this._notifyChange();
+  }
+
+  _pick(genreId, genreName) {
+    // Select this genre without navigating into it.
+    this.selected      = { genreId, genreName };
+    this.selectedStack = [...this.stack, { genreId, genreName }];
+    this._notifyChange();
+    // Visual feedback: briefly highlight which button was picked
+    this._flashPicked(genreId);
+  }
+
+  _flashPicked(genreId) {
+    // Update grid to show which item is currently selected
+    const items = this.grid.querySelectorAll('.genre-item');
+    items.forEach(item => {
+      const drill = item.querySelector('.genre-drill');
+      const pick  = item.querySelector('.genre-pick');
+      if (!drill || !pick) return;
+      // We identify by stored genreId in a data attribute (set during render)
+      if (item.dataset.genreId == genreId) {
+        item.style.borderColor = '#bf0000';
+        item.style.background  = '#fff0f0';
+        pick.textContent       = '✓ 選択中';
+        pick.style.background  = '#bf0000';
+        pick.style.color       = 'white';
+      } else {
+        item.style.borderColor = '';
+        item.style.background  = '';
+        const p = item.querySelector('.genre-pick');
+        if (p && p.textContent === '✓ 選択中') {
+          p.textContent      = '選択';
+          p.style.background = '';
+          p.style.color      = '';
+        }
+      }
+    });
+  }
+
   async _drill(genreId, genreName) {
     this.stack.push({ genreId, genreName });
     await this._load(genreId);
@@ -545,6 +662,17 @@ class GenreNav {
     await this._load(this.current.genreId);
   }
 }
+
+// Patch: store genreId on each .genre-item so _flashPicked can find them
+const _origRenderGrid = GenreNav.prototype._renderGrid;
+GenreNav.prototype._renderGrid = function(children) {
+  _origRenderGrid.call(this, children);
+  // Attach genreId to each .genre-item after render
+  const items = this.grid.querySelectorAll('.genre-item');
+  items.forEach((item, i) => {
+    if (children[i]) item.dataset.genreId = children[i].genreId;
+  });
+};
 
 // ===== TABS =====
 let rNav = null;
@@ -559,7 +687,11 @@ document.querySelectorAll('.tab-nav-item').forEach(item => {
     document.getElementById('tab-' + item.dataset.tab).classList.add('active');
     if (item.dataset.tab === 'category' && !cNavInited) {
       cNavInited = true;
-      cNav = new GenreNav('c-genres', 'c-bc');
+      cNav = new GenreNav('c-genres', 'c-bc', ({ genreId, path }) => {
+        const el = document.getElementById('c-selected-path');
+        el.textContent = path;
+        el.className = genreId !== 0 ? 'selected-genre-path' : 'selected-genre-unset';
+      });
     }
   });
 });
@@ -602,8 +734,8 @@ function buildItemCard(it, rank) {
 }
 
 document.getElementById('r-fetch-btn').addEventListener('click', async () => {
-  const btn         = document.getElementById('r-fetch-btn');
-  const { genreId, genreName } = rNav.current;
+  const btn = document.getElementById('r-fetch-btn');
+  const { genreId, genreName } = rNav.selected;
   const periodLabel = { realtime:'リアルタイム', daily:'デイリー', weekly:'ウィークリー', monthly:'月間' }[rankPeriod];
 
   btn.disabled    = true;
@@ -611,8 +743,14 @@ document.getElementById('r-fetch-btn').addEventListener('click', async () => {
   document.getElementById('r-results').innerHTML = '<div class="card loading-msg">データ取得中...</div>';
 
   try {
+    const params = [
+      authParams(), affParam(),
+      `period=${rankPeriod}`, `hits=30`, `page=1`, `format=json`,
+      genreId !== 0 ? `genreId=${genreId}` : '',
+    ].filter(Boolean).join('&');
+
     const data = await rakutenFetch(
-      `https://openapi.rakuten.co.jp/ichibaranking/api/IchibaItem/Ranking/20220601?${authParams()}${affParam()}&genreId=${genreId}&period=${rankPeriod}&hits=30&page=1&format=json`
+      `https://openapi.rakuten.co.jp/ichibaranking/api/IchibaItem/Ranking/20220601?${params}`
     );
 
     if (data.error) {
@@ -625,7 +763,7 @@ document.getElementById('r-fetch-btn').addEventListener('click', async () => {
     }
 
     const cardsHtml = data.Items
-      .map(obj => buildItemCard(obj.Item, obj.Item.rank || (data.Items.indexOf(obj) + 1)))
+      .map((obj, i) => buildItemCard(obj.Item, obj.Item.rank || (i + 1)))
       .join('');
 
     document.getElementById('r-results').innerHTML = `<div class="card">
@@ -649,8 +787,8 @@ function setupExtract(inputId, hintId, btnId) {
     const raw  = document.getElementById(inputId).value.trim();
     const code = extractShopCode(raw);
     if (code) {
-      document.getElementById(inputId).value     = code;
-      document.getElementById(hintId).innerHTML  = `抽出されたショップコード: <strong style="color:#bf0000;">${esc(code)}</strong>`;
+      document.getElementById(inputId).value    = code;
+      document.getElementById(hintId).innerHTML = `抽出されたショップコード: <strong style="color:#bf0000;">${esc(code)}</strong>`;
     } else if (raw) {
       document.getElementById(hintId).textContent = 'URLではないためそのままショップコードとして使用します';
     }
@@ -684,8 +822,8 @@ async function runRankSearch({ keyword, genreId, shopCode, maxPages, fillId, sta
       document.getElementById(statusId).textContent = `${page} / ${maxPages} ページ検索中（${(page - 1) * 30}件完了）`;
 
       let apiUrl = `https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260401?${authParams()}${affParam()}&hits=30&page=${page}&format=json`;
-      if (keyword)  apiUrl += '&keyword=' + encodeURIComponent(keyword);
-      if (genreId)  apiUrl += '&genreId=' + genreId;
+      if (keyword) apiUrl += '&keyword=' + encodeURIComponent(keyword);
+      if (genreId) apiUrl += '&genreId=' + genreId;
 
       let data;
       try {
@@ -772,7 +910,7 @@ document.getElementById('kw-search-btn').addEventListener('click', () => {
     fillId: 'kw-fill', statusId: 'kw-status',
     resultId: 'kw-result', progressCardId: 'kw-progress-card',
     btnId: 'kw-search-btn',
-    contextLabel: `「${keyword}」での検索結果`
+    contextLabel: `「${keyword}」での検索結果`,
   });
 });
 
@@ -780,15 +918,18 @@ document.getElementById('kw-search-btn').addEventListener('click', () => {
 document.getElementById('c-search-btn').addEventListener('click', () => {
   const shopCode = document.getElementById('c-shop').value.trim();
   const maxPages = parseInt(document.getElementById('c-pages').value);
-  if (!cNav || cNav.current.genreId === 0) { alert('カテゴリを選択してください（全体以外を選択）'); return; }
+  if (!cNav || cNav.selected.genreId === 0) {
+    alert('カテゴリを選択してください。\nジャンルボタン右の「選択」をクリックするか、末端カテゴリまで進んでください。');
+    return;
+  }
   if (!shopCode) { alert('ショップコードを入力してください'); return; }
-  const { genreId, genreName } = cNav.current;
+  const { genreId, genreName } = cNav.selected;
   runRankSearch({
     keyword: null, genreId, shopCode, maxPages,
     fillId: 'c-fill', statusId: 'c-status',
     resultId: 'c-result', progressCardId: 'c-progress-card',
     btnId: 'c-search-btn',
-    contextLabel: `カテゴリ「${genreName}」内の検索結果`
+    contextLabel: `カテゴリ「${genreName}」内の検索結果`,
   });
 });
 
