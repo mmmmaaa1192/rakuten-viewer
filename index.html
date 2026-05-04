@@ -257,7 +257,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 <!-- ==================== MAIN APP ==================== -->
 <div id="screen-app">
   <header>
-    <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.0</span></span>
+    <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.1</span></span>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
       <button class="header-btn" id="open-settings-btn">⚙ 設定</button>
@@ -1008,21 +1008,31 @@ document.getElementById('r-fetch-btn').addEventListener('click', async () => {
       return;
     }
 
-    const { newUrl, oldUrl } = rankingUrl(genreId, rankPeriod, 1);
-    const data = await rakutenApi(newUrl, oldUrl);
+    // 3ページ並列取得（最大80件: 30+30+20）
+    const pages = await Promise.all([1, 2, 3].map(p => {
+      const { newUrl, oldUrl } = rankingUrl(genreId, rankPeriod, p);
+      return rakutenApi(newUrl, oldUrl).catch(() => null);
+    }));
 
-    if (data.error) {
-      document.getElementById('r-results').innerHTML = `<div class="card">${rankApiErrorHtml(data, rankPeriod)}</div>`;
+    const firstErr = pages[0];
+    if (firstErr?.error) {
+      document.getElementById('r-results').innerHTML = `<div class="card">${rankApiErrorHtml(firstErr, rankPeriod)}</div>`;
       return;
     }
-    if (!data.Items || !data.Items.length) {
+
+    const allItems = pages
+      .filter(d => d && !d.error && d.Items)
+      .flatMap(d => d.Items);
+
+    if (!allItems.length) {
       document.getElementById('r-results').innerHTML = '<div class="card" style="color:#aaa;text-align:center;padding:28px;">ランキングデータがありません</div>';
       return;
     }
 
-    const cardsHtml = data.Items
+    const cardsHtml = allItems
       .slice()
       .sort((a, b) => (a.Item.rank || 0) - (b.Item.rank || 0))
+      .slice(0, 80)
       .map((obj, i) => buildItemCard(obj.Item, obj.Item.rank || (i + 1)))
       .join('');
 
