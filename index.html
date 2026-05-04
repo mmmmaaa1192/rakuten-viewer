@@ -257,7 +257,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 <!-- ==================== MAIN APP ==================== -->
 <div id="screen-app">
   <header>
-    <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v2.5</span></span>
+    <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v2.6</span></span>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
       <button class="header-btn" id="open-settings-btn">⚙ 設定</button>
@@ -285,11 +285,10 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
       </div>
       <div class="period-row">
         <button class="period-btn active" data-period="realtime">リアルタイム</button>
-        <button class="period-btn" data-period="daily" disabled>デイリー</button>
-        <button class="period-btn" data-period="weekly" disabled>ウィークリー</button>
-        <button class="period-btn" data-period="monthly" disabled>月間</button>
+        <button class="period-btn" data-period="daily">デイリー</button>
+        <button class="period-btn" data-period="weekly">ウィークリー</button>
+        <button class="period-btn" data-period="monthly">月間</button>
       </div>
-      <div style="font-size:11px;color:#aaa;margin:-8px 0 6px;">※デイリー/ウィークリー/月間は楽天APIの仕様上、新形式アプリIDでは利用不可</div>
       <button class="btn-primary" id="r-fetch-btn">ランキングを取得</button>
     </div>
     <div id="r-results"></div>
@@ -489,7 +488,14 @@ function rankingUrl(genreId, period, page) {
   const genre  = (genreId && genreId !== 0) ? `&genreId=${genreId}` : '';
   return {
     newUrl: `${NEW_BASE}/ichibaranking/api/IchibaItem/Ranking/20220601?applicationId=${appId}&accessKey=${accKey}${aff}&period=${period}&hits=30&page=${page}&format=json${genre}`,
-    oldUrl: `${OLD_BASE}/IchibaItem/Ranking/20220601?applicationId=${appId}${aff}&period=${period}&hits=30&page=${page}&format=json${genre}`,
+    // 旧API: period=realtime のみ明示指定。daily はパラメータ省略でデフォルトdailyになる仕様。
+    // weekly/monthly は period パラメータを渡す（対応しているか要確認）
+    oldUrl: (() => {
+      const p = period === 'realtime' ? '&period=realtime'
+              : period === 'daily'    ? ''
+              : `&period=${period}`;
+      return `${OLD_BASE}/IchibaItem/Ranking/20220601?applicationId=${appId}${aff}${p}&hits=30&page=${page}&format=json${genre}`;
+    })(),
   };
 }
 
