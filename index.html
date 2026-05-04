@@ -256,7 +256,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 <!-- ==================== MAIN APP ==================== -->
 <div id="screen-app">
   <header>
-    <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v2.3</span></span>
+    <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v2.4</span></span>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
       <button class="header-btn" id="open-settings-btn">⚙ 設定</button>
@@ -454,18 +454,13 @@ async function rakutenApi(newUrl, oldUrl) {
         updateApiBadge('new');
         return data;
       }
-      // サーバーがエラーレスポンスを返した場合（CORSではない）→ エラーボディを解析して返す
-      try {
-        const errData = await res.json();
-        if (errData && errData.error) { updateApiBadge('new'); return errData; }
-      } catch(_) {}
+      // 新APIがエラーを返した場合は旧JSONP APIにフォールバック
     } catch (_) {
       // CORS blocked or network error → fall through to JSONP
     }
   }
 
-  // JSONP fallback (old app.rakuten.co.jp) — realtime のみ対応
-  if (!oldUrl) throw new Error('no_fallback');
+  if (!oldUrl) throw new Error('APIに接続できません');
   const data = await jsonp(oldUrl);
   updateApiBadge('old');
   return data;
@@ -503,7 +498,7 @@ function searchUrl(keyword, genreId, page) {
   const kw     = keyword ? '&keyword=' + encodeURIComponent(keyword) : '';
   const genre  = genreId ? '&genreId=' + genreId : '';
   return {
-    newUrl: `${NEW_BASE}/ichibams/api/IchibaItem/Search/20260401?applicationId=${appId}&accessKey=${accKey}${aff}&hits=30&page=${page}&format=json${kw}${genre}`,
+    newUrl: `${NEW_BASE}/ichibams/api/IchibaItem/Search/20220601?applicationId=${appId}&accessKey=${accKey}${aff}&hits=30&page=${page}&format=json${kw}${genre}`,
     oldUrl: `${OLD_BASE}/IchibaItem/Search/20170706?applicationId=${appId}${aff}&hits=30&page=${page}&format=json${kw}${genre}`,
   };
 }
