@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.15</title>
+<title>楽天市場 リサーチツール v3.16</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -335,7 +335,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.15</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.16</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -2196,21 +2196,44 @@ if(!sec){
 }
 var seen={};var items=[];
 var cur=location.href.split('?')[0].replace(/\\/$/,'');
-var links=sec.querySelectorAll('a');
-for(var k=0;k<links.length;k++){
-  var a=links[k];
+var cards=sec.querySelectorAll('[role="button"]');
+if(!cards.length)cards=sec.querySelectorAll('a[href*="item.rakuten.co.jp"]');
+for(var k=0;k<cards.length;k++){
+  var card=cards[k];
+  var a=card.querySelector('a[href*="item.rakuten.co.jp"]')||card;
+  if(!a.href)continue;
   var url=a.href.split('?')[0].replace(/\\/$/,'');
   var m=url.match(/item\\.rakuten\\.co\\.jp\\/([^\\/#]+)\\/([^\\/#]+)/);
   if(!m||seen[url]||url===cur)continue;
   seen[url]=1;
-  var card=a.closest('li,article,[class*=item],[class*=product]')||a.parentElement||a;
-  var img=card.querySelector('img');
-  var nameEl=card.querySelector('[class*=name],[class*=title]')||a;
-  var priceEl=card.querySelector('[class*=price]');
-  var shopEl=card.querySelector('[class*=shop],[class*=store]');
-  var imgSrc=img&&img.naturalWidth>5?(img.dataset.lazySrc||img.dataset.src||img.getAttribute('data-original')||img.src||''):'';
-  if(imgSrc.indexOf('data:')===0)imgSrc='';
-  items.push({u:url,n:(nameEl.textContent||a.textContent).trim().replace(/\\s+/g,' ').slice(0,80),p:priceEl?parseInt(priceEl.textContent.replace(/\\D/g,''))||0:0,sc:m[1],sn:shopEl?shopEl.textContent.trim().slice(0,40):'',img:imgSrc.slice(0,300)});
+  var imgs=card.querySelectorAll('img');
+  var imgSrc='';
+  for(var ii=0;ii<imgs.length;ii++){
+    var s=imgs[ii].src||'';
+    if(s.indexOf('shop.r10s.jp')>=0||s.indexOf('/cabinet/')>=0||s.indexOf('@1_mall')>=0||s.indexOf('@2_mall')>=0){imgSrc=s;break;}
+  }
+  if(!imgSrc&&imgs.length>1)imgSrc=imgs[imgs.length-1].src||'';
+  var allText=card.querySelectorAll('span');
+  var nameEl=null;var maxLen=0;
+  for(var ti=0;ti<allText.length;ti++){
+    var t=allText[ti].textContent.trim();
+    if(allText[ti].childElementCount===0&&t.length>maxLen){maxLen=t.length;nameEl=allText[ti];}
+  }
+  var name=(nameEl?nameEl.textContent:a.textContent).trim().replace(/\\s+/g,' ').slice(0,80);
+  var priceNum=0;
+  var allEls=card.querySelectorAll('*');
+  for(var pi=0;pi<allEls.length;pi++){
+    var pt=allEls[pi].textContent.trim();
+    if(allEls[pi].childElementCount===0&&/^[\\d,]+$/.test(pt)){var n=parseInt(pt.replace(/,/g,''));if(n>0){priceNum=n;break;}}
+  }
+  var reviewScore=0;
+  for(var ri=0;ri<allEls.length;ri++){
+    var rt=allEls[ri].textContent.trim();
+    if(allEls[ri].childElementCount===0&&/^[1-5]\\.[0-9]+$/.test(rt)){reviewScore=parseFloat(rt);break;}
+  }
+  var shopLogoImg=card.querySelector('img');
+  var shopName=shopLogoImg?shopLogoImg.alt||'':'';
+  items.push({u:url,n:name,p:priceNum,sc:m[1],sn:shopName,img:imgSrc.slice(0,300),rv:reviewScore});
 }
 if(!items.length){alert('商品データを取得できませんでした。');return;}
 var payload=encodeURIComponent(JSON.stringify({src:cur,at:new Date().toISOString(),items:items.slice(0,50)}));
@@ -2258,6 +2281,7 @@ window.open(TOOL+'#rk_related='+payload,'_blank');
     const cards = payload.items.map((it, i) => {
       const isOwn = ownShops.length > 0 && ownShops.includes(it.sc.toLowerCase());
       const price = it.p > 0 ? '¥' + Number(it.p).toLocaleString() : '';
+      const review = it.rv > 0 ? `★${it.rv.toFixed(2)}` : '';
       return `<div class="item-card${isOwn ? ' own-shop' : ''}">
         <div class="item-card-rank ${i < 3 ? 'rank-' + (i+1) : ''}">${i+1}</div>
         <div class="item-card-img-wrap">
@@ -2268,6 +2292,7 @@ window.open(TOOL+'#rk_related='+payload,'_blank');
         <div class="item-card-body">
           <a class="item-card-name" href="${esc(it.u)}" target="_blank" rel="noopener">${esc(it.n)}</a>
           ${price ? `<div class="item-card-price">${price}</div>` : ''}
+          ${review ? `<div class="item-card-review">${review}</div>` : ''}
           <div class="item-card-shop">${esc(it.sn || it.sc)}</div>
         </div>
       </div>`;
