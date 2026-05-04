@@ -359,11 +359,11 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
         <span class="selected-genre-unset" id="c-selected-path">カテゴリを選択してください</span>
       </div>
       <div class="form-group">
-        <label class="form-label">対象ショップURL または ショップコード</label>
-        <div class="input-row">
-          <input class="form-input" type="text" id="c-shop"
-            placeholder="例: https://item.rakuten.co.jp/shopcode/ または shopcode">
-          <button class="btn-secondary" id="c-extract-btn">コード抽出</button>
+        <label class="form-label">対象ショップコード <span style="font-weight:normal;color:#aaa;">（省略時はカテゴリ内全件表示／複数はカンマ or 改行区切り）</span></label>
+        <textarea class="form-input" id="c-shop" rows="3"
+          placeholder="例: shopcode1, shopcode2&#10;または URL を貼り付けてコード抽出"></textarea>
+        <div style="display:flex;gap:6px;margin-top:4px;">
+          <button class="btn-secondary" id="c-extract-btn">URLからコード抽出</button>
         </div>
         <div class="form-hint" id="c-shop-hint"></div>
       </div>
@@ -1303,20 +1303,23 @@ document.getElementById('kw-search-btn').addEventListener('click', () => {
 
 // ===== CATEGORY RANK =====
 document.getElementById('c-search-btn').addEventListener('click', () => {
-  const shopCode = document.getElementById('c-shop').value.trim();
+  const shopRaw  = document.getElementById('c-shop').value.trim();
   const maxPages = parseInt(document.getElementById('c-pages').value);
   if (!cNav || cNav.selected.genreId === 0) {
     alert('カテゴリを選択してください。\nジャンル名の右にある「選択」ボタンをクリックするか、末端カテゴリまで進んでください。');
     return;
   }
-  if (!shopCode) { alert('ショップコードを入力してください'); return; }
+  const shopCode = shopRaw.split(/[\n,、]+/).map(s => {
+    const m = s.trim().match(/item\.rakuten\.co\.jp\/([^\/?\s]+)/);
+    return m ? m[1] : s.trim();
+  }).filter(Boolean).join(',');
   const { genreId, genreName } = cNav.selected;
   runRankSearch({
     keyword: null, genreId, shopCode, maxPages,
     fillId: 'c-fill', statusId: 'c-status',
     resultId: 'c-result', progressCardId: 'c-progress-card',
     btnId: 'c-search-btn', stopBtnId: 'c-stop-btn',
-    contextLabel: 'カテゴリ「' + genreName + '」内の検索結果',
+    contextLabel: 'カテゴリ「' + genreName + '」',
   });
 });
 
