@@ -257,7 +257,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 <!-- ==================== MAIN APP ==================== -->
 <div id="screen-app">
   <header>
-    <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.2</span></span>
+    <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.3</span></span>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
       <button class="header-btn" id="open-settings-btn">⚙ 設定</button>
@@ -1132,21 +1132,12 @@ async function runRankSearch({ keyword, genreId, shopCode, maxPages, fillId, sta
     document.getElementById(progressCardId).style.display = 'none';
 
     if (foundRank && foundItem) {
-      const img = foundItem.mediumImageUrls?.[0]?.imageUrl || '';
       document.getElementById(resultId).innerHTML = `<div class="card">
-        <div class="result-box found">
-          <div class="result-context">${esc(contextLabel)}</div>
-          <div><span class="result-rank-num">${foundRank}</span><span class="result-rank-unit"> 位</span></div>
-          <div class="result-searched">${totalSearched.toLocaleString()}件中 / ショップコード: ${esc(shopCode)}</div>
-          <div class="result-item-detail">
-            ${img ? `<img src="${esc(img)}" alt="">` : ''}
-            <div>
-              <a class="result-item-name" href="${esc(foundItem.itemUrl)}" target="_blank" rel="noopener">${esc(foundItem.itemName)}</a>
-              <div class="result-item-price">¥${Number(foundItem.itemPrice).toLocaleString()}</div>
-              <div class="result-item-shop">${esc(foundItem.shopName || '')}</div>
-            </div>
-          </div>
+        <div class="result-header">
+          <div class="result-header-title">${esc(contextLabel)}&nbsp;<span style="font-size:13px;color:#888;font-weight:normal;">${foundRank}位 / ${totalSearched.toLocaleString()}件中</span></div>
+          <div class="result-header-meta">ショップコード: ${esc(shopCode)}</div>
         </div>
+        <div class="item-grid">${buildItemCard(foundItem, foundRank)}</div>
       </div>`;
     } else {
       document.getElementById(resultId).innerHTML = `<div class="card">
