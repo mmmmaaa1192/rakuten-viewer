@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.12</title>
+<title>楽天市場 リサーチツール v3.13</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -335,7 +335,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.12</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.13</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -348,6 +348,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
     <div class="tab-nav-item" data-tab="keyword">キーワード順位</div>
     <div class="tab-nav-item" data-tab="category">カテゴリ順位</div>
     <div class="tab-nav-item" data-tab="tracker">推移チェッカー</div>
+    <div class="tab-nav-item" data-tab="related">関連商品</div>
   </div>
 
   <div class="app-body">
@@ -503,6 +504,35 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
           </div>
         </div>
       </div>
+      <!-- ===== Tab: Related ===== -->
+      <div id="tab-related" class="tab-pane">
+        <div class="card" style="margin-bottom:16px;">
+          <div style="font-size:15px;font-weight:bold;margin-bottom:14px;">📱 関連商品チェッカー</div>
+          <div style="font-size:13px;line-height:2;color:#444;margin-bottom:14px;">
+            <b>使い方</b><br>
+            ① 「ブックマークレットをコピー」→ ブラウザのブックマークバーに登録（一度だけ）<br>
+            ② 調べたい楽天商品ページを開く<br>
+            ③ ブックマークレットを実行（自動でモバイル表示に切り替えてリロード→再実行）<br>
+            ④ このツールが新タブで開き、関連商品を自動表示
+          </div>
+          <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:5px;padding:10px 12px;font-size:12px;color:#7a5c00;margin-bottom:14px;line-height:1.7;">
+            ⚠️ UA 偽装によるリロードが効かない場合は、Chrome の F12 → デバイスアイコン（Ctrl+Shift+M）でモバイルビューに切り替えてリロード後、再度ブックマークレットを実行してください。
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button class="btn-primary" id="rel-copy-btn" style="font-size:13px;padding:7px 16px;">ブックマークレットをコピー</button>
+            <span id="rel-copy-msg" style="font-size:12px;color:#188038;display:none;">✓ コピーしました</span>
+          </div>
+        </div>
+
+        <div id="rel-result-area">
+          <div id="rel-empty" style="text-align:center;padding:40px 20px;color:#aaa;">
+            <div style="font-size:36px;margin-bottom:12px;">📱</div>
+            <div style="font-size:14px;font-weight:bold;margin-bottom:8px;">関連商品チェッカー</div>
+            <div style="font-size:12px;line-height:1.8;">ブックマークレットを実行するとここに関連商品が表示されます</div>
+          </div>
+        </div>
+      </div>
+
     </div><!-- /.main-content -->
   </div><!-- /.app-body -->
 </div>
@@ -2132,6 +2162,181 @@ function renderImportChart(datasets) {
 
 // Initial render of preset list
 renderPresetList();
+
+// ===== RELATED PRODUCTS TAB =====
+(function() {
+  const TOOL_URL = location.origin + location.pathname;
+
+  // ---- Bookmarklet source (will be minified into javascript: URL) ----
+  function bookmarkletSource() {
+    var TOOL = '%%TOOL_URL%%';
+    var FLAG = '__rk_c__';
+
+    function collect() {
+      // Find section containing the heading text
+      var sec = null;
+      var all = document.querySelectorAll('*');
+      for (var i = 0; i < all.length; i++) {
+        var el = all[i];
+        if (el.children.length === 0 && el.textContent.trim() === 'この商品の楽天市場の関連商品') {
+          var p = el.parentElement;
+          for (var j = 0; j < 10; j++) {
+            if (!p) break;
+            if (p.querySelectorAll('a[href*="item.rakuten.co.jp"]').length > 1) { sec = p; break; }
+            p = p.parentElement;
+          }
+          break;
+        }
+      }
+
+      if (!sec) {
+        alert('「この商品の楽天市場の関連商品」が見つかりませんでした。\nF12 → スマホアイコン → リロード後に再実行してください。');
+        return;
+      }
+
+      var seen = {};
+      var items = [];
+      var currentUrl = location.href.split('?')[0].replace(/\/$/, '');
+
+      sec.querySelectorAll('a').forEach(function(a) {
+        var url = a.href.split('?')[0].replace(/\/$/, '');
+        var m = url.match(/item\.rakuten\.co\.jp\/([^/#]+)\/([^/#]+)/);
+        if (!m || seen[url] || url === currentUrl) return;
+        seen[url] = 1;
+
+        var card = a.closest('li,article,[class*=item],[class*=product],[class*=goods]') || a.parentElement;
+        var img = card.querySelector('img');
+        var nameEl = card.querySelector('[class*=name],[class*=title],[class*=item-name]') || a;
+        var priceEl = card.querySelector('[class*=price],[class*=cost]');
+        var shopEl = card.querySelector('[class*=shop],[class*=store]');
+
+        var imgSrc = img ? (img.dataset.lazySrc || img.dataset.src || img.getAttribute('data-original') || img.src || '') : '';
+        // skip tiny tracking pixels
+        if (imgSrc && (imgSrc.indexOf('data:') === 0 || (img && img.naturalWidth < 10))) imgSrc = '';
+
+        items.push({
+          u: url,
+          n: (nameEl.textContent || a.textContent).trim().replace(/\s+/g, ' ').slice(0, 80),
+          p: priceEl ? (parseInt(priceEl.textContent.replace(/[^0-9]/g, '')) || 0) : 0,
+          sc: m[1],
+          sn: shopEl ? shopEl.textContent.trim().slice(0, 40) : '',
+          img: imgSrc.slice(0, 300),
+        });
+      });
+
+      if (!items.length) { alert('商品データを取得できませんでした。'); return; }
+
+      var payload = encodeURIComponent(JSON.stringify({
+        src: currentUrl,
+        at: new Date().toISOString(),
+        items: items.slice(0, 50),
+      }));
+
+      window.open(TOOL + '#rk_related=' + payload, '_blank');
+      alert('関連商品 ' + items.length + '件を取得しました！\n新しいタブのツールで確認してください。');
+    }
+
+    if (sessionStorage.getItem(FLAG)) {
+      sessionStorage.removeItem(FLAG);
+      collect();
+    } else if (document.body.textContent.indexOf('この商品の楽天市場の関連商品') >= 0) {
+      collect();
+    } else {
+      sessionStorage.setItem(FLAG, '1');
+      try {
+        Object.defineProperty(navigator, 'userAgent', {
+          get: function() { return 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1'; },
+          configurable: true,
+        });
+      } catch(e) {}
+      location.reload();
+    }
+  }
+
+  function makeBookmarklet() {
+    const src = bookmarkletSource.toString()
+      .replace(/^function bookmarkletSource\(\)\s*\{/, '')
+      .replace(/\}$/, '')
+      .replace('%%TOOL_URL%%', TOOL_URL)
+      .replace(/\/\/.*/g, '')        // strip // comments
+      .replace(/\s+/g, ' ')
+      .trim();
+    return 'javascript:(function(){' + src + '})();';
+  }
+
+  document.getElementById('rel-copy-btn').addEventListener('click', () => {
+    const bm = makeBookmarklet();
+    navigator.clipboard.writeText(bm).then(() => {
+      const msg = document.getElementById('rel-copy-msg');
+      msg.style.display = 'inline';
+      setTimeout(() => { msg.style.display = 'none'; }, 2500);
+    }).catch(() => {
+      prompt('以下をコピーしてブックマークのURLに貼り付けてください:', makeBookmarklet());
+    });
+  });
+
+  // ---- Receive data from bookmarklet via URL hash ----
+  function checkHash() {
+    const m = location.hash.match(/^#rk_related=(.+)/);
+    if (!m) return;
+    history.replaceState(null, '', location.pathname + location.search);
+    try {
+      const payload = JSON.parse(decodeURIComponent(m[1]));
+      showRelatedItems(payload);
+      // Switch to related tab
+      document.querySelectorAll('.tab-nav-item').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      document.querySelector('[data-tab="related"]').classList.add('active');
+      document.getElementById('tab-related').classList.add('active');
+    } catch(e) { console.warn('related parse error', e); }
+  }
+
+  function showRelatedItems(payload) {
+    const ownShops = getOwnShops();
+    const hasOwn = ownShops.length > 0 && payload.items.some(it => ownShops.includes(it.sc.toLowerCase()));
+    const dt = new Date(payload.at).toLocaleString('ja-JP');
+    const area = document.getElementById('rel-result-area');
+
+    const cards = payload.items.map((it, i) => {
+      const isOwn = ownShops.length > 0 && ownShops.includes(it.sc.toLowerCase());
+      const price = it.p > 0 ? '¥' + Number(it.p).toLocaleString() : '';
+      return `<div class="item-card${isOwn ? ' own-shop' : ''}">
+        <div class="item-card-rank ${i < 3 ? 'rank-' + (i+1) : ''}">${i+1}</div>
+        <div class="item-card-img-wrap">
+          ${it.img
+            ? `<img class="item-card-img" src="${esc(it.img)}" alt="" loading="lazy" onerror="this.parentNode.innerHTML='<span class=item-card-img-placeholder>📦</span>'">`
+            : '<span class="item-card-img-placeholder">📦</span>'}
+        </div>
+        <div class="item-card-body">
+          <a class="item-card-name" href="${esc(it.u)}" target="_blank" rel="noopener">${esc(it.n)}</a>
+          ${price ? `<div class="item-card-price">${price}</div>` : ''}
+          <div class="item-card-shop">${esc(it.sn || it.sc)}</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    area.innerHTML = `
+      <div class="result-header">
+        <div class="result-header-title">関連商品 ${payload.items.length}件</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          ${hasOwn ? `<button class="btn-toggle-own" id="rel-own-toggle">自社店舗のみ</button>` : ''}
+          <div class="result-header-meta">取得元: <a href="${esc(payload.src)}" target="_blank" rel="noopener" style="color:#1a73e8;">${esc(payload.src.slice(0, 60))}…</a></div>
+          <div class="result-header-meta">${dt}</div>
+        </div>
+      </div>
+      <div class="item-grid" id="rel-item-grid">${cards}</div>`;
+
+    if (hasOwn) {
+      document.getElementById('rel-own-toggle').addEventListener('click', function() {
+        this.classList.toggle('active');
+        document.getElementById('rel-item-grid').classList.toggle('result-own-only', this.classList.contains('active'));
+      });
+    }
+  }
+
+  window.addEventListener('hashchange', checkHash);
+  checkHash(); // check on initial load (e.g., if bookmarklet opened this tab)
+})();
 </script>
 </body>
 </html>
