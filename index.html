@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.13</title>
+<title>楽天市場 リサーチツール v3.14</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -335,7 +335,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.13</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.14</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -508,19 +508,23 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
       <div id="tab-related" class="tab-pane">
         <div class="card" style="margin-bottom:16px;">
           <div style="font-size:15px;font-weight:bold;margin-bottom:14px;">📱 関連商品チェッカー</div>
-          <div style="font-size:13px;line-height:2;color:#444;margin-bottom:14px;">
-            <b>使い方</b><br>
-            ① 「ブックマークレットをコピー」→ ブラウザのブックマークバーに登録（一度だけ）<br>
-            ② 調べたい楽天商品ページを開く<br>
-            ③ ブックマークレットを実行（自動でモバイル表示に切り替えてリロード→再実行）<br>
-            ④ このツールが新タブで開き、関連商品を自動表示
+          <div style="font-size:13px;line-height:2;color:#444;margin-bottom:4px;">
+            <b>① ブックマーク登録（一度だけ）</b><br>
+            下のボタンをブラウザの<b>ブックマークバーにドラッグ</b>して登録してください。
           </div>
-          <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:5px;padding:10px 12px;font-size:12px;color:#7a5c00;margin-bottom:14px;line-height:1.7;">
-            ⚠️ UA 偽装によるリロードが効かない場合は、Chrome の F12 → デバイスアイコン（Ctrl+Shift+M）でモバイルビューに切り替えてリロード後、再度ブックマークレットを実行してください。
-          </div>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <button class="btn-primary" id="rel-copy-btn" style="font-size:13px;padding:7px 16px;">ブックマークレットをコピー</button>
+          <div style="background:#f0f4ff;border:1px solid #c5cff5;border-radius:6px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <a id="rel-bm-link" href="#" style="display:inline-block;background:#1a73e8;color:white;font-size:13px;font-weight:bold;padding:8px 16px;border-radius:5px;text-decoration:none;cursor:grab;user-select:none;">🔖 楽天関連商品チェッカー</a>
+            <span style="font-size:12px;color:#555;">← このボタンをブックマークバーへドラッグ</span>
+            <button class="btn-secondary" id="rel-copy-btn" style="font-size:12px;padding:5px 10px;">URLをコピー（代替）</button>
             <span id="rel-copy-msg" style="font-size:12px;color:#188038;display:none;">✓ コピーしました</span>
+          </div>
+          <div style="font-size:13px;line-height:2;color:#444;margin-bottom:4px;">
+            <b>② 使い方</b><br>
+            調べたい楽天商品ページを開いて登録したブックマークをクリック。<br>
+            自動でモバイル表示に切り替えてリロード→関連商品を取得→このツールに結果表示。
+          </div>
+          <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:5px;padding:8px 12px;font-size:12px;color:#7a5c00;line-height:1.7;">
+            ⚠️ 取得できない場合は Chrome で F12 → スマホアイコン（Ctrl+Shift+M）→ リロード後に再クリックしてください。
           </div>
         </div>
 
@@ -2255,14 +2259,19 @@ renderPresetList();
 
   function makeBookmarklet() {
     const src = bookmarkletSource.toString()
-      .replace(/^function bookmarkletSource\(\)\s*\{/, '')
-      .replace(/\}$/, '')
+      .replace(/^function bookmarkletSource\(\)\s*\{[\r\n]*/, '')
+      .replace(/\}[\s]*$/, '')
       .replace('%%TOOL_URL%%', TOOL_URL)
-      .replace(/\/\/.*/g, '')        // strip // comments
+      .replace(/\/\/[^\n]*/g, '')
       .replace(/\s+/g, ' ')
       .trim();
     return 'javascript:(function(){' + src + '})();';
   }
+
+  // Set the draggable link href dynamically (browsers block javascript: hrefs set in HTML)
+  const bmLink = document.getElementById('rel-bm-link');
+  bmLink.href = makeBookmarklet();
+  bmLink.addEventListener('click', e => e.preventDefault()); // prevent navigation on click
 
   document.getElementById('rel-copy-btn').addEventListener('click', () => {
     const bm = makeBookmarklet();
@@ -2271,7 +2280,7 @@ renderPresetList();
       msg.style.display = 'inline';
       setTimeout(() => { msg.style.display = 'none'; }, 2500);
     }).catch(() => {
-      prompt('以下をコピーしてブックマークのURLに貼り付けてください:', makeBookmarklet());
+      prompt('以下をコピーしてブックマークのURLに貼り付けてください:', bm);
     });
   });
 
