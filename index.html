@@ -257,7 +257,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 <!-- ==================== MAIN APP ==================== -->
 <div id="screen-app">
   <header>
-    <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v2.7</span></span>
+    <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v2.8</span></span>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
       <button class="header-btn" id="open-settings-btn">⚙ 設定</button>
@@ -822,6 +822,59 @@ document.querySelectorAll('.period-btn').forEach(btn => {
   });
 });
 
+// ===== WEB SCRAPING: weekly/monthly ranking from ranking.rakuten.co.jp =====
+async function fetchWebRanking(period, genreId) {
+  const periodPath = period === 'weekly' ? 'weekly' : 'monthly';
+  const genreSeg   = (genreId && genreId !== 0) ? `${genreId}/` : '';
+  const targetUrl  = `https://ranking.rakuten.co.jp/${periodPath}/${genreSeg}`;
+
+  let html = null;
+  const proxies = [
+    `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+  ];
+  for (const proxy of proxies) {
+    try {
+      const r = await fetch(proxy);
+      if (r.ok) { html = await r.text(); break; }
+    } catch(_) {}
+  }
+  if (!html) return null;
+
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const items = [];
+
+  doc.querySelectorAll('a[href*="item.rakuten.co.jp"]').forEach(link => {
+    if (items.length >= 30) return;
+    const href = link.getAttribute('href') || '';
+    if (!href || href.includes('undefined')) return;
+
+    const container = link.closest('li, article, [class*="RankItem"], [class*="rank-item"], [class*="rnk"]') || link.parentElement;
+
+    const nameEl = container?.querySelector('[class*="ItemName"],[class*="item-name"],[class*="itemName"],h3,h4') || link;
+    const name = nameEl.textContent?.trim().replace(/\s+/g, ' ').slice(0, 120);
+    if (!name || name.length < 4) return;
+
+    const imgEl  = link.querySelector('img') || container?.querySelector('img');
+    const imgSrc = imgEl?.getAttribute('data-src') || imgEl?.getAttribute('src') || '';
+
+    const priceEl  = container?.querySelector('[class*="Price"],[class*="price"]');
+    const priceNum = parseInt((priceEl?.textContent || '').replace(/[^0-9]/g, '')) || 0;
+
+    const rankEl  = container?.querySelector('[class*="Rank"],[class*="rank-num"],[class*="rankNum"]');
+    const rankNum = parseInt(rankEl?.textContent?.trim()) || (items.length + 1);
+
+    const shopEl   = container?.querySelector('[class*="Shop"],[class*="shop-name"],[class*="shopName"]');
+    const shopName = shopEl?.textContent?.trim() || '';
+
+    items.push({ rank: rankNum, itemName: name, itemUrl: href,
+      mediumImageUrls: imgSrc ? [{ imageUrl: imgSrc }] : [],
+      itemPrice: priceNum, shopName });
+  });
+
+  return items.length >= 3 ? items.sort((a, b) => a.rank - b.rank) : null;
+}
+
 function buildItemCard(it, rank) {
   const img        = it.mediumImageUrls?.[0]?.imageUrl || '';
   const price      = it.itemPrice != null ? '¥' + Number(it.itemPrice).toLocaleString() : '-';
@@ -857,6 +910,33 @@ document.getElementById('r-fetch-btn').addEventListener('click', async () => {
   document.getElementById('r-results').innerHTML = '<div class="card loading-msg">データ取得中...</div>';
 
   try {
+    if (rankPeriod === 'weekly' || rankPeriod === 'monthly') {
+      // APIが非対応のため楽天公式ランキングページからスクレイピング
+      const webItems = await fetchWebRanking(rankPeriod, genreId);
+      const periodPath = rankPeriod === 'weekly' ? 'weekly' : 'monthly';
+      const officialUrl = `https://ranking.rakuten.co.jp/${periodPath}/` + (genreId && genreId !== 0 ? `${genreId}/` : '');
+      const officialLink = `<a href="${esc(officialUrl)}" target="_blank" rel="noopener"
+        style="display:inline-block;margin-top:10px;padding:7px 16px;background:#bf0000;color:white;text-decoration:none;border-radius:4px;font-size:13px;">
+        楽天公式で${periodLabel}ランキングを開く</a>`;
+
+      if (webItems && webItems.length) {
+        const cardsHtml = webItems.map((item, i) => buildItemCard(item, item.rank || (i + 1))).join('');
+        document.getElementById('r-results').innerHTML = `<div class="card">
+          <div class="result-header">
+            <div class="result-header-title">${esc(genreName)}&nbsp;<span style="font-size:13px;color:#888;font-weight:normal;">${periodLabel}ランキング</span></div>
+            <div class="result-header-meta">${new Date().toLocaleString('ja-JP')}&nbsp;<span style="font-size:11px;color:#aaa;">楽天公式ページより取得</span></div>
+          </div>
+          <div class="item-grid">${cardsHtml}</div>
+        </div>`;
+      } else {
+        document.getElementById('r-results').innerHTML = `<div class="card"><div class="error-box">
+          楽天公式ページからのデータ取得に失敗しました。<br>
+          ${officialLink}
+        </div></div>`;
+      }
+      return;
+    }
+
     const { newUrl, oldUrl } = rankingUrl(genreId, rankPeriod, 1);
     const data = await rakutenApi(newUrl, oldUrl);
 
