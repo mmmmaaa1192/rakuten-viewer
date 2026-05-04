@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.10</title>
+<title>楽天市場 リサーチツール v3.11</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -321,7 +321,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.10</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.11</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -461,10 +461,10 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
             <button class="btn-primary" style="width:100%;font-size:13px;padding:8px;" id="tr-add-preset-btn">+ プリセット追加</button>
             <div id="tr-preset-list" style="margin-top:10px;"></div>
             <div class="tracker-sidebar-actions">
-              <button class="btn-secondary" style="font-size:12px;padding:6px 10px;" id="tr-export-btn">エクスポート</button>
+              <button class="btn-secondary" style="font-size:12px;padding:6px 10px;" id="tr-export-btn">選択をCSVエクスポート</button>
               <label class="btn-secondary" style="font-size:12px;padding:6px 10px;text-align:center;cursor:pointer;">
-                インポート
-                <input type="file" id="tr-import-file" accept=".json" style="display:none;">
+                CSVインポート・グラフ表示
+                <input type="file" id="tr-import-file" accept=".csv" multiple style="display:none;">
               </label>
             </div>
           </div>
@@ -1580,11 +1580,17 @@ function renderPresetList() {
     const badgeLabel = p.type === 'keyword' ? 'KW' : p.type === 'category' ? 'CAT' : 'RANK';
     const isActive   = p.id === trackerSelectedPresetId;
     return `<div class="preset-item${isActive ? ' active' : ''}" data-preset-id="${esc(p.id)}">
-      <div class="preset-item-name" title="${esc(p.name)}">
-        <span class="preset-badge ${badgeClass}">${badgeLabel}</span>${esc(p.name)}
+      <div style="display:flex;align-items:flex-start;gap:6px;">
+        <input type="checkbox" class="preset-export-chk" data-chk-id="${esc(p.id)}"
+          style="margin-top:3px;flex-shrink:0;" title="エクスポート対象に選択">
+        <div style="flex:1;min-width:0;">
+          <div class="preset-item-name" title="${esc(p.name)}">
+            <span class="preset-badge ${badgeClass}">${badgeLabel}</span>${esc(p.name)}
+          </div>
+          <div class="preset-item-meta">${p.type === 'keyword' ? esc(p.config.keyword) : esc(p.config.genreName)}</div>
+        </div>
       </div>
-      <div class="preset-item-meta">${p.type === 'keyword' ? esc(p.config.keyword) : esc(p.config.genreName)}</div>
-      <div class="preset-actions">
+      <div class="preset-actions" style="margin-top:4px;">
         <button class="btn-record" data-record-id="${esc(p.id)}">今すぐ記録</button>
         <button class="btn-icon" data-delete-id="${esc(p.id)}" title="削除">🗑</button>
       </div>
@@ -1594,7 +1600,7 @@ function renderPresetList() {
   // click to select preset
   el.querySelectorAll('.preset-item').forEach(item => {
     item.addEventListener('click', e => {
-      if (e.target.closest('button')) return; // ignore button clicks
+      if (e.target.closest('button') || e.target.type === 'checkbox') return;
       const pid = item.dataset.presetId;
       trackerSelectedPresetId = pid;
       renderPresetList();
@@ -1908,48 +1914,127 @@ function renderTrackerMain() {
   });
 }
 
-// ---- Export / Import ----
-document.getElementById('tr-export-btn').addEventListener('click', () => {
-  const data = { presets: loadPresets(), snapshots: loadSnapshots() };
-  const json = JSON.stringify(data, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
+// ---- Export (results CSV per preset) ----
+function snapshotsToCSV(snapshots) {
+  const rows = [['日時', 'ショップコード', '順位', '商品名', '価格', 'レビュー平均', 'レビュー件数', '商品URL']];
+  for (const snap of snapshots) {
+    const dt = new Date(snap.recordedAt).toLocaleString('ja-JP');
+    // shopResults (shop-specific)
+    if (snap.shopResults && Object.keys(snap.shopResults).length) {
+      for (const [sc, r] of Object.entries(snap.shopResults)) {
+        rows.push([dt, sc, r.rank ?? '', r.itemName ?? '', r.itemPrice ?? '', r.reviewAverage ?? '', r.reviewCount ?? '', r.itemUrl ?? '']);
+      }
+    }
+    // topItems (ranking / showAll)
+    if (snap.topItems && snap.topItems.length) {
+      for (const it of snap.topItems) {
+        rows.push([dt, it.shopCode ?? '', it.rank ?? '', it.itemName ?? '', it.itemPrice ?? '', it.reviewAverage ?? '', it.reviewCount ?? '', it.itemUrl ?? '']);
+      }
+    }
+  }
+  return rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\r\n');
+}
+
+function downloadCSV(csv, filename) {
+  const bom  = '﻿'; // UTF-8 BOM for Excel
+  const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
-  const date = new Date().toISOString().slice(0, 10);
-  a.href     = url;
-  a.download = `rakuten-tracker-${date}.json`;
-  a.click();
+  a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
+}
+
+document.getElementById('tr-export-btn').addEventListener('click', () => {
+  const checked = [...document.querySelectorAll('.preset-export-chk:checked')].map(el => el.dataset.chkId);
+  if (!checked.length) { alert('エクスポートするプリセットをチェックしてください'); return; }
+  const allSnaps = loadSnapshots();
+  const presets  = loadPresets();
+  const date     = new Date().toISOString().slice(0, 10);
+  let exported   = 0;
+  for (const pid of checked) {
+    const preset = presets.find(p => p.id === pid);
+    if (!preset) continue;
+    const snaps = allSnaps.filter(s => s.presetId === pid);
+    if (!snaps.length) { continue; }
+    const typeLabel = preset.type === 'keyword' ? 'keyword' : preset.type === 'category' ? 'category' : 'ranking';
+    const safeName  = preset.name.replace(/[\\/:*?"<>|]/g, '_').slice(0, 40);
+    downloadCSV(snapshotsToCSV(snaps), `${typeLabel}-${safeName}-${date}.csv`);
+    exported++;
+  }
+  if (!exported) alert('選択したプリセットに記録データがありません');
 });
 
+// ---- Import CSV → chart display ----
 document.getElementById('tr-import-file').addEventListener('change', function() {
-  const file = this.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    try {
-      const data = JSON.parse(e.target.result);
-      const existPresets   = loadPresets();
-      const existSnapshots = loadSnapshots();
-      const existPIds  = new Set(existPresets.map(p => p.id));
-      const existSIds  = new Set(existSnapshots.map(s => s.id));
+  const files = [...this.files];
+  if (!files.length) return;
+  const allDatasets = [];
+  let loaded = 0;
 
-      const newPresets   = (data.presets   || []).filter(p => !existPIds.has(p.id));
-      const newSnapshots = (data.snapshots || []).filter(s => !existSIds.has(s.id));
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const lines = e.target.result.split(/\r?\n/).filter(Boolean);
+      // parse: skip header row
+      const rows = lines.slice(1).map(line => {
+        const cols = line.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(c => c.replace(/^"|"$/g, '').replace(/""/g, '"'));
+        return { date: cols[0], shopCode: cols[1], rank: parseInt(cols[2]) || null, itemName: cols[3] };
+      }).filter(r => r.date && r.rank);
 
-      savePresets([...existPresets, ...newPresets]);
-      saveSnapshots([...existSnapshots, ...newSnapshots]);
+      // group by shopCode
+      const byShop = {};
+      for (const r of rows) {
+        const key = r.shopCode || '（不明）';
+        if (!byShop[key]) byShop[key] = [];
+        byShop[key].push({ x: r.date, y: r.rank });
+      }
 
-      alert('インポート完了: プリセット ' + newPresets.length + '件、スナップショット ' + newSnapshots.length + '件 追加');
-      renderPresetList();
-      renderTrackerMain();
-    } catch(err) {
-      alert('インポートに失敗しました: ' + err.message);
-    }
-    this.value = '';
-  };
-  reader.readAsText(file);
+      const colors = ['#bf0000','#1a73e8','#188038','#f9a825','#9c27b0','#00897b'];
+      let ci = 0;
+      for (const [shop, pts] of Object.entries(byShop)) {
+        allDatasets.push({
+          label: (file.name.replace('.csv','') + ' / ' + shop).slice(0, 50),
+          data: pts.sort((a,b) => a.x.localeCompare(b.x)),
+          borderColor: colors[ci % colors.length],
+          backgroundColor: colors[ci % colors.length] + '22',
+          tension: 0.3, pointRadius: 4, fill: false,
+        });
+        ci++;
+      }
+
+      loaded++;
+      if (loaded === files.length) renderImportChart(allDatasets);
+    };
+    reader.readAsText(file, 'UTF-8');
+  });
+  this.value = '';
 });
+
+function renderImportChart(datasets) {
+  const el = document.getElementById('tr-main-content');
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div style="font-size:14px;font-weight:bold;">CSVインポート — 順位推移グラフ</div>
+      <button class="btn-secondary" style="font-size:12px;padding:4px 10px;" onclick="renderTrackerMain()">← 記録データに戻る</button>
+    </div>
+    <div class="chart-wrap"><canvas id="import-chart"></canvas></div>`;
+
+  if (trackerChart) { trackerChart.destroy(); trackerChart = null; }
+  trackerChart = new Chart(document.getElementById('import-chart'), {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      parsing: { xAxisKey: 'x', yAxisKey: 'y' },
+      scales: {
+        x: { type: 'category', title: { display: true, text: '日時' } },
+        y: { reverse: true, title: { display: true, text: '順位' },
+             ticks: { stepSize: 1 } }
+      },
+      plugins: { legend: { position: 'bottom' } }
+    }
+  });
+}
 
 // Initial render of preset list
 renderPresetList();
