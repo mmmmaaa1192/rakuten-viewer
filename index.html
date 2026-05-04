@@ -210,6 +210,16 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 .modal-box { background: white; border-radius: 10px; padding: 28px 32px; width: 90%; max-width: 440px; box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
 .modal-title { font-size: 16px; font-weight: bold; margin-bottom: 20px; color: #333; }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+/* sidebar */
+.app-body { display: flex; height: calc(100vh - 52px); overflow: hidden; }
+.side-menu { width: 260px; flex-shrink: 0; background: white; border-right: 1px solid #e0e0e0; overflow-y: auto; transition: width 0.2s, padding 0.2s; }
+.side-menu.collapsed { width: 0; padding: 0; overflow: hidden; }
+.side-menu-inner { padding: 12px; min-width: 260px; }
+.side-menu-title { font-size: 13px; font-weight: bold; color: #bf0000; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #f0f0f0; }
+.main-content { flex: 1; overflow-y: auto; }
+.tab-toggle-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 10px; border-radius: 4px; font-size: 16px; cursor: pointer; transition: background 0.15s; margin-right: 8px; }
+.tab-toggle-btn:hover { background: rgba(255,255,255,0.35); }
 </style>
 </head>
 <body>
@@ -274,7 +284,10 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 <!-- ==================== MAIN APP ==================== -->
 <div id="screen-app">
   <header>
-    <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.7</span></span>
+    <div style="display:flex;align-items:center;">
+      <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.8</span></span>
+    </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
       <button class="header-btn" id="open-settings-btn">⚙ 設定</button>
@@ -287,102 +300,124 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
     <div class="tab-nav-item" data-tab="category">カテゴリ順位</div>
   </div>
 
-  <!-- ===== Tab: Ranking ===== -->
-  <div id="tab-ranking" class="tab-pane active">
-    <div class="card">
-      <div class="card-title">カテゴリ選択（クリックして絞り込み、右の「選択」で確定）</div>
-      <div class="breadcrumb" id="r-bc"></div>
-      <div class="genre-grid" id="r-genres"><div class="loading-msg">読み込み中...</div></div>
-    </div>
-    <div class="card">
-      <div class="card-title">期間と取得</div>
-      <div class="selected-genre-box">
-        <span class="selected-genre-label">選択中：</span>
-        <span class="selected-genre-path" id="r-selected-path">全体（全カテゴリ）</span>
-      </div>
-      <div class="period-row">
-        <button class="period-btn active" data-period="realtime">リアルタイム</button>
-        <button class="period-btn" data-period="daily">デイリー</button>
-        <button class="period-btn" data-period="weekly" disabled title="API非公開">ウィークリー</button>
-        <button class="period-btn" data-period="monthly" disabled title="API非公開">月間</button>
-      </div>
-      <button class="btn-primary" id="r-fetch-btn">ランキングを取得</button>
-    </div>
-    <div id="r-results"></div>
-  </div>
-
-  <!-- ===== Tab: Keyword Rank ===== -->
-  <div id="tab-keyword" class="tab-pane">
-    <div class="card">
-      <div class="card-title">キーワード順位チェック</div>
-      <div class="form-group">
-        <label class="form-label">検索キーワード</label>
-        <input class="form-input" type="text" id="kw-keyword" placeholder="例: ブルーベリー サプリ">
-      </div>
-      <div class="form-group">
-        <label class="form-label">対象ショップコード <span style="font-weight:normal;color:#aaa;">（省略時はキーワード検索結果を表示／複数はカンマ or 改行区切り）</span></label>
-        <textarea class="form-input" id="kw-shop" rows="3"
-          placeholder="例: shopcode1, shopcode2&#10;または URL を貼り付けてコード抽出"></textarea>
-        <div style="display:flex;gap:6px;margin-top:4px;">
-          <button class="btn-secondary" id="kw-extract-btn">URLからコード抽出</button>
+  <div class="app-body">
+    <!-- ===== Sidebar ===== -->
+    <aside id="side-menu" class="side-menu">
+      <div class="side-menu-inner">
+        <div class="side-menu-title">カテゴリ選択</div>
+        <div class="breadcrumb" id="side-bc"></div>
+        <div class="genre-grid" id="side-genres"><div class="loading-msg">読み込み中...</div></div>
+        <div class="selected-genre-box" style="margin-top:12px;">
+          <span class="selected-genre-label">選択中：</span>
+          <span class="selected-genre-path" id="side-selected-path">全体（全カテゴリ）</span>
         </div>
-        <div class="form-hint" id="kw-shop-hint"></div>
       </div>
-      <div class="form-group">
-        <label class="form-label">最大検索件数: <span id="kw-pages-label">300件（10ページ）</span></label>
-        <input type="range" id="kw-pages" min="1" max="100" value="10">
-        <div class="form-hint">※ 1ページ約1秒かかります。100ページ = 最大100秒</div>
-      </div>
-      <button class="btn-primary" id="kw-search-btn">順位を検索</button>
-    </div>
-    <div class="card" id="kw-progress-card" style="display:none;">
-      <div class="progress-bar"><div class="progress-fill" id="kw-fill"></div></div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
-        <div class="progress-status" id="kw-status">検索中...</div>
-        <button class="btn-stop" id="kw-stop-btn" style="display:none;">■ 停止</button>
-      </div>
-    </div>
-    <div id="kw-result"></div>
-  </div>
+    </aside>
 
-  <!-- ===== Tab: Category Rank ===== -->
-  <div id="tab-category" class="tab-pane">
-    <div class="card">
-      <div class="card-title">カテゴリ選択（クリックして絞り込み、右の「選択」で確定）</div>
-      <div class="breadcrumb" id="c-bc"></div>
-      <div class="genre-grid" id="c-genres"><div class="loading-msg">タブを開くと読み込みます</div></div>
-    </div>
-    <div class="card">
-      <div class="card-title">カテゴリ順位チェック</div>
-      <div class="selected-genre-box">
-        <span class="selected-genre-label">選択中：</span>
-        <span class="selected-genre-unset" id="c-selected-path">カテゴリを選択してください</span>
-      </div>
-      <div class="form-group">
-        <label class="form-label">対象ショップコード <span style="font-weight:normal;color:#aaa;">（省略時はカテゴリ内全件表示／複数はカンマ or 改行区切り）</span></label>
-        <textarea class="form-input" id="c-shop" rows="3"
-          placeholder="例: shopcode1, shopcode2&#10;または URL を貼り付けてコード抽出"></textarea>
-        <div style="display:flex;gap:6px;margin-top:4px;">
-          <button class="btn-secondary" id="c-extract-btn">URLからコード抽出</button>
+    <!-- ===== Main Content ===== -->
+    <div class="main-content">
+      <!-- ===== Tab: Ranking ===== -->
+      <div id="tab-ranking" class="tab-pane active">
+        <div class="card">
+          <div class="card-title">期間と取得</div>
+          <div class="selected-genre-box">
+            <span class="selected-genre-label">選択中：</span>
+            <span id="r-selected-path" class="selected-genre-path">全体（全カテゴリ）</span>
+          </div>
+          <div class="period-row">
+            <button class="period-btn active" data-period="realtime">リアルタイム</button>
+            <button class="period-btn" data-period="daily">デイリー</button>
+            <button class="period-btn" data-period="weekly" disabled title="API非公開">ウィークリー</button>
+            <button class="period-btn" data-period="monthly" disabled title="API非公開">月間</button>
+          </div>
+          <button class="btn-primary" id="r-fetch-btn">ランキングを取得</button>
         </div>
-        <div class="form-hint" id="c-shop-hint"></div>
+        <div id="r-results"></div>
       </div>
-      <div class="form-group">
-        <label class="form-label">最大検索件数: <span id="c-pages-label">300件（10ページ）</span></label>
-        <input type="range" id="c-pages" min="1" max="100" value="10">
-        <div class="form-hint">※ 1ページ約1秒かかります。100ページ = 最大100秒</div>
+
+      <!-- ===== Tab: Keyword Rank ===== -->
+      <div id="tab-keyword" class="tab-pane">
+        <div class="card">
+          <div class="card-title">キーワード順位チェック</div>
+          <div class="form-group">
+            <label class="form-label">検索キーワード</label>
+            <input class="form-input" type="text" id="kw-keyword" placeholder="例: ブルーベリー サプリ">
+          </div>
+          <div class="form-group">
+            <label class="form-label">対象ショップコード <span style="font-weight:normal;color:#aaa;">（省略時はキーワード検索結果を表示／複数はカンマ or 改行区切り）</span></label>
+            <textarea class="form-input" id="kw-shop" rows="3"
+              placeholder="例: shopcode1, shopcode2&#10;または URL を貼り付けてコード抽出"></textarea>
+            <div style="display:flex;gap:6px;margin-top:4px;">
+              <button class="btn-secondary" id="kw-extract-btn">URLからコード抽出</button>
+            </div>
+            <div class="form-hint" id="kw-shop-hint"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">並び順</label>
+            <select class="form-input" id="kw-sort">
+              <option value="standard">標準（デフォルト）</option>
+              <option value="-reviewCount">レビュー数 降順</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">最大検索件数: <span id="kw-pages-label">300件（10ページ）</span></label>
+            <input type="range" id="kw-pages" min="1" max="100" value="10">
+            <div class="form-hint">※ 1ページ約1秒かかります。100ページ = 最大100秒</div>
+          </div>
+          <button class="btn-primary" id="kw-search-btn">順位を検索</button>
+        </div>
+        <div class="card" id="kw-progress-card" style="display:none;">
+          <div class="progress-bar"><div class="progress-fill" id="kw-fill"></div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+            <div class="progress-status" id="kw-status">検索中...</div>
+            <button class="btn-stop" id="kw-stop-btn" style="display:none;">■ 停止</button>
+          </div>
+        </div>
+        <div id="kw-result"></div>
       </div>
-      <button class="btn-primary" id="c-search-btn">順位を検索</button>
-    </div>
-    <div class="card" id="c-progress-card" style="display:none;">
-      <div class="progress-bar"><div class="progress-fill" id="c-fill"></div></div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
-        <div class="progress-status" id="c-status">検索中...</div>
-        <button class="btn-stop" id="c-stop-btn" style="display:none;">■ 停止</button>
+
+      <!-- ===== Tab: Category Rank ===== -->
+      <div id="tab-category" class="tab-pane">
+        <div class="card">
+          <div class="card-title">カテゴリ順位チェック</div>
+          <div class="selected-genre-box">
+            <span class="selected-genre-label">選択中：</span>
+            <span class="selected-genre-unset" id="c-selected-path">カテゴリを選択してください</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">対象ショップコード <span style="font-weight:normal;color:#aaa;">（省略時はカテゴリ内全件表示／複数はカンマ or 改行区切り）</span></label>
+            <textarea class="form-input" id="c-shop" rows="3"
+              placeholder="例: shopcode1, shopcode2&#10;または URL を貼り付けてコード抽出"></textarea>
+            <div style="display:flex;gap:6px;margin-top:4px;">
+              <button class="btn-secondary" id="c-extract-btn">URLからコード抽出</button>
+            </div>
+            <div class="form-hint" id="c-shop-hint"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">並び順</label>
+            <select class="form-input" id="c-sort">
+              <option value="standard">標準（デフォルト）</option>
+              <option value="-reviewCount">レビュー数 降順</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">最大検索件数: <span id="c-pages-label">300件（10ページ）</span></label>
+            <input type="range" id="c-pages" min="1" max="100" value="10">
+            <div class="form-hint">※ 1ページ約1秒かかります。100ページ = 最大100秒</div>
+          </div>
+          <button class="btn-primary" id="c-search-btn">順位を検索</button>
+        </div>
+        <div class="card" id="c-progress-card" style="display:none;">
+          <div class="progress-bar"><div class="progress-fill" id="c-fill"></div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+            <div class="progress-status" id="c-status">検索中...</div>
+            <button class="btn-stop" id="c-stop-btn" style="display:none;">■ 停止</button>
+          </div>
+        </div>
+        <div id="c-result"></div>
       </div>
-    </div>
-    <div id="c-result"></div>
-  </div>
+    </div><!-- /.main-content -->
+  </div><!-- /.app-body -->
 </div>
 
 <!-- ==================== SETTINGS MODAL ==================== -->
@@ -535,15 +570,16 @@ function rankingUrl(genreId, period, page) {
   };
 }
 
-function searchUrl(keyword, genreId, page) {
+function searchUrl(keyword, genreId, page, sort = 'standard') {
   const appId  = encodeURIComponent(getAppId());
   const accKey = encodeURIComponent(getAccKey());
   const aff    = affParam();
   const kw     = keyword ? '&keyword=' + encodeURIComponent(keyword) : '';
   const genre  = genreId ? '&genreId=' + genreId : '';
+  const sortParam = sort !== 'standard' ? '&sort=' + encodeURIComponent(sort) : '';
   return {
-    newUrl: `${NEW_BASE}/ichibams/api/IchibaItem/Search/20220601?applicationId=${appId}&accessKey=${accKey}${aff}&hits=30&page=${page}&format=json&formatVersion=2${kw}${genre}`,
-    oldUrl: `${OLD_BASE}/IchibaItem/Search/20170706?applicationId=${appId}${aff}&hits=30&page=${page}&format=json${kw}${genre}`,
+    newUrl: `${NEW_BASE}/ichibams/api/IchibaItem/Search/20220601?applicationId=${appId}&accessKey=${accKey}${aff}&hits=30&page=${page}&format=json&formatVersion=2${kw}${genre}${sortParam}`,
+    oldUrl: `${OLD_BASE}/IchibaItem/Search/20170706?applicationId=${appId}${aff}&hits=30&page=${page}&format=json${kw}${genre}${sortParam}`,
   };
 }
 
@@ -556,11 +592,15 @@ function showSetup() {
 function showApp() {
   document.getElementById('screen-setup').style.display = 'none';
   document.getElementById('screen-app').style.display   = 'block';
-  if (!rNav) {
-    rNav = new GenreNav('r-genres', 'r-bc', ({ path }) => {
-      const el = document.getElementById('r-selected-path');
-      el.textContent = path;
-      el.className   = 'selected-genre-path';
+  if (!sideNav) {
+    sideNav = new GenreNav('side-genres', 'side-bc', ({ genreId, path }) => {
+      document.getElementById('side-selected-path').textContent = path;
+      const rEl = document.getElementById('r-selected-path');
+      rEl.textContent = path;
+      rEl.className = 'selected-genre-path';
+      const cEl = document.getElementById('c-selected-path');
+      cEl.textContent = genreId !== 0 ? path : 'カテゴリを選択してください';
+      cEl.className = genreId !== 0 ? 'selected-genre-path' : 'selected-genre-unset';
     });
   }
 }
@@ -637,9 +677,9 @@ class GenreNav {
   constructor(gridId, bcId, onChange) {
     this.grid          = document.getElementById(gridId);
     this.bcEl          = document.getElementById(bcId);
-    this.stack         = [{ genreId: 0, genreName: '全体' }];
-    this.selected      = { genreId: 0, genreName: '全体' };
-    this.selectedStack = [{ genreId: 0, genreName: '全体' }];
+    this.stack         = [{ genreId: 0, genreName: '全体（全カテゴリ）' }];
+    this.selected      = { genreId: 0, genreName: '全体（全カテゴリ）' };
+    this.selectedStack = [{ genreId: 0, genreName: '全体（全カテゴリ）' }];
     this.onChange      = onChange || null;
     this._load(0);
   }
@@ -836,7 +876,7 @@ class GenreNav {
 }
 
 // ===== TABS =====
-let rNav = null, cNavInited = false, cNav = null;
+let sideNav = null;
 
 document.querySelectorAll('.tab-nav-item').forEach(item => {
   item.addEventListener('click', () => {
@@ -844,15 +884,13 @@ document.querySelectorAll('.tab-nav-item').forEach(item => {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     item.classList.add('active');
     document.getElementById('tab-' + item.dataset.tab).classList.add('active');
-    if (item.dataset.tab === 'category' && !cNavInited) {
-      cNavInited = true;
-      cNav = new GenreNav('c-genres', 'c-bc', ({ genreId, path }) => {
-        const el = document.getElementById('c-selected-path');
-        el.textContent = path;
-        el.className = genreId !== 0 ? 'selected-genre-path' : 'selected-genre-unset';
-      });
-    }
   });
+});
+
+// ===== SIDEBAR TOGGLE =====
+document.getElementById('side-toggle-btn').addEventListener('click', () => {
+  const menu = document.getElementById('side-menu');
+  menu.classList.toggle('collapsed');
 });
 
 // ===== RANKING TAB =====
@@ -1021,7 +1059,7 @@ function buildItemCard(it, rank) {
 
 document.getElementById('r-fetch-btn').addEventListener('click', async () => {
   const btn         = document.getElementById('r-fetch-btn');
-  const { genreId, genreName } = rNav.selected;
+  const { genreId, genreName } = sideNav.selected;
   const periodLabel = { realtime:'リアルタイム', daily:'デイリー', weekly:'ウィークリー', monthly:'月間' }[rankPeriod];
 
   btn.disabled    = true;
@@ -1135,7 +1173,7 @@ function toggleOwnFilter(btn, gridId) {
 }
 
 // ===== RANK SEARCH CORE =====
-async function runRankSearch({ keyword, genreId, shopCode, maxPages, fillId, statusId, resultId, progressCardId, btnId, stopBtnId, contextLabel }) {
+async function runRankSearch({ keyword, genreId, shopCode, maxPages, sort, fillId, statusId, resultId, progressCardId, btnId, stopBtnId, contextLabel }) {
   const btn     = document.getElementById(btnId);
   const stopBtn = stopBtnId ? document.getElementById(stopBtnId) : null;
   btn.disabled  = true;
@@ -1172,7 +1210,7 @@ async function runRankSearch({ keyword, genreId, shopCode, maxPages, fillId, sta
         setStatus(`${page} / ${effectiveMax} ページ検索中（${(page-1)*30}件完了）`);
       }
 
-      const { newUrl, oldUrl } = searchUrl(keyword, genreId, page);
+      const { newUrl, oldUrl } = searchUrl(keyword, genreId, page, sort);
       let data;
       try {
         data = await rakutenApi(newUrl, oldUrl);
@@ -1286,6 +1324,7 @@ document.getElementById('kw-search-btn').addEventListener('click', () => {
   const keyword      = document.getElementById('kw-keyword').value.trim();
   const shopRaw      = document.getElementById('kw-shop').value.trim();
   const maxPages     = parseInt(document.getElementById('kw-pages').value);
+  const sort         = document.getElementById('kw-sort').value;
   if (!keyword)  { alert('キーワードを入力してください'); return; }
   // URL が含まれていれば自動的にショップコードを抽出
   const shopCode = shopRaw.split(/[\n,、]+/).map(s => {
@@ -1293,7 +1332,7 @@ document.getElementById('kw-search-btn').addEventListener('click', () => {
     return m ? m[1] : s.trim();
   }).filter(Boolean).join(',');
   runRankSearch({
-    keyword, genreId: null, shopCode, maxPages,
+    keyword, genreId: null, shopCode, maxPages, sort,
     fillId: 'kw-fill', statusId: 'kw-status',
     resultId: 'kw-result', progressCardId: 'kw-progress-card',
     btnId: 'kw-search-btn', stopBtnId: 'kw-stop-btn',
@@ -1305,7 +1344,8 @@ document.getElementById('kw-search-btn').addEventListener('click', () => {
 document.getElementById('c-search-btn').addEventListener('click', () => {
   const shopRaw  = document.getElementById('c-shop').value.trim();
   const maxPages = parseInt(document.getElementById('c-pages').value);
-  if (!cNav || cNav.selected.genreId === 0) {
+  const sort     = document.getElementById('c-sort').value;
+  if (!sideNav || sideNav.selected.genreId === 0) {
     alert('カテゴリを選択してください。\nジャンル名の右にある「選択」ボタンをクリックするか、末端カテゴリまで進んでください。');
     return;
   }
@@ -1313,9 +1353,9 @@ document.getElementById('c-search-btn').addEventListener('click', () => {
     const m = s.trim().match(/item\.rakuten\.co\.jp\/([^\/?\s]+)/);
     return m ? m[1] : s.trim();
   }).filter(Boolean).join(',');
-  const { genreId, genreName } = cNav.selected;
+  const { genreId, genreName } = sideNav.selected;
   runRankSearch({
-    keyword: null, genreId, shopCode, maxPages,
+    keyword: null, genreId, shopCode, maxPages, sort,
     fillId: 'c-fill', statusId: 'c-status',
     resultId: 'c-result', progressCardId: 'c-progress-card',
     btnId: 'c-search-btn', stopBtnId: 'c-stop-btn',
