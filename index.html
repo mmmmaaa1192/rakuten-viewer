@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール</title>
+<title>楽天市場 リサーチツール v3.10</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -226,7 +226,36 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 .main-content { flex: 1; overflow-y: auto; }
 .tab-toggle-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 10px; border-radius: 4px; font-size: 16px; cursor: pointer; transition: background 0.15s; margin-right: 8px; }
 .tab-toggle-btn:hover { background: rgba(255,255,255,0.35); }
+
+/* ===== TRACKER TAB ===== */
+.tracker-layout { display: flex; gap: 0; height: 100%; min-height: calc(100vh - 110px); }
+.tracker-sidebar { width: 220px; flex-shrink: 0; border-right: 1px solid #e0e0e0; padding: 12px; background: white; border-radius: 6px 0 0 6px; overflow-y: auto; }
+.tracker-main { flex: 1; padding: 16px; overflow-y: auto; }
+.preset-item { padding: 8px 10px; border: 1px solid #e0e0e0; border-radius: 5px; margin-bottom: 6px; cursor: pointer; transition: border-color 0.12s, background 0.12s; }
+.preset-item:hover { border-color: #bf0000; background: #fff9f9; }
+.preset-item.active { border-color: #bf0000; background: #fff0f0; }
+.preset-item-name { font-size: 13px; font-weight: bold; color: #333; margin-bottom: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preset-badge { display: inline-block; font-size: 10px; padding: 1px 5px; border-radius: 3px; color: white; margin-right: 4px; }
+.preset-badge.keyword  { background: #1a73e8; }
+.preset-badge.category { background: #188038; }
+.preset-badge.ranking  { background: #bf0000; }
+.preset-item-meta { font-size: 11px; color: #aaa; margin-top: 2px; }
+.preset-actions { display: flex; gap: 4px; margin-top: 6px; }
+.btn-record { background: #bf0000; color: white; border: none; padding: 3px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; }
+.btn-record:hover { background: #9e0000; }
+.btn-record:disabled { background: #ccc; cursor: not-allowed; }
+.btn-icon { background: none; border: none; color: #aaa; font-size: 13px; padding: 2px 4px; border-radius: 3px; }
+.btn-icon:hover { color: #bf0000; background: #fff0f0; }
+.tracker-empty { text-align: center; padding: 40px 20px; color: #aaa; }
+.chart-wrap { position: relative; height: 300px; margin-bottom: 20px; }
+.snapshot-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.snapshot-table th { background: #f5f5f5; padding: 6px 8px; text-align: left; border-bottom: 2px solid #e0e0e0; }
+.snapshot-table td { padding: 6px 8px; border-bottom: 1px solid #f0f0f0; }
+.snapshot-table tr:hover td { background: #fafafa; }
+.rank-cell { font-weight: bold; color: #bf0000; }
+.tracker-sidebar-actions { margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f0f0; display: flex; flex-direction: column; gap: 6px; }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -292,7 +321,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.9</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.10</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -304,6 +333,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
     <div class="tab-nav-item active" data-tab="ranking">ランキング</div>
     <div class="tab-nav-item" data-tab="keyword">キーワード順位</div>
     <div class="tab-nav-item" data-tab="category">カテゴリ順位</div>
+    <div class="tab-nav-item" data-tab="tracker">推移チェッカー</div>
   </div>
 
   <div class="app-body">
@@ -422,8 +452,104 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
         </div>
         <div id="c-result"></div>
       </div>
+
+      <!-- ===== Tab: Tracker ===== -->
+      <div id="tab-tracker" class="tab-pane">
+        <div class="tracker-layout">
+          <!-- Sidebar: Preset List -->
+          <div class="tracker-sidebar">
+            <button class="btn-primary" style="width:100%;font-size:13px;padding:8px;" id="tr-add-preset-btn">+ プリセット追加</button>
+            <div id="tr-preset-list" style="margin-top:10px;"></div>
+            <div class="tracker-sidebar-actions">
+              <button class="btn-secondary" style="font-size:12px;padding:6px 10px;" id="tr-export-btn">エクスポート</button>
+              <label class="btn-secondary" style="font-size:12px;padding:6px 10px;text-align:center;cursor:pointer;">
+                インポート
+                <input type="file" id="tr-import-file" accept=".json" style="display:none;">
+              </label>
+            </div>
+          </div>
+          <!-- Main: Chart + Table -->
+          <div class="tracker-main">
+            <div id="tr-main-content">
+              <div class="tracker-empty">
+                <div style="font-size:32px;margin-bottom:12px;">📈</div>
+                <div style="font-size:14px;font-weight:bold;margin-bottom:8px;">推移チェッカー</div>
+                <div style="font-size:12px;line-height:1.8;">
+                  左のサイドバーから「プリセット追加」で<br>
+                  監視したいキーワード・カテゴリ・ランキングを登録し、<br>
+                  「今すぐ記録」ボタンで順位スナップショットを保存。<br>
+                  複数回記録すると順位の推移グラフを表示します。
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div><!-- /.main-content -->
   </div><!-- /.app-body -->
+</div>
+
+<!-- ==================== PRESET MODAL ====================-->
+<div id="modal-preset" class="modal-overlay" style="display:none;">
+  <div class="modal-box" style="max-width:500px;">
+    <div class="modal-title">プリセット追加</div>
+    <div class="form-group">
+      <label class="form-label">名前</label>
+      <input class="form-input" type="text" id="pr-name" placeholder="例: ブルーベリー サプリ 順位">
+    </div>
+    <div class="form-group">
+      <label class="form-label">タイプ</label>
+      <select class="form-input" id="pr-type">
+        <option value="keyword">キーワード順位</option>
+        <option value="category">カテゴリ順位</option>
+        <option value="ranking">ランキング</option>
+      </select>
+    </div>
+    <!-- keyword only -->
+    <div class="form-group" id="pr-group-keyword">
+      <label class="form-label">検索キーワード</label>
+      <input class="form-input" type="text" id="pr-keyword" placeholder="例: ブルーベリー サプリ">
+    </div>
+    <!-- category/ranking -->
+    <div class="form-group" id="pr-group-category" style="display:none;">
+      <label class="form-label">カテゴリ</label>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span id="pr-genre-name" style="font-size:13px;color:#555;flex:1;">（未選択）</span>
+        <button class="btn-secondary" style="font-size:12px;padding:4px 10px;" id="pr-pick-genre-btn">サイドナビから取得</button>
+      </div>
+      <input type="hidden" id="pr-genre-id" value="">
+    </div>
+    <!-- ranking period -->
+    <div class="form-group" id="pr-group-period" style="display:none;">
+      <label class="form-label">期間</label>
+      <select class="form-input" id="pr-period">
+        <option value="realtime">リアルタイム</option>
+        <option value="daily">デイリー</option>
+      </select>
+    </div>
+    <!-- shop codes -->
+    <div class="form-group">
+      <label class="form-label">ショップコード <span style="font-weight:normal;color:#aaa;">（任意・改行orカンマ区切り）</span></label>
+      <textarea class="form-input" id="pr-shops" rows="2" placeholder="例: shopcode1&#10;shopcode2" style="font-family:monospace;font-size:13px;resize:vertical;"></textarea>
+    </div>
+    <!-- sort (keyword/category only) -->
+    <div class="form-group" id="pr-group-sort">
+      <label class="form-label">並び順</label>
+      <select class="form-input" id="pr-sort">
+        <option value="standard">標準（デフォルト）</option>
+        <option value="-reviewCount">レビュー数 降順</option>
+      </select>
+    </div>
+    <!-- max pages (keyword/category only) -->
+    <div class="form-group" id="pr-group-pages">
+      <label class="form-label">最大ページ数: <span id="pr-pages-label">10ページ（300件）</span></label>
+      <input type="range" id="pr-pages" min="1" max="100" value="10">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="pr-cancel-btn">キャンセル</button>
+      <button class="btn-primary" id="pr-save-btn">追加</button>
+    </div>
+  </div>
 </div>
 
 <!-- ==================== SETTINGS MODAL ==================== -->
