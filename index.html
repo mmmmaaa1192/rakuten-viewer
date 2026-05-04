@@ -257,7 +257,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 <!-- ==================== MAIN APP ==================== -->
 <div id="screen-app">
   <header>
-    <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.3</span></span>
+    <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.4</span></span>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
       <button class="header-btn" id="open-settings-btn">⚙ 設定</button>
@@ -303,11 +303,11 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
         <input class="form-input" type="text" id="kw-keyword" placeholder="例: ブルーベリー サプリ">
       </div>
       <div class="form-group">
-        <label class="form-label">対象ショップURL または ショップコード</label>
-        <div class="input-row">
-          <input class="form-input" type="text" id="kw-shop"
-            placeholder="例: https://item.rakuten.co.jp/shopcode/ または shopcode">
-          <button class="btn-secondary" id="kw-extract-btn">コード抽出</button>
+        <label class="form-label">対象ショップコード <span style="font-weight:normal;color:#aaa;">（省略時はキーワード検索結果を表示／複数はカンマ or 改行区切り）</span></label>
+        <textarea class="form-input" id="kw-shop" rows="3"
+          placeholder="例: shopcode1, shopcode2&#10;または URL を貼り付けてコード抽出"></textarea>
+        <div style="display:flex;gap:6px;margin-top:4px;">
+          <button class="btn-secondary" id="kw-extract-btn">URLからコード抽出</button>
         </div>
         <div class="form-hint" id="kw-shop-hint"></div>
       </div>
@@ -1084,27 +1084,35 @@ async function runRankSearch({ keyword, genreId, shopCode, maxPages, fillId, sta
   document.getElementById(progressCardId).style.display = 'block';
   document.getElementById(resultId).innerHTML = '';
 
-  let foundRank = null, foundItem = null, totalSearched = 0;
+  // shopCodesを正規化（空配列=ショップ未指定→全件表示モード）
+  const shopCodes = (shopCode || '')
+    .split(/[\s,、\n]+/)
+    .map(s => s.trim().toLowerCase())
+    .filter(Boolean);
+  const showAll = shopCodes.length === 0;
+
+  // ショップ未指定時は全件収集、指定時は全ショップが見つかるまで検索
+  const allItems   = [];                 // showAll用: 全アイテム
+  const foundMap   = new Map();          // shopCode → {rank, item}
+  let   totalSearched = 0;
 
   try {
     for (let page = 1; page <= maxPages; page++) {
-      document.getElementById(fillId).style.width    = Math.round(page / maxPages * 100) + '%';
-      document.getElementById(statusId).textContent = page + ' / ' + maxPages + ' ページ検索中（' + (page - 1) * 30 + '件完了）';
+      document.getElementById(fillId).style.width   = Math.round(page / maxPages * 100) + '%';
+      document.getElementById(statusId).textContent = `${page} / ${maxPages} ページ検索中（${(page-1)*30}件完了）`;
 
       const { newUrl, oldUrl } = searchUrl(keyword, genreId, page);
-
       let data;
       try {
         data = await rakutenApi(newUrl, oldUrl);
       } catch(e) {
-        document.getElementById(statusId).textContent = page + 'ページ取得失敗: ' + e.message;
+        document.getElementById(statusId).textContent = `${page}ページ取得失敗: ${e.message}`;
         await sleep(2000);
         continue;
       }
 
       if (data.error) {
-        document.getElementById(statusId).textContent = 'APIエラー: ' + (data.error_description || data.error);
-        document.getElementById(resultId).innerHTML   = `<div class="card">${apiErrorHtml(data)}</div>`;
+        document.getElementById(resultId).innerHTML = `<div class="card">${apiErrorHtml(data)}</div>`;
         document.getElementById(progressCardId).style.display = 'none';
         return;
       }
@@ -1113,17 +1121,22 @@ async function runRankSearch({ keyword, genreId, shopCode, maxPages, fillId, sta
       if (!items.length) break;
 
       for (let i = 0; i < items.length; i++) {
-        const it = items[i].Item || items[i];  // formatVersion=1(ラッパーあり) / 2(直接) 両対応
+        const it = items[i].Item || items[i];
         if (!it || typeof it !== 'object') continue;
         totalSearched++;
-        if ((it.shopCode || '').toLowerCase() === shopCode.toLowerCase()) {
-          foundRank = (page - 1) * 30 + i + 1;
-          foundItem = it;
-          break;
+        const rank = (page - 1) * 30 + i + 1;
+        if (showAll) {
+          allItems.push({ it, rank });
+        } else {
+          const sc = (it.shopCode || '').toLowerCase();
+          if (shopCodes.includes(sc) && !foundMap.has(sc)) {
+            foundMap.set(sc, { rank, item: it });
+          }
         }
       }
 
-      if (foundRank) break;
+      // 全ショップ見つかったら早期終了
+      if (!showAll && foundMap.size === shopCodes.length) break;
       if (items.length < 30) break;
       if (page < maxPages) await sleep(1100);
     }
@@ -1131,24 +1144,45 @@ async function runRankSearch({ keyword, genreId, shopCode, maxPages, fillId, sta
     document.getElementById(fillId).style.width = '100%';
     document.getElementById(progressCardId).style.display = 'none';
 
-    if (foundRank && foundItem) {
+    if (showAll) {
+      // ショップ未指定: 検索結果をカードグリッドで表示
+      if (!allItems.length) {
+        document.getElementById(resultId).innerHTML = '<div class="card" style="color:#aaa;text-align:center;padding:28px;">検索結果がありません</div>';
+        return;
+      }
+      const cardsHtml = allItems.map(({ it, rank }) => buildItemCard(it, rank)).join('');
       document.getElementById(resultId).innerHTML = `<div class="card">
         <div class="result-header">
-          <div class="result-header-title">${esc(contextLabel)}&nbsp;<span style="font-size:13px;color:#888;font-weight:normal;">${foundRank}位 / ${totalSearched.toLocaleString()}件中</span></div>
-          <div class="result-header-meta">ショップコード: ${esc(shopCode)}</div>
+          <div class="result-header-title">${esc(contextLabel)}</div>
+          <div class="result-header-meta">${totalSearched.toLocaleString()}件 / ${new Date().toLocaleString('ja-JP')}</div>
         </div>
-        <div class="item-grid">${buildItemCard(foundItem, foundRank)}</div>
+        <div class="item-grid">${cardsHtml}</div>
       </div>`;
     } else {
-      document.getElementById(resultId).innerHTML = `<div class="card">
-        <div class="result-box">
-          <div class="result-notfound">見つかりませんでした</div>
-          <div class="result-notfound-sub">
-            ${totalSearched.toLocaleString()}件を検索しましたが「${esc(shopCode)}」は見つかりませんでした。<br>
-            検索件数を増やすか、ショップコードを確認してください。
-          </div>
-        </div>
-      </div>`;
+      // ショップ指定: 各ショップの結果を表示
+      const sections = shopCodes.map(sc => {
+        const found = foundMap.get(sc);
+        if (found) {
+          return `<div class="card">
+            <div class="result-header">
+              <div class="result-header-title">${esc(contextLabel)}&nbsp;<span style="font-size:13px;color:#888;font-weight:normal;">${found.rank}位 / ${totalSearched.toLocaleString()}件中</span></div>
+              <div class="result-header-meta">ショップコード: ${esc(sc)}</div>
+            </div>
+            <div class="item-grid">${buildItemCard(found.item, found.rank)}</div>
+          </div>`;
+        } else {
+          return `<div class="card">
+            <div class="result-box">
+              <div class="result-notfound">見つかりませんでした</div>
+              <div class="result-notfound-sub">
+                ${totalSearched.toLocaleString()}件中「${esc(sc)}」は見つかりませんでした。<br>
+                検索件数を増やすか、ショップコードを確認してください。
+              </div>
+            </div>
+          </div>`;
+        }
+      }).join('');
+      document.getElementById(resultId).innerHTML = sections;
     }
   } catch(e) {
     document.getElementById(progressCardId).style.display = 'none';
@@ -1164,7 +1198,6 @@ document.getElementById('kw-search-btn').addEventListener('click', () => {
   const shopCode = document.getElementById('kw-shop').value.trim();
   const maxPages = parseInt(document.getElementById('kw-pages').value);
   if (!keyword)  { alert('キーワードを入力してください'); return; }
-  if (!shopCode) { alert('ショップコードを入力してください'); return; }
   runRankSearch({
     keyword, genreId: null, shopCode, maxPages,
     fillId: 'kw-fill', statusId: 'kw-status',
