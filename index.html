@@ -257,7 +257,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 <!-- ==================== MAIN APP ==================== -->
 <div id="screen-app">
   <header>
-    <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.4</span></span>
+    <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.5</span></span>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
       <button class="header-btn" id="open-settings-btn">⚙ 設定</button>
@@ -947,7 +947,8 @@ function _rkParseItem(obj, index) {
 }
 
 function buildItemCard(it, rank) {
-  const img        = it.mediumImageUrls?.[0]?.imageUrl || '';
+  const imgRaw     = it.mediumImageUrls?.[0];
+  const img        = (imgRaw && typeof imgRaw === 'object' ? imgRaw.imageUrl : imgRaw) || '';
   const price      = it.itemPrice != null ? '¥' + Number(it.itemPrice).toLocaleString() : '-';
   const avg        = parseFloat(it.reviewAverage || 0);
   const cnt        = Number(it.reviewCount || 0);
@@ -1128,8 +1129,11 @@ async function runRankSearch({ keyword, genreId, shopCode, maxPages, fillId, sta
         if (showAll) {
           allItems.push({ it, rank });
         } else {
-          const sc = (it.shopCode || '').toLowerCase();
-          if (shopCodes.includes(sc) && !foundMap.has(sc)) {
+          // shopCode: 新APIはitemCode "shopcode:itemid" 形式の場合があるので両方試す
+          const scDirect = (it.shopCode || '').toLowerCase();
+          const scFromCode = (it.itemCode || '').split(':')[0].toLowerCase();
+          const sc = scDirect || scFromCode;
+          if (sc && shopCodes.includes(sc) && !foundMap.has(sc)) {
             foundMap.set(sc, { rank, item: it });
           }
         }
@@ -1194,10 +1198,15 @@ async function runRankSearch({ keyword, genreId, shopCode, maxPages, fillId, sta
 
 // ===== KEYWORD RANK =====
 document.getElementById('kw-search-btn').addEventListener('click', () => {
-  const keyword  = document.getElementById('kw-keyword').value.trim();
-  const shopCode = document.getElementById('kw-shop').value.trim();
-  const maxPages = parseInt(document.getElementById('kw-pages').value);
+  const keyword      = document.getElementById('kw-keyword').value.trim();
+  const shopRaw      = document.getElementById('kw-shop').value.trim();
+  const maxPages     = parseInt(document.getElementById('kw-pages').value);
   if (!keyword)  { alert('キーワードを入力してください'); return; }
+  // URL が含まれていれば自動的にショップコードを抽出
+  const shopCode = shopRaw.split(/[\n,、]+/).map(s => {
+    const m = s.trim().match(/item\.rakuten\.co\.jp\/([^\/?\s]+)/);
+    return m ? m[1] : s.trim();
+  }).filter(Boolean).join(',');
   runRankSearch({
     keyword, genreId: null, shopCode, maxPages,
     fillId: 'kw-fill', statusId: 'kw-status',
