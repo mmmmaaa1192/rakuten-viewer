@@ -70,27 +70,33 @@ header {
 .bc-sep { color: #ccc; font-size: 12px; }
 .bc-current { font-size: 12px; color: #333; font-weight: bold; }
 
-.genre-grid { display: flex; flex-wrap: wrap; gap: 6px; min-height: 28px; }
-.genre-item {
-  display: flex; border: 1px solid #ddd; border-radius: 4px;
-  overflow: hidden; transition: border-color 0.12s;
+.genre-grid { min-height: 28px; }
+.genre-tree-item { display: block; }
+.genre-row {
+  display: flex; align-items: center; gap: 4px;
+  padding: 3px 4px; border-radius: 3px; transition: background 0.1s;
 }
-.genre-item:hover { border-color: #bf0000; }
-.genre-item.is-selected { border-color: #bf0000; background: #fff0f0; }
-.genre-drill {
-  padding: 5px 10px; background: white; border: none;
-  font-size: 12px; color: #444; transition: background 0.12s, color 0.12s;
+.genre-row:hover { background: #fafafa; }
+.genre-row.is-selected { background: #fff0f0; }
+.genre-toggle-btn {
+  background: none; border: none; color: #aaa; font-size: 10px;
+  width: 16px; flex-shrink: 0; cursor: pointer; padding: 0; line-height: 1;
 }
-.genre-drill:hover { background: #bf0000; color: white; }
-.genre-item.is-selected .genre-drill { background: #fff0f0; }
+.genre-toggle-btn:hover { color: #bf0000; }
+.genre-row-name {
+  flex: 1; font-size: 13px; color: #333;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  cursor: default;
+}
 .genre-pick {
-  padding: 5px 7px; background: #f7f7f7; border: none; border-left: 1px solid #ddd;
-  font-size: 11px; color: #bf0000; font-weight: bold;
-  transition: background 0.12s, color 0.12s; white-space: nowrap;
+  background: none; border: 1px solid #ddd; color: #888;
+  font-size: 11px; padding: 1px 6px; border-radius: 3px;
+  flex-shrink: 0; transition: all 0.1s; white-space: nowrap;
 }
-.genre-pick:hover { background: #bf0000; color: white; }
-.genre-item.is-selected .genre-pick { background: #bf0000; color: white; }
-.genre-leaf-msg { font-size: 12px; color: #aaa; display: flex; align-items: center; gap: 6px; }
+.genre-pick:hover { border-color: #bf0000; color: #bf0000; }
+.genre-row.is-selected .genre-pick { border-color: #bf0000; color: #bf0000; background: #fff0f0; font-weight: bold; }
+.genre-children { display: block; }
+.genre-leaf-msg { font-size: 12px; color: #aaa; display: flex; align-items: center; gap: 6px; padding: 4px; }
 
 /* ===== SELECTED CATEGORY DISPLAY ===== */
 .selected-genre-box {
@@ -286,7 +292,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.8</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.9</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -672,80 +678,130 @@ function rankApiErrorHtml(data, period) {
   return apiErrorHtml(data);
 }
 
-// ===== GENRE NAVIGATOR =====
+// ===== GENRE NAVIGATOR (tree toggle style) =====
 class GenreNav {
   constructor(gridId, bcId, onChange) {
-    this.grid          = document.getElementById(gridId);
-    this.bcEl          = document.getElementById(bcId);
-    this.stack         = [{ genreId: 0, genreName: '全体（全カテゴリ）' }];
-    this.selected      = { genreId: 0, genreName: '全体（全カテゴリ）' };
-    this.selectedStack = [{ genreId: 0, genreName: '全体（全カテゴリ）' }];
-    this.onChange      = onChange || null;
-    this._load(0);
-  }
-
-  get current() { return this.stack[this.stack.length - 1]; }
-
-  get selectedPath() {
-    return this.selectedStack.map(g => g.genreName).join(' › ');
+    this.container = document.getElementById(gridId);
+    this.bcEl      = document.getElementById(bcId);
+    this.selected  = { genreId: 0, genreName: '全体（全カテゴリ）', path: '全体（全カテゴリ）' };
+    this.onChange  = onChange || null;
+    this._initRoot();
   }
 
   _notify() {
-    if (this.onChange) {
-      this.onChange({
-        genreId:  this.selected.genreId,
-        genreName: this.selected.genreName,
-        path:     this.selectedPath,
-      });
-    }
+    if (this.onChange) this.onChange({
+      genreId:   this.selected.genreId,
+      genreName: this.selected.genreName,
+      path:      this.selected.path,
+    });
   }
 
-  async _load(genreId) {
-    this.grid.innerHTML = '<div class="loading-msg">読み込み中...</div>';
-    try {
-      const urls = genreUrl(genreId);
-      let data = await rakutenApi(urls.newUrl, urls.oldUrl);
-
-      // 旧URL2でも再試行（20140222が落ちている場合）
-      if (data.error) {
-        try { data = await jsonp(urls.oldUrl2); } catch(_) {}
-      }
-
-      // まだエラーなら手動入力フォールバックを表示
-      if (data.error) {
-        this._renderManualInput(genreId, data);
-        return;
-      }
-
-      // レスポンス構造を正規化:
-      //   新API: data.genreInformation[0].children
-      //   旧API: data.children  (genreInformation なし)
-      //   各子要素: {child:{...}} or {...} 直接
-      const genreInfo = data.genreInformation
-        ? (Array.isArray(data.genreInformation) ? data.genreInformation[0] : data.genreInformation)
-        : data;
-      const rawChildren = genreInfo?.children || [];
-      const children = rawChildren.map(c => c.child || c).filter(c => c.genreId);
-
-      console.log('[Genre] genreId=' + genreId, 'children=' + children.length);
-
-      this._renderGrid(children);
-      this._renderBc();
-    } catch(e) {
-      console.error('[Genre] error:', e);
-      this._renderManualInput(genreId, { error: e.message });
-    }
+  _updateBc(path) {
+    if (this.bcEl) this.bcEl.textContent = path;
   }
 
-  _renderManualInput(genreId, errData) {
-    const isRoot = genreId === 0;
-    this.grid.innerHTML = `
-      <div class="error-box" style="width:100%;">
+  async _fetchChildren(genreId) {
+    const urls = genreUrl(genreId);
+    let data;
+    try { data = await rakutenApi(urls.newUrl, urls.oldUrl); } catch(e) { return null; }
+    if (data.error) {
+      try { data = await jsonp(urls.oldUrl2); } catch(_) {}
+    }
+    if (data.error) return null;
+    const info = data.genreInformation
+      ? (Array.isArray(data.genreInformation) ? data.genreInformation[0] : data.genreInformation)
+      : data;
+    return (info?.children || []).map(c => c.child || c).filter(c => c.genreId);
+  }
+
+  async _initRoot() {
+    this.container.innerHTML = '<div class="loading-msg">読み込み中...</div>';
+    const children = await this._fetchChildren(0);
+    if (children === null) {
+      this._renderManualInput(this.container);
+      return;
+    }
+    this.container.innerHTML = '';
+    children.forEach(g => this.container.appendChild(this._makeRow(g, 0, '全体（全カテゴリ）')));
+  }
+
+  _makeRow(g, depth, parentPath) {
+    const myPath = parentPath ? parentPath + ' › ' + g.genreName : g.genreName;
+    const wrap = document.createElement('div');
+    wrap.className = 'genre-tree-item';
+
+    const row = document.createElement('div');
+    row.className = 'genre-row';
+    row.style.paddingLeft = (depth * 14 + 4) + 'px';
+
+    const toggle = document.createElement('button');
+    toggle.className   = 'genre-toggle-btn';
+    toggle.textContent = '▶';
+    toggle.title       = 'サブカテゴリを展開';
+
+    const nameEl = document.createElement('span');
+    nameEl.className   = 'genre-row-name';
+    nameEl.textContent = g.genreName;
+    nameEl.title       = g.genreName;
+
+    const pick = document.createElement('button');
+    pick.className   = 'genre-pick';
+    pick.textContent = '選択';
+
+    pick.addEventListener('click', () => {
+      // 選択状態をリセット
+      this.container.querySelectorAll('.genre-row').forEach(r => r.classList.remove('is-selected'));
+      this.container.querySelectorAll('.genre-pick').forEach(b => { if (b.textContent === '✓') b.textContent = '選択'; });
+      row.classList.add('is-selected');
+      pick.textContent = '✓';
+      this.selected = { genreId: g.genreId, genreName: g.genreName, path: myPath };
+      this._updateBc(myPath);
+      this._notify();
+    });
+
+    let childrenDiv = null;
+
+    toggle.addEventListener('click', async () => {
+      if (!childrenDiv) {
+        // 初回展開: サブカテゴリを取得
+        childrenDiv = document.createElement('div');
+        childrenDiv.className = 'genre-children';
+        childrenDiv.innerHTML = '<div class="loading-msg" style="font-size:12px;padding:6px 4px 6px ' + (depth * 14 + 20) + 'px;">読み込み中...</div>';
+        wrap.appendChild(childrenDiv);
+        toggle.textContent = '▼';
+
+        const kids = await this._fetchChildren(g.genreId);
+        childrenDiv.innerHTML = '';
+
+        if (!kids || !kids.length) {
+          // 子なし = リーフ: トグルを非表示にして自動選択
+          toggle.style.visibility = 'hidden';
+          childrenDiv.remove();
+          childrenDiv = null;
+          pick.click();
+          return;
+        }
+        kids.forEach(kid => childrenDiv.appendChild(this._makeRow(kid, depth + 1, myPath)));
+      } else {
+        // 開閉トグル
+        const closed = childrenDiv.style.display === 'none';
+        childrenDiv.style.display = closed ? '' : 'none';
+        toggle.textContent = closed ? '▼' : '▶';
+      }
+    });
+
+    row.appendChild(toggle);
+    row.appendChild(nameEl);
+    row.appendChild(pick);
+    wrap.appendChild(row);
+    return wrap;
+  }
+
+  _renderManualInput(container) {
+    container.innerHTML = `
+      <div class="error-box">
         <strong>カテゴリAPIが利用できません</strong><br>
-        ${isRoot
-          ? '解決策: 設定画面で<strong>アクセスキー</strong>を入力するか、楽天アプリを「Webアプリケーション」タイプに変更してください。'
-          : 'このカテゴリのサブ取得に失敗しました。'
-        }<br><br>
+        設定画面で<strong>アクセスキー</strong>を入力するか、楽天アプリを「Webアプリケーション」タイプに変更してください。<br><br>
         <strong>ジャンルIDを直接入力して使用できます：</strong><br>
         <small style="color:#aaa;">楽天市場のカテゴリページURL末尾の数字がジャンルIDです</small>
         <div style="display:flex;gap:6px;margin-top:8px;">
@@ -763,115 +819,21 @@ class GenreNav {
       </div>`;
 
     document.getElementById('genre-retry-btn')
-      ?.addEventListener('click', () => this._load(genreId));
+      ?.addEventListener('click', () => this._initRoot());
 
     document.getElementById('manual-genre-btn')
       ?.addEventListener('click', () => {
         const val = parseInt(document.getElementById('manual-genre-id').value);
         if (!val || isNaN(val)) { alert('ジャンルIDを入力してください'); return; }
-        this._doSelect(val, 'ジャンルID:' + val, [...this.stack, { genreId: val, genreName: 'ジャンルID:' + val }]);
-        this.grid.innerHTML = `<div class="genre-leaf-msg">
+        const path = 'ジャンルID: ' + val;
+        this.selected = { genreId: val, genreName: path, path };
+        this._updateBc(path);
+        this._notify();
+        container.innerHTML = `<div class="genre-leaf-msg">
           <span style="color:#bf0000;font-weight:bold;">✓ 選択済み</span>
-          <span>ジャンルID: ${val}</span>
-          <button onclick="this.closest('.genre-grid').dispatchEvent(new CustomEvent('reset-manual'))"
-            style="margin-left:8px;font-size:11px;background:none;border:none;color:#aaa;cursor:pointer;">変更</button>
+          <span>${esc(path)}</span>
         </div>`;
-        this._renderBc();
       });
-  }
-
-  _renderGrid(children) {
-    this.grid.innerHTML = '';
-
-    if (!children.length) {
-      // Leaf: auto-select current
-      this._doSelect(this.current.genreId, this.current.genreName, [...this.stack]);
-      this.grid.innerHTML = `<div class="genre-leaf-msg">
-        <span style="color:#bf0000;font-weight:bold;">✓ 選択済み</span>
-        <span>${esc(this.current.genreName)}</span>
-        <span style="color:#aaa;font-size:11px;">（これ以上絞り込めません）</span>
-      </div>`;
-      return;
-    }
-
-    children.forEach(g => {
-      const item = document.createElement('div');
-      item.className       = 'genre-item';
-      item.dataset.genreId = g.genreId;
-
-      // Drill button (navigate into subcategories)
-      const drill      = document.createElement('button');
-      drill.className  = 'genre-drill';
-      drill.textContent = g.genreName;
-      drill.title      = g.genreName + ' のサブカテゴリを表示';
-      drill.addEventListener('click', () => this._drill(g.genreId, g.genreName));
-
-      // Pick button (select this genre without drilling)
-      const pick      = document.createElement('button');
-      pick.className  = 'genre-pick';
-      pick.textContent = '選択';
-      pick.title      = g.genreName + ' をこのカテゴリとして確定';
-      pick.addEventListener('click', () => {
-        this._doSelect(g.genreId, g.genreName, [...this.stack, { genreId: g.genreId, genreName: g.genreName }]);
-        this._highlightSelected(g.genreId);
-      });
-
-      item.appendChild(drill);
-      item.appendChild(pick);
-      this.grid.appendChild(item);
-    });
-
-    // Re-apply selected highlight if it's in this list
-    this._highlightSelected(this.selected.genreId);
-  }
-
-  _renderBc() {
-    this.bcEl.innerHTML = '';
-    this.stack.forEach((g, i) => {
-      if (i > 0) {
-        const sep = document.createElement('span');
-        sep.className   = 'bc-sep';
-        sep.textContent = ' › ';
-        this.bcEl.appendChild(sep);
-      }
-      if (i === this.stack.length - 1) {
-        const cur = document.createElement('span');
-        cur.className   = 'bc-current';
-        cur.textContent = g.genreName;
-        this.bcEl.appendChild(cur);
-      } else {
-        const lnk = document.createElement('span');
-        lnk.className   = 'bc-link';
-        lnk.textContent = g.genreName;
-        lnk.addEventListener('click', () => this._jump(i));
-        this.bcEl.appendChild(lnk);
-      }
-    });
-  }
-
-  _doSelect(genreId, genreName, stackSnapshot) {
-    this.selected      = { genreId, genreName };
-    this.selectedStack = stackSnapshot;
-    this._notify();
-  }
-
-  _highlightSelected(selectedId) {
-    this.grid.querySelectorAll('.genre-item').forEach(item => {
-      const isSel = parseInt(item.dataset.genreId) === selectedId;
-      item.classList.toggle('is-selected', isSel);
-      const pick = item.querySelector('.genre-pick');
-      if (pick) pick.textContent = isSel ? '✓ 選択中' : '選択';
-    });
-  }
-
-  async _drill(genreId, genreName) {
-    this.stack.push({ genreId, genreName });
-    await this._load(genreId);
-  }
-
-  async _jump(index) {
-    this.stack = this.stack.slice(0, index + 1);
-    await this._load(this.current.genreId);
   }
 }
 
