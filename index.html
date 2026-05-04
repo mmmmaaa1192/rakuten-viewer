@@ -107,6 +107,7 @@ header {
 .period-btn { padding: 7px 18px; border: 2px solid #ddd; background: white; border-radius: 20px; font-size: 13px; transition: all 0.12s; color: #666; }
 .period-btn:hover { border-color: #bf0000; color: #bf0000; }
 .period-btn.active { background: #bf0000; border-color: #bf0000; color: white; font-weight: bold; }
+.period-btn:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
 
 /* ===== BUTTONS ===== */
 .btn-primary { background: #bf0000; color: white; border: none; padding: 10px 28px; border-radius: 5px; font-size: 14px; font-weight: bold; transition: background 0.12s; }
@@ -256,7 +257,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 <!-- ==================== MAIN APP ==================== -->
 <div id="screen-app">
   <header>
-    <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v2.1</span></span>
+    <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v2.2</span></span>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
       <button class="header-btn" id="open-settings-btn">⚙ 設定</button>
@@ -284,10 +285,11 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
       </div>
       <div class="period-row">
         <button class="period-btn active" data-period="realtime">リアルタイム</button>
-        <button class="period-btn" data-period="daily">デイリー</button>
-        <button class="period-btn" data-period="weekly">ウィークリー</button>
-        <button class="period-btn" data-period="monthly">月間</button>
+        <button class="period-btn" data-period="daily" disabled title="楽天APIは非対応">デイリー</button>
+        <button class="period-btn" data-period="weekly" disabled title="楽天APIは非対応">ウィークリー</button>
+        <button class="period-btn" data-period="monthly" disabled title="楽天APIは非対応">月間</button>
       </div>
+      <div style="font-size:11px;color:#aaa;margin:-8px 0 6px;">※デイリー/ウィークリー/月間は楽天公式APIが非対応のため利用不可</div>
       <button class="btn-primary" id="r-fetch-btn">ランキングを取得</button>
     </div>
     <div id="r-results"></div>
