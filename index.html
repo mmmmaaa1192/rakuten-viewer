@@ -256,7 +256,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 <!-- ==================== MAIN APP ==================== -->
 <div id="screen-app">
   <header>
-    <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v1.9</span></span>
+    <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v2.0</span></span>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
       <button class="header-btn" id="open-settings-btn">⚙ 設定</button>
@@ -444,22 +444,19 @@ function jsonp(url, timeoutMs = 10000) {
 }
 
 // ===== DUAL-MODE API CALL =====
-// newUrl: openapi.rakuten.co.jp endpoint (fetch + CORS)
-// oldUrl: app.rakuten.co.jp endpoint     (JSONP, always works)
+// 常に新API(fetch)を先に試みる。CORS失敗時のみ旧API(JSONP)にフォールバック。
 async function rakutenApi(newUrl, oldUrl) {
-  const hasAccKey = !!getAccKey();
-
-  // If we have an accessKey and mode allows new API, try fetch first
-  if (hasAccKey && apiMode !== 'old' && newUrl) {
+  // 新APIを常に先に試みる（accessKeyの有無に関わらず）
+  if (newUrl && apiMode !== 'old') {
     try {
       const res = await fetch(newUrl);
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-      updateApiBadge('new');
-      return data;
-    } catch (fetchErr) {
+      if (res.ok) {
+        const data = await res.json();
+        updateApiBadge('new');
+        return data;
+      }
+    } catch (_) {
       // CORS blocked or network error → fall through to JSONP
-      if (apiMode === 'new') throw fetchErr; // strict mode: don't fall back
     }
   }
 
@@ -617,51 +614,78 @@ class GenreNav {
       const urls = genreUrl(genreId);
       let data = await rakutenApi(urls.newUrl, urls.oldUrl);
 
-      // APIエラーチェック（複数フォーマット対応）
-      if (data.error || (data.statusCode && data.statusCode >= 400)) {
-        // 旧エンドポイント v2 で再試行
+      // 旧URL2でも再試行（20140222が落ちている場合）
+      if (data.error) {
         try { data = await jsonp(urls.oldUrl2); } catch(_) {}
-        if (data.error || !data.genreInformation) {
-          this.grid.innerHTML = apiErrorHtml(data);
-          return;
-        }
       }
 
-      // genreInformation が配列でもオブジェクトでも対応
-      const genreInfo = Array.isArray(data.genreInformation)
-        ? data.genreInformation[0]
-        : data.genreInformation;
-      // 各要素が {child: {...}} 形式の場合はアンラップ
-      const rawChildren = genreInfo?.children || [];
-      const children = rawChildren.map(c => c.child || c);
-
-      console.log('[Genre] genreId=' + genreId, 'children=' + children.length, data);
-
-      if (!children.length && genreId === 0) {
-        // ルートで空 → 診断パネルを表示
-        this.grid.innerHTML = `<div class="error-box">
-          <strong>カテゴリを取得できませんでした</strong><br>
-          アプリIDが正しいか確認してください。<br>
-          <details style="margin-top:8px;">
-            <summary style="cursor:pointer;font-size:11px;color:#999;">▶ デバッグ情報（クリックで展開）</summary>
-            <code style="font-size:10px;word-break:break-all;display:block;margin-top:6px;background:#f5f5f5;padding:6px;border-radius:4px;">${esc(JSON.stringify(data).slice(0, 400))}</code>
-          </details>
-          <button id="genre-retry-btn" style="margin-top:10px;padding:5px 14px;font-size:12px;background:#bf0000;color:white;border:none;border-radius:4px;cursor:pointer;">再読み込み</button>
-        </div>`;
-        document.getElementById('genre-retry-btn')?.addEventListener('click', () => this._load(genreId));
+      // まだエラーなら手動入力フォールバックを表示
+      if (data.error) {
+        this._renderManualInput(genreId, data);
         return;
       }
+
+      // レスポンス構造を正規化:
+      //   新API: data.genreInformation[0].children
+      //   旧API: data.children  (genreInformation なし)
+      //   各子要素: {child:{...}} or {...} 直接
+      const genreInfo = data.genreInformation
+        ? (Array.isArray(data.genreInformation) ? data.genreInformation[0] : data.genreInformation)
+        : data;
+      const rawChildren = genreInfo?.children || [];
+      const children = rawChildren.map(c => c.child || c).filter(c => c.genreId);
+
+      console.log('[Genre] genreId=' + genreId, 'children=' + children.length);
 
       this._renderGrid(children);
       this._renderBc();
     } catch(e) {
       console.error('[Genre] error:', e);
-      this.grid.innerHTML = `<div class="error-box">
-        <strong>カテゴリ取得エラー</strong>: ${esc(e.message)}<br>
-        <button id="genre-retry-btn" style="margin-top:8px;padding:5px 14px;font-size:12px;background:#bf0000;color:white;border:none;border-radius:4px;cursor:pointer;">再読み込み</button>
-      </div>`;
-      document.getElementById('genre-retry-btn')?.addEventListener('click', () => this._load(genreId));
+      this._renderManualInput(genreId, { error: e.message });
     }
+  }
+
+  _renderManualInput(genreId, errData) {
+    const isRoot = genreId === 0;
+    this.grid.innerHTML = `
+      <div class="error-box" style="width:100%;">
+        <strong>カテゴリAPIが利用できません</strong><br>
+        ${isRoot
+          ? '解決策: 設定画面で<strong>アクセスキー</strong>を入力するか、楽天アプリを「Webアプリケーション」タイプに変更してください。'
+          : 'このカテゴリのサブ取得に失敗しました。'
+        }<br><br>
+        <strong>ジャンルIDを直接入力して使用できます：</strong><br>
+        <small style="color:#aaa;">楽天市場のカテゴリページURL末尾の数字がジャンルIDです</small>
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <input id="manual-genre-id" type="number" placeholder="例: 551177（メンズファッション）"
+            style="flex:1;padding:6px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px;">
+          <button id="manual-genre-btn"
+            style="padding:6px 12px;background:#bf0000;color:white;border:none;border-radius:4px;font-size:13px;cursor:pointer;">
+            このIDで使用
+          </button>
+        </div>
+        <button id="genre-retry-btn"
+          style="margin-top:8px;padding:4px 10px;font-size:11px;background:white;color:#bf0000;border:1px solid #bf0000;border-radius:4px;cursor:pointer;">
+          再試行
+        </button>
+      </div>`;
+
+    document.getElementById('genre-retry-btn')
+      ?.addEventListener('click', () => this._load(genreId));
+
+    document.getElementById('manual-genre-btn')
+      ?.addEventListener('click', () => {
+        const val = parseInt(document.getElementById('manual-genre-id').value);
+        if (!val || isNaN(val)) { alert('ジャンルIDを入力してください'); return; }
+        this._doSelect(val, 'ジャンルID:' + val, [...this.stack, { genreId: val, genreName: 'ジャンルID:' + val }]);
+        this.grid.innerHTML = `<div class="genre-leaf-msg">
+          <span style="color:#bf0000;font-weight:bold;">✓ 選択済み</span>
+          <span>ジャンルID: ${val}</span>
+          <button onclick="this.closest('.genre-grid').dispatchEvent(new CustomEvent('reset-manual'))"
+            style="margin-left:8px;font-size:11px;background:none;border:none;color:#aaa;cursor:pointer;">変更</button>
+        </div>`;
+        this._renderBc();
+      });
   }
 
   _renderGrid(children) {
