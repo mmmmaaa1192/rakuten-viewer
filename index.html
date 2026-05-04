@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.11</title>
+<title>楽天市場 リサーチツール v3.12</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -254,6 +254,20 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 .snapshot-table tr:hover td { background: #fafafa; }
 .rank-cell { font-weight: bold; color: #bf0000; }
 .tracker-sidebar-actions { margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f0f0; display: flex; flex-direction: column; gap: 6px; }
+
+/* Tracker legend cards (small) */
+.tr-legend-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.tr-legend-grid .item-card { width: 148px; flex-shrink: 0; cursor: default; }
+.tr-legend-grid .item-card:hover { transform: none; box-shadow: 0 1px 4px rgba(0,0,0,0.10); }
+.tr-legend-grid .item-card-img-wrap { height: 60px; aspect-ratio: unset; }
+.tr-legend-grid .item-card-img-placeholder { font-size: 22px; }
+.tr-legend-grid .item-card-body { padding: 5px 7px 7px; gap: 2px; }
+.tr-legend-grid .item-card-name { font-size: 11px; -webkit-line-clamp: 2; }
+.tr-legend-grid .item-card-price { font-size: 12px; }
+.tr-legend-grid .item-card-review { font-size: 10px; }
+.tr-legend-grid .item-card-shop { font-size: 10px; }
+.tr-legend-grid .item-card-rank { width: 20px; height: 20px; font-size: 10px; top: 4px; left: 4px; }
+.tr-legend-grid.own-only .item-card:not(.own-shop) { display: none; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -321,7 +335,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.11</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.12</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -463,8 +477,12 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
             <div class="tracker-sidebar-actions">
               <button class="btn-secondary" style="font-size:12px;padding:6px 10px;" id="tr-export-btn">選択をCSVエクスポート</button>
               <label class="btn-secondary" style="font-size:12px;padding:6px 10px;text-align:center;cursor:pointer;">
-                CSVインポート・グラフ表示
+                ファイルインポート
                 <input type="file" id="tr-import-file" accept=".csv" multiple style="display:none;">
+              </label>
+              <label class="btn-secondary" style="font-size:12px;padding:6px 10px;text-align:center;cursor:pointer;">
+                フォルダインポート
+                <input type="file" id="tr-import-folder" multiple webkitdirectory style="display:none;">
               </label>
             </div>
           </div>
@@ -1680,14 +1698,17 @@ async function recordSnapshot(preset) {
       const it   = obj.Item || obj;
       const rank = it.rank || (i + 1);
       const sc   = (it.shopCode || (it.itemCode || '').split(':')[0]).toLowerCase();
+      const imgRaw = it.mediumImageUrls?.[0];
       const entry = {
         rank,
         shopCode:      sc,
+        shopName:      it.shopName || '',
         itemName:      it.itemName || '',
         itemPrice:     it.itemPrice || 0,
         reviewAverage: parseFloat(it.reviewAverage || 0),
         reviewCount:   parseInt(it.reviewCount || 0),
         itemUrl:       it.itemUrl || '',
+        imageUrl:      (imgRaw && typeof imgRaw === 'object' ? imgRaw.imageUrl : imgRaw) || '',
       };
       if (i < 30) snapshot.topItems.push(entry);
       if (config.shopCodes.length > 0 && sc && config.shopCodes.includes(sc) && !snapshot.shopResults[sc]) {
@@ -1715,17 +1736,20 @@ async function recordSnapshot(preset) {
       if (!items.length) break;
 
       for (let i = 0; i < items.length; i++) {
-        const it   = items[i].Item || items[i];
-        const rank = (page - 1) * 30 + i + 1;
-        const sc   = (it.shopCode || (it.itemCode || '').split(':')[0]).toLowerCase();
+        const it     = items[i].Item || items[i];
+        const rank   = (page - 1) * 30 + i + 1;
+        const sc     = (it.shopCode || (it.itemCode || '').split(':')[0]).toLowerCase();
+        const imgRaw = it.mediumImageUrls?.[0];
         const entry = {
           rank,
           shopCode:      sc,
+          shopName:      it.shopName || '',
           itemName:      it.itemName || '',
           itemPrice:     it.itemPrice || 0,
           reviewAverage: parseFloat(it.reviewAverage || 0),
           reviewCount:   parseInt(it.reviewCount || 0),
           itemUrl:       it.itemUrl || '',
+          imageUrl:      (imgRaw && typeof imgRaw === 'object' ? imgRaw.imageUrl : imgRaw) || '',
         };
         if (allItems.length < 30) allItems.push(entry);
         if (shopCodes.length > 0 && sc && shopCodes.includes(sc) && !foundMap.has(sc)) {
@@ -1916,19 +1940,17 @@ function renderTrackerMain() {
 
 // ---- Export (results CSV per preset) ----
 function snapshotsToCSV(snapshots) {
-  const rows = [['日時', 'ショップコード', '順位', '商品名', '価格', 'レビュー平均', 'レビュー件数', '商品URL']];
+  const rows = [['日時', 'ショップコード', '順位', '商品名', '価格', 'レビュー平均', 'レビュー件数', '商品URL', 'ショップ名', '画像URL']];
   for (const snap of snapshots) {
     const dt = new Date(snap.recordedAt).toLocaleString('ja-JP');
-    // shopResults (shop-specific)
     if (snap.shopResults && Object.keys(snap.shopResults).length) {
       for (const [sc, r] of Object.entries(snap.shopResults)) {
-        rows.push([dt, sc, r.rank ?? '', r.itemName ?? '', r.itemPrice ?? '', r.reviewAverage ?? '', r.reviewCount ?? '', r.itemUrl ?? '']);
+        rows.push([dt, sc, r.rank??'', r.itemName??'', r.itemPrice??'', r.reviewAverage??'', r.reviewCount??'', r.itemUrl??'', r.shopName??'', r.imageUrl??'']);
       }
     }
-    // topItems (ranking / showAll)
     if (snap.topItems && snap.topItems.length) {
       for (const it of snap.topItems) {
-        rows.push([dt, it.shopCode ?? '', it.rank ?? '', it.itemName ?? '', it.itemPrice ?? '', it.reviewAverage ?? '', it.reviewCount ?? '', it.itemUrl ?? '']);
+        rows.push([dt, it.shopCode??'', it.rank??'', it.itemName??'', it.itemPrice??'', it.reviewAverage??'', it.reviewCount??'', it.itemUrl??'', it.shopName??'', it.imageUrl??'']);
       }
     }
   }
@@ -1965,59 +1987,125 @@ document.getElementById('tr-export-btn').addEventListener('click', () => {
 });
 
 // ---- Import CSV → chart display ----
-document.getElementById('tr-import-file').addEventListener('change', function() {
-  const files = [...this.files];
-  if (!files.length) return;
-  const allDatasets = [];
-  let loaded = 0;
+const IMPORT_COLORS = ['#bf0000','#1a73e8','#188038','#f9a825','#9c27b0','#00897b','#e65100','#0288d1','#558b2f','#6d4c41'];
 
-  files.forEach(file => {
+function parseImportCSV(text, fileName) {
+  const lines = text.replace(/^﻿/, '').split(/\r?\n/).filter(Boolean);
+  const rows = lines.slice(1).map(line => {
+    const cols = line.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(c => c.replace(/^"|"$/g, '').replace(/""/g, '"'));
+    return {
+      date: cols[0] || '', shopCode: cols[1] || '', rank: parseInt(cols[2]) || null,
+      itemName: cols[3] || '', itemPrice: parseFloat(cols[4]) || 0,
+      reviewAverage: parseFloat(cols[5]) || 0, reviewCount: parseInt(cols[6]) || 0,
+      itemUrl: cols[7] || '', shopName: cols[8] || '', imageUrl: cols[9] || '',
+    };
+  }).filter(r => r.date && r.rank);
+
+  const byShop = {};
+  for (const r of rows) {
+    const key = r.shopCode || '（不明）';
+    if (!byShop[key]) byShop[key] = { pts: [], latest: null };
+    byShop[key].pts.push({ x: r.date, y: r.rank });
+    byShop[key].latest = r;
+  }
+  return { byShop, fileName };
+}
+
+function buildImportDatasets(parsedFiles) {
+  const datasets = [];
+  let ci = 0;
+  for (const { byShop, fileName } of parsedFiles) {
+    for (const [shop, { pts, latest }] of Object.entries(byShop)) {
+      const color = IMPORT_COLORS[ci % IMPORT_COLORS.length];
+      datasets.push({
+        label: shop,
+        data: pts.sort((a, b) => a.x.localeCompare(b.x)),
+        borderColor: color, backgroundColor: color + '22',
+        tension: 0.3, pointRadius: 4, fill: false,
+        meta: {
+          shopCode: shop, shopName: latest.shopName,
+          itemName: latest.itemName, itemPrice: latest.itemPrice,
+          reviewAverage: latest.reviewAverage, reviewCount: latest.reviewCount,
+          itemUrl: latest.itemUrl, imageUrl: latest.imageUrl,
+          latestRank: pts[pts.length - 1]?.y,
+          color,
+        },
+      });
+      ci++;
+    }
+  }
+  return datasets;
+}
+
+function processImportFiles(files) {
+  const csvFiles = [...files].filter(f => f.name.toLowerCase().endsWith('.csv'));
+  if (!csvFiles.length) { alert('CSVファイルが見つかりませんでした'); return; }
+  const results = [];
+  let loaded = 0;
+  csvFiles.forEach(file => {
     const reader = new FileReader();
     reader.onload = e => {
-      const lines = e.target.result.split(/\r?\n/).filter(Boolean);
-      // parse: skip header row
-      const rows = lines.slice(1).map(line => {
-        const cols = line.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(c => c.replace(/^"|"$/g, '').replace(/""/g, '"'));
-        return { date: cols[0], shopCode: cols[1], rank: parseInt(cols[2]) || null, itemName: cols[3] };
-      }).filter(r => r.date && r.rank);
-
-      // group by shopCode
-      const byShop = {};
-      for (const r of rows) {
-        const key = r.shopCode || '（不明）';
-        if (!byShop[key]) byShop[key] = [];
-        byShop[key].push({ x: r.date, y: r.rank });
-      }
-
-      const colors = ['#bf0000','#1a73e8','#188038','#f9a825','#9c27b0','#00897b'];
-      let ci = 0;
-      for (const [shop, pts] of Object.entries(byShop)) {
-        allDatasets.push({
-          label: (file.name.replace('.csv','') + ' / ' + shop).slice(0, 50),
-          data: pts.sort((a,b) => a.x.localeCompare(b.x)),
-          borderColor: colors[ci % colors.length],
-          backgroundColor: colors[ci % colors.length] + '22',
-          tension: 0.3, pointRadius: 4, fill: false,
-        });
-        ci++;
-      }
-
+      results.push(parseImportCSV(e.target.result, file.name));
       loaded++;
-      if (loaded === files.length) renderImportChart(allDatasets);
+      if (loaded === csvFiles.length) renderImportChart(buildImportDatasets(results));
     };
     reader.readAsText(file, 'UTF-8');
   });
+}
+
+document.getElementById('tr-import-file').addEventListener('change', function() {
+  processImportFiles(this.files);
+  this.value = '';
+});
+document.getElementById('tr-import-folder').addEventListener('change', function() {
+  processImportFiles(this.files);
   this.value = '';
 });
 
+function buildLegendCard(ds) {
+  const m = ds.meta;
+  const ownShops = getOwnShops();
+  const sc = m.shopCode.toLowerCase();
+  const isOwn = ownShops.length > 0 && ownShops.includes(sc);
+  const price = m.itemPrice > 0 ? '¥' + Number(m.itemPrice).toLocaleString() : '';
+  const avg = parseFloat(m.reviewAverage || 0);
+  const cnt = parseInt(m.reviewCount || 0);
+  const reviewText = avg > 0 ? '★' + avg.toFixed(1) + (cnt > 0 ? '&nbsp;(' + cnt.toLocaleString() + '件)' : '') : '';
+  const rank = m.latestRank ?? '';
+  const rankClass = rank <= 3 ? ' rank-' + rank : '';
+  const displayName = m.shopName || m.shopCode;
+  return `<div class="item-card${isOwn ? ' own-shop' : ''}" style="border-left:3px solid ${m.color};" title="${esc(ds.label)}">
+    ${rank !== '' ? `<div class="item-card-rank${rankClass}">${rank}</div>` : ''}
+    <div class="item-card-img-wrap">
+      ${m.imageUrl
+        ? `<img class="item-card-img" src="${esc(m.imageUrl)}" alt="" loading="lazy" onerror="this.parentNode.innerHTML='<span class=item-card-img-placeholder>📦</span>'">`
+        : '<span class="item-card-img-placeholder">📦</span>'}
+    </div>
+    <div class="item-card-body">
+      ${m.itemUrl
+        ? `<a class="item-card-name" href="${esc(m.itemUrl)}" target="_blank" rel="noopener">${esc(m.itemName || m.shopCode)}</a>`
+        : `<span class="item-card-name">${esc(m.itemName || m.shopCode)}</span>`}
+      ${price ? `<div class="item-card-price">${price}</div>` : ''}
+      ${reviewText ? `<div class="item-card-review">${reviewText}</div>` : ''}
+      <div class="item-card-shop">${esc(displayName)}</div>
+    </div>
+  </div>`;
+}
+
 function renderImportChart(datasets) {
+  const ownShops = getOwnShops();
+  const hasOwn = ownShops.length > 0 && datasets.some(ds => ownShops.includes(ds.meta.shopCode.toLowerCase()));
   const el = document.getElementById('tr-main-content');
   el.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
       <div style="font-size:14px;font-weight:bold;">CSVインポート — 順位推移グラフ</div>
-      <button class="btn-secondary" style="font-size:12px;padding:4px 10px;" onclick="renderTrackerMain()">← 記録データに戻る</button>
+      <div style="display:flex;gap:8px;align-items:center;">
+        ${hasOwn ? `<button class="btn-toggle-own" id="import-own-toggle" style="font-size:12px;padding:4px 10px;">自社店舗のみ</button>` : ''}
+        <button class="btn-secondary" style="font-size:12px;padding:4px 10px;" onclick="renderTrackerMain()">← 記録データに戻る</button>
+      </div>
     </div>
-    <div class="chart-wrap"><canvas id="import-chart"></canvas></div>`;
+    <div class="chart-wrap"><canvas id="import-chart"></canvas></div>
+    <div class="tr-legend-grid" id="import-legend-grid">${datasets.map(ds => buildLegendCard(ds)).join('')}</div>`;
 
   if (trackerChart) { trackerChart.destroy(); trackerChart = null; }
   trackerChart = new Chart(document.getElementById('import-chart'), {
@@ -2028,12 +2116,18 @@ function renderImportChart(datasets) {
       parsing: { xAxisKey: 'x', yAxisKey: 'y' },
       scales: {
         x: { type: 'category', title: { display: true, text: '日時' } },
-        y: { reverse: true, title: { display: true, text: '順位' },
-             ticks: { stepSize: 1 } }
+        y: { reverse: true, title: { display: true, text: '順位' }, ticks: { stepSize: 1 } },
       },
-      plugins: { legend: { position: 'bottom' } }
-    }
+      plugins: { legend: { display: false } },
+    },
   });
+
+  if (hasOwn) {
+    document.getElementById('import-own-toggle').addEventListener('click', function() {
+      this.classList.toggle('active');
+      document.getElementById('import-legend-grid').classList.toggle('own-only', this.classList.contains('active'));
+    });
+  }
 }
 
 // Initial render of preset list
