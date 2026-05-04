@@ -257,7 +257,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 <!-- ==================== MAIN APP ==================== -->
 <div id="screen-app">
   <header>
-    <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.1</span></span>
+    <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.2</span></span>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
       <button class="header-btn" id="open-settings-btn">⚙ 設定</button>
@@ -503,7 +503,7 @@ function searchUrl(keyword, genreId, page) {
   const kw     = keyword ? '&keyword=' + encodeURIComponent(keyword) : '';
   const genre  = genreId ? '&genreId=' + genreId : '';
   return {
-    newUrl: `${NEW_BASE}/ichibams/api/IchibaItem/Search/20220601?applicationId=${appId}&accessKey=${accKey}${aff}&hits=30&page=${page}&format=json${kw}${genre}`,
+    newUrl: `${NEW_BASE}/ichibams/api/IchibaItem/Search/20220601?applicationId=${appId}&accessKey=${accKey}${aff}&hits=30&page=${page}&format=json&formatVersion=2${kw}${genre}`,
     oldUrl: `${OLD_BASE}/IchibaItem/Search/20170706?applicationId=${appId}${aff}&hits=30&page=${page}&format=json${kw}${genre}`,
   };
 }
@@ -1113,7 +1113,8 @@ async function runRankSearch({ keyword, genreId, shopCode, maxPages, fillId, sta
       if (!items.length) break;
 
       for (let i = 0; i < items.length; i++) {
-        const it = items[i].Item;
+        const it = items[i].Item || items[i];  // formatVersion=1(ラッパーあり) / 2(直接) 両対応
+        if (!it || typeof it !== 'object') continue;
         totalSearched++;
         if ((it.shopCode || '').toLowerCase() === shopCode.toLowerCase()) {
           foundRank = (page - 1) * 30 + i + 1;
