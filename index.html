@@ -256,7 +256,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 <!-- ==================== MAIN APP ==================== -->
 <div id="screen-app">
   <header>
-    <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v2.0</span></span>
+    <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v2.1</span></span>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
       <button class="header-btn" id="open-settings-btn">⚙ 設定</button>
@@ -446,7 +446,6 @@ function jsonp(url, timeoutMs = 10000) {
 // ===== DUAL-MODE API CALL =====
 // 常に新API(fetch)を先に試みる。CORS失敗時のみ旧API(JSONP)にフォールバック。
 async function rakutenApi(newUrl, oldUrl) {
-  // 新APIを常に先に試みる（accessKeyの有無に関わらず）
   if (newUrl && apiMode !== 'old') {
     try {
       const res = await fetch(newUrl);
@@ -455,13 +454,18 @@ async function rakutenApi(newUrl, oldUrl) {
         updateApiBadge('new');
         return data;
       }
+      // サーバーがエラーレスポンスを返した場合（CORSではない）→ エラーボディを解析して返す
+      try {
+        const errData = await res.json();
+        if (errData && errData.error) { updateApiBadge('new'); return errData; }
+      } catch(_) {}
     } catch (_) {
       // CORS blocked or network error → fall through to JSONP
     }
   }
 
-  // JSONP fallback (old app.rakuten.co.jp)
-  if (!oldUrl) throw new Error('APIに接続できません');
+  // JSONP fallback (old app.rakuten.co.jp) — realtime のみ対応
+  if (!oldUrl) throw new Error('no_fallback');
   const data = await jsonp(oldUrl);
   updateApiBadge('old');
   return data;
@@ -488,7 +492,10 @@ function rankingUrl(genreId, period, page) {
   const genre  = (genreId && genreId !== 0) ? `&genreId=${genreId}` : '';
   return {
     newUrl: `${NEW_BASE}/ichibaranking/api/IchibaItem/Ranking/20220601?applicationId=${appId}&accessKey=${accKey}${aff}&period=${period}&hits=30&page=${page}&format=json${genre}`,
-    oldUrl: `${OLD_BASE}/IchibaItem/Ranking/20220601?applicationId=${appId}${aff}&period=${period}&hits=30&page=${page}&format=json${genre}`,
+    // 旧APIは period=realtime のみ対応。daily/weekly/monthly は新APIのみ
+    oldUrl: period === 'realtime'
+      ? `${OLD_BASE}/IchibaItem/Ranking/20220601?applicationId=${appId}${aff}&period=realtime&hits=30&page=${page}&format=json${genre}`
+      : null,
   };
 }
 
@@ -578,6 +585,21 @@ function apiErrorHtml(data) {
     <strong>APIエラー</strong>: ${esc(data.error || '')} — ${esc(data.error_description || '')}<br>
     <small style="color:#aaa;">アプリIDが正しいか、APIレート制限に達していないかご確認ください。</small>
   </div>`;
+}
+
+function rankApiErrorHtml(data, period) {
+  const needsNewApi = period !== 'realtime';
+  const isNoFallback = data.error === 'no_fallback' || data.error === 'APIに接続できません';
+  if (needsNewApi) {
+    return `<div class="error-box">
+      <strong>デイリー/ウィークリー/月間ランキングには新APIの設定が必要です</strong><br>
+      楽天デベロッパーセンターで「<strong>Webアプリケーション</strong>」タイプのアプリを作成し、
+      設定画面で<strong>アクセスキー</strong>を入力してください。<br>
+      <small style="color:#aaa;">リアルタイムランキングはアクセスキーなしでご利用できます。</small>
+      ${!isNoFallback ? `<br><small style="color:#aaa;">詳細: ${esc(data.error || '')} ${esc(data.error_description || '')}</small>` : ''}
+    </div>`;
+  }
+  return apiErrorHtml(data);
 }
 
 // ===== GENRE NAVIGATOR =====
@@ -853,7 +875,7 @@ document.getElementById('r-fetch-btn').addEventListener('click', async () => {
     const data = await rakutenApi(newUrl, oldUrl);
 
     if (data.error) {
-      document.getElementById('r-results').innerHTML = `<div class="card">${apiErrorHtml(data)}</div>`;
+      document.getElementById('r-results').innerHTML = `<div class="card">${rankApiErrorHtml(data, rankPeriod)}</div>`;
       return;
     }
     if (!data.Items || !data.Items.length) {
@@ -875,7 +897,7 @@ document.getElementById('r-fetch-btn').addEventListener('click', async () => {
       <div class="item-grid">${cardsHtml}</div>
     </div>`;
   } catch(e) {
-    document.getElementById('r-results').innerHTML = `<div class="card"><div class="error-box">エラー: ${esc(e.message)}</div></div>`;
+    document.getElementById('r-results').innerHTML = `<div class="card">${rankApiErrorHtml({error: e.message}, rankPeriod)}</div>`;
   } finally {
     btn.disabled    = false;
     btn.textContent = 'ランキングを取得';
