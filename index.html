@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.14</title>
+<title>楽天市場 リサーチツール v3.15</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -335,7 +335,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.14</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.15</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -2171,107 +2171,57 @@ renderPresetList();
 (function() {
   const TOOL_URL = location.origin + location.pathname;
 
-  // ---- Bookmarklet source (will be minified into javascript: URL) ----
-  function bookmarkletSource() {
-    var TOOL = '%%TOOL_URL%%';
-    var FLAG = '__rk_c__';
-
-    function collect() {
-      // Find section containing the heading text
-      var sec = null;
-      var all = document.querySelectorAll('*');
-      for (var i = 0; i < all.length; i++) {
-        var el = all[i];
-        if (el.children.length === 0 && el.textContent.trim() === 'この商品の楽天市場の関連商品') {
-          var p = el.parentElement;
-          for (var j = 0; j < 10; j++) {
-            if (!p) break;
-            if (p.querySelectorAll('a[href*="item.rakuten.co.jp"]').length > 1) { sec = p; break; }
-            p = p.parentElement;
-          }
-          break;
-        }
-      }
-
-      if (!sec) {
-        alert('「この商品の楽天市場の関連商品」が見つかりませんでした。\nF12 → スマホアイコン → リロード後に再実行してください。');
-        return;
-      }
-
-      var seen = {};
-      var items = [];
-      var currentUrl = location.href.split('?')[0].replace(/\/$/, '');
-
-      sec.querySelectorAll('a').forEach(function(a) {
-        var url = a.href.split('?')[0].replace(/\/$/, '');
-        var m = url.match(/item\.rakuten\.co\.jp\/([^/#]+)\/([^/#]+)/);
-        if (!m || seen[url] || url === currentUrl) return;
-        seen[url] = 1;
-
-        var card = a.closest('li,article,[class*=item],[class*=product],[class*=goods]') || a.parentElement;
-        var img = card.querySelector('img');
-        var nameEl = card.querySelector('[class*=name],[class*=title],[class*=item-name]') || a;
-        var priceEl = card.querySelector('[class*=price],[class*=cost]');
-        var shopEl = card.querySelector('[class*=shop],[class*=store]');
-
-        var imgSrc = img ? (img.dataset.lazySrc || img.dataset.src || img.getAttribute('data-original') || img.src || '') : '';
-        // skip tiny tracking pixels
-        if (imgSrc && (imgSrc.indexOf('data:') === 0 || (img && img.naturalWidth < 10))) imgSrc = '';
-
-        items.push({
-          u: url,
-          n: (nameEl.textContent || a.textContent).trim().replace(/\s+/g, ' ').slice(0, 80),
-          p: priceEl ? (parseInt(priceEl.textContent.replace(/[^0-9]/g, '')) || 0) : 0,
-          sc: m[1],
-          sn: shopEl ? shopEl.textContent.trim().slice(0, 40) : '',
-          img: imgSrc.slice(0, 300),
-        });
-      });
-
-      if (!items.length) { alert('商品データを取得できませんでした。'); return; }
-
-      var payload = encodeURIComponent(JSON.stringify({
-        src: currentUrl,
-        at: new Date().toISOString(),
-        items: items.slice(0, 50),
-      }));
-
-      window.open(TOOL + '#rk_related=' + payload, '_blank');
-      alert('関連商品 ' + items.length + '件を取得しました！\n新しいタブのツールで確認してください。');
-    }
-
-    if (sessionStorage.getItem(FLAG)) {
-      sessionStorage.removeItem(FLAG);
-      collect();
-    } else if (document.body.textContent.indexOf('この商品の楽天市場の関連商品') >= 0) {
-      collect();
-    } else {
-      sessionStorage.setItem(FLAG, '1');
-      try {
-        Object.defineProperty(navigator, 'userAgent', {
-          get: function() { return 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1'; },
-          configurable: true,
-        });
-      } catch(e) {}
-      location.reload();
-    }
-  }
-
   function makeBookmarklet() {
-    const src = bookmarkletSource.toString()
-      .replace(/^function bookmarkletSource\(\)\s*\{[\r\n]*/, '')
-      .replace(/\}[\s]*$/, '')
-      .replace('%%TOOL_URL%%', TOOL_URL)
-      .replace(/\/\/[^\n]*/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-    return 'javascript:(function(){' + src + '})();';
+    const tool = TOOL_URL;
+    const code = `(function(){
+var TOOL='${tool}';
+var HEADER='この商品の楽天市場の関連商品';
+var sec=null;
+var all=document.querySelectorAll('*');
+for(var i=0;i<all.length;i++){
+  var el=all[i];
+  if(el.childElementCount===0&&el.textContent.trim()===HEADER){
+    var p=el.parentElement;
+    for(var j=0;j<12;j++){
+      if(!p)break;
+      if(p.querySelectorAll('a[href*="item.rakuten.co.jp"]').length>1){sec=p;break;}
+      p=p.parentElement;
+    }
+    break;
+  }
+}
+if(!sec){
+  alert('「'+HEADER+'」が見つかりませんでした。\\n\\nChromeの場合：\\n1. F12キーを押す\\n2. スマホアイコン（Ctrl+Shift+M）をクリック\\n3. ページをリロード\\n4. もう一度ブックマークをクリック');
+  return;
+}
+var seen={};var items=[];
+var cur=location.href.split('?')[0].replace(/\\/$/,'');
+var links=sec.querySelectorAll('a');
+for(var k=0;k<links.length;k++){
+  var a=links[k];
+  var url=a.href.split('?')[0].replace(/\\/$/,'');
+  var m=url.match(/item\\.rakuten\\.co\\.jp\\/([^\\/#]+)\\/([^\\/#]+)/);
+  if(!m||seen[url]||url===cur)continue;
+  seen[url]=1;
+  var card=a.closest('li,article,[class*=item],[class*=product]')||a.parentElement||a;
+  var img=card.querySelector('img');
+  var nameEl=card.querySelector('[class*=name],[class*=title]')||a;
+  var priceEl=card.querySelector('[class*=price]');
+  var shopEl=card.querySelector('[class*=shop],[class*=store]');
+  var imgSrc=img&&img.naturalWidth>5?(img.dataset.lazySrc||img.dataset.src||img.getAttribute('data-original')||img.src||''):'';
+  if(imgSrc.indexOf('data:')===0)imgSrc='';
+  items.push({u:url,n:(nameEl.textContent||a.textContent).trim().replace(/\\s+/g,' ').slice(0,80),p:priceEl?parseInt(priceEl.textContent.replace(/\\D/g,''))||0:0,sc:m[1],sn:shopEl?shopEl.textContent.trim().slice(0,40):'',img:imgSrc.slice(0,300)});
+}
+if(!items.length){alert('商品データを取得できませんでした。');return;}
+var payload=encodeURIComponent(JSON.stringify({src:cur,at:new Date().toISOString(),items:items.slice(0,50)}));
+window.open(TOOL+'#rk_related='+payload,'_blank');
+})()`;
+    return 'javascript:' + code.replace(/\n/g, '');
   }
 
-  // Set the draggable link href dynamically (browsers block javascript: hrefs set in HTML)
   const bmLink = document.getElementById('rel-bm-link');
   bmLink.href = makeBookmarklet();
-  bmLink.addEventListener('click', e => e.preventDefault()); // prevent navigation on click
+  bmLink.addEventListener('click', e => e.preventDefault());
 
   document.getElementById('rel-copy-btn').addEventListener('click', () => {
     const bm = makeBookmarklet();
@@ -2292,7 +2242,6 @@ renderPresetList();
     try {
       const payload = JSON.parse(decodeURIComponent(m[1]));
       showRelatedItems(payload);
-      // Switch to related tab
       document.querySelectorAll('.tab-nav-item').forEach(t => t.classList.remove('active'));
       document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
       document.querySelector('[data-tab="related"]').classList.add('active');
@@ -2329,7 +2278,7 @@ renderPresetList();
         <div class="result-header-title">関連商品 ${payload.items.length}件</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           ${hasOwn ? `<button class="btn-toggle-own" id="rel-own-toggle">自社店舗のみ</button>` : ''}
-          <div class="result-header-meta">取得元: <a href="${esc(payload.src)}" target="_blank" rel="noopener" style="color:#1a73e8;">${esc(payload.src.slice(0, 60))}…</a></div>
+          <div class="result-header-meta">取得元: <a href="${esc(payload.src)}" target="_blank" rel="noopener" style="color:#1a73e8;">${esc(payload.src.slice(0,60))}…</a></div>
           <div class="result-header-meta">${dt}</div>
         </div>
       </div>
@@ -2344,7 +2293,7 @@ renderPresetList();
   }
 
   window.addEventListener('hashchange', checkHash);
-  checkHash(); // check on initial load (e.g., if bookmarklet opened this tab)
+  checkHash();
 })();
 </script>
 </body>
