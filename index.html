@@ -257,7 +257,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 <!-- ==================== MAIN APP ==================== -->
 <div id="screen-app">
   <header>
-    <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v2.9</span></span>
+    <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.0</span></span>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
       <button class="header-btn" id="open-settings-btn">⚙ 設定</button>
@@ -286,8 +286,8 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
       <div class="period-row">
         <button class="period-btn active" data-period="realtime">リアルタイム</button>
         <button class="period-btn" data-period="daily">デイリー</button>
-        <button class="period-btn" data-period="weekly">ウィークリー</button>
-        <button class="period-btn" data-period="monthly">月間</button>
+        <button class="period-btn" data-period="weekly" disabled title="API非公開">ウィークリー</button>
+        <button class="period-btn" data-period="monthly" disabled title="API非公開">月間</button>
       </div>
       <button class="btn-primary" id="r-fetch-btn">ランキングを取得</button>
     </div>
