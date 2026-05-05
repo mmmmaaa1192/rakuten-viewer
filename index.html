@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.17</title>
+<title>楽天市場 リサーチツール v3.18</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -335,7 +335,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.17</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.18</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -2194,7 +2194,8 @@ if(!sec){
   alert('「'+HEADER+'」が見つかりませんでした。\\n\\nChromeの場合：\\n1. F12キーを押す\\n2. スマホアイコン（Ctrl+Shift+M）をクリック\\n3. ページをリロード\\n4. もう一度ブックマークをクリック');
   return;
 }
-sec.scrollIntoView({behavior:'smooth',block:'center'});
+sec.scrollIntoView({behavior:'instant',block:'start'});
+window.scrollTo(0,document.body.scrollHeight);
 setTimeout(function(){
 var seen={};var items=[];
 var cur=location.href.split('?')[0].replace(/\\/$/,'');
@@ -2234,7 +2235,7 @@ if(!items.length){alert('商品データを取得できませんでした。');r
 if(!items.length){alert('商品データを取得できませんでした。');return;}
 var payload=encodeURIComponent(JSON.stringify({src:cur,at:new Date().toISOString(),items:items.slice(0,50)}));
 window.open(TOOL+'#rk_related='+payload,'_blank');
-},1500);
+},2000);
 })()`;
     return 'javascript:' + code.replace(/\n/g, '');
   }
