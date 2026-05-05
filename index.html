@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.36</title>
+<title>楽天市場 リサーチツール v3.37</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -345,7 +345,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.36</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.37</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -1445,7 +1445,7 @@ async function runRankSearch({ keyword, genreId, shopCode, maxPages, sort, fillI
         if (anyNotFound) effectiveMax = page + 9;
       }
 
-      if (!controller.aborted) await sleep(1100);
+      if (!controller.aborted) await sleep(800);
     }
 
     setFill(100);
@@ -1846,7 +1846,7 @@ async function recordSnapshot(preset) {
 
       if (shopCodes.length > 0 && foundMap.size >= shopCodes.length) break;
       if (items.length < 30) break;
-      await sleep(1100);
+      await sleep(800);
     }
     snapshot.topItems = allItems;
   }
@@ -2635,7 +2635,7 @@ setTimeout(function(){
     renderScanResults(hits, scanAborted, targets.length);
   });
 
-  // ---- Render results grouped by rank ----
+  // ---- Render results grouped by category ----
   function renderScanResults(hits, aborted, total) {
     const el = document.getElementById('scan-results');
     const periodLabel = scanPeriod === 'realtime' ? 'リアルタイム' : 'デイリー';
@@ -2649,47 +2649,41 @@ setTimeout(function(){
       return;
     }
 
-    // Group by rank; within each rank dedup by itemCode so same product across
-    // multiple categories shows as one card (with all category tags aggregated).
-    const byRank = {};
+    // Group by category path; dedup by itemCode within each category
+    const byCat = new Map(); // path → [{rank, item}]
     for (const h of hits) {
-      if (!byRank[h.rank]) byRank[h.rank] = new Map();
+      if (!byCat.has(h.path)) byCat.set(h.path, []);
+      const arr = byCat.get(h.path);
       const code = (h.item.itemCode || h.item.itemUrl || '').toLowerCase();
-      if (!byRank[h.rank].has(code)) {
-        byRank[h.rank].set(code, { item: h.item, paths: new Set() });
+      if (!arr.some(x => (x.item.itemCode || x.item.itemUrl || '').toLowerCase() === code)) {
+        arr.push({ rank: h.rank, item: h.item });
       }
-      byRank[h.rank].get(code).paths.add(h.path);
     }
-    const sortedRanks = Object.keys(byRank).map(Number).sort((a, b) => a - b);
-    const totalUniq = sortedRanks.reduce((s, r) => s + byRank[r].size, 0);
+
+    // Sort categories by best (lowest) rank, items within each category by rank
+    const sortedCats = [...byCat.entries()].sort((a, b) =>
+      Math.min(...a[1].map(x => x.rank)) - Math.min(...b[1].map(x => x.rank))
+    );
+    sortedCats.forEach(([, arr]) => arr.sort((a, b) => a.rank - b.rank));
+
+    const totalUniq = sortedCats.reduce((s, [, arr]) => s + arr.length, 0);
 
     let html = `<div class="card" style="margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
       <span style="font-size:15px;font-weight:bold;">${totalUniq}件のランクイン商品を発見</span>
-      <span style="font-size:12px;color:#aaa;">${periodLabel} / ${total}カテゴリ${aborted ? '（中断）' : ''}</span>
+      <span style="font-size:12px;color:#aaa;">${periodLabel} / ${byCat.size}カテゴリ / ${total}スキャン${aborted ? '（中断）' : ''}</span>
     </div>`;
 
-    for (const rank of sortedRanks) {
-      const rankMap = byRank[rank];
-      const rankLabel = rank <= 3 ? ['🥇','🥈','🥉'][rank - 1] + ` ${rank}位` : `${rank}位`;
-
-      // All unique category paths for this rank (across all items)
-      const allPaths = new Set();
-      rankMap.forEach(({ paths }) => paths.forEach(p => allPaths.add(p)));
-      const genreTagsHtml = [...allPaths].map(p =>
-        `<div class="scan-genre-tag">${esc(p).replace(/›/g, '<span style="color:#aaa;margin:0 2px;">›</span>')}</div>`
-      ).join('');
-
-      const cardsHtml = [...rankMap.values()].map(({ item }) => buildItemCard(item, rank)).join('');
-
-      const catCount = allPaths.size;
-      const itemCount = rankMap.size;
-      const subLabel = catCount === itemCount
-        ? `${catCount}カテゴリでランクイン`
-        : `${itemCount}商品 / ${catCount}カテゴリ`;
+    for (const [path, items] of sortedCats) {
+      const pathHtml = esc(path).replace(/›/g, '<span style="color:#aaa;margin:0 2px;">›</span>');
+      const bestRank = items[0].rank;
+      const bestLabel = bestRank <= 3 ? ['🥇','🥈','🥉'][bestRank - 1] + ` ${bestRank}位` : `最高 ${bestRank}位`;
+      const cardsHtml = items.map(({ item, rank }) => buildItemCard(item, rank)).join('');
 
       html += `<div class="card scan-rank-group">
-        <div class="scan-genre-tags-bar">${genreTagsHtml}</div>
-        <div class="scan-rank-label">${rankLabel} <span style="font-size:13px;font-weight:normal;color:#888;">${subLabel}</span></div>
+        <div class="scan-genre-tags-bar">
+          <div class="scan-genre-tag" style="font-size:12px;">${pathHtml}</div>
+        </div>
+        <div class="scan-rank-label">${bestLabel} <span style="font-size:13px;font-weight:normal;color:#888;">${items.length}商品ランクイン</span></div>
         <div class="item-grid">${cardsHtml}</div>
       </div>`;
     }
