@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.39</title>
+<title>楽天市場 リサーチツール v3.40</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -286,6 +286,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 .scan-genre-tags-bar { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
 .scan-genre-tag { font-size: 11px; color: #444; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; padding: 3px 8px; line-height: 1.5; word-break: break-all; }
 .scan-rank-label { font-size: 16px; font-weight: bold; color: #bf0000; margin-bottom: 10px; }
+.scan-rank-group .item-card-rank { background: #bf0000 !important; color: white !important; }
 .scan-target-area { display: flex; flex-wrap: wrap; gap: 5px; min-height: 36px; border: 1px solid #e0e0e0; border-radius: 4px; padding: 6px 8px; background: #fafafa; }
 .scan-target-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; background: #e8f0fe; border: 1px solid #c5d8f8; border-radius: 4px; padding: 3px 8px; color: #1a3e6e; }
 .scan-target-chip button { background: none; border: none; cursor: pointer; font-size: 13px; color: #888; padding: 0 0 0 2px; line-height: 1; }
@@ -357,7 +358,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.39</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.40</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -371,6 +372,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
     <div class="tab-nav-item" data-tab="category">カテゴリ順位</div>
     <div class="tab-nav-item" data-tab="tracker">推移チェッカー</div>
     <div class="tab-nav-item" data-tab="related">関連商品</div>
+    <div class="tab-nav-item" data-tab="url-rank">商品URL順位</div>
     <div class="tab-nav-item" data-tab="scan">全カテゴリスキャン</div>
   </div>
 
@@ -577,6 +579,53 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
             <div style="font-size:12px;line-height:1.8;">ブックマークレットを実行するとここに関連商品が表示されます</div>
           </div>
         </div>
+      </div>
+
+      <!-- ===== Tab: URL Rank ===== -->
+      <div id="tab-url-rank" class="tab-pane">
+        <div class="card">
+          <div class="card-title">🔗 商品URL 順位チェッカー</div>
+          <div class="form-hint" style="margin-bottom:12px;">楽天商品URLを入力し、指定キーワードでの検索順位を調べます。結果はプリセットに追加して定期追跡もできます。</div>
+          <div class="form-group">
+            <label class="form-label">商品URL</label>
+            <input type="url" class="form-input" id="ur-url" placeholder="https://item.rakuten.co.jp/shopcode/itemid/">
+            <div class="form-hint" id="ur-parsed" style="margin-top:4px;min-height:16px;"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">検索キーワード（1行1キーワード）</label>
+            <textarea class="form-input" id="ur-keywords" rows="4" placeholder="キーワード1&#10;キーワード2&#10;キーワード3" style="resize:vertical;"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">並び順</label>
+            <select class="form-input" id="ur-sort">
+              <option value="standard">標準（楽天標準ソート）</option>
+              <option value="+itemPrice">価格順（安い順）</option>
+              <option value="-itemPrice">価格順（高い順）</option>
+              <option value="+reviewCount">レビュー件数順（少ない順）</option>
+              <option value="-reviewCount">レビュー件数順（多い順）</option>
+              <option value="+reviewAverage">レビュー平均順（低い順）</option>
+              <option value="-reviewAverage">レビュー平均順（高い順）</option>
+              <option value="+updateTimestamp">更新日時順（古い順）</option>
+              <option value="-updateTimestamp">更新日時順（新しい順）</option>
+              <option value="+affiliateRate">アフィリエイト料率順（低い順）</option>
+              <option value="-affiliateRate">アフィリエイト料率順（高い順）</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">最大ページ数: <span id="ur-pages-label">300件（10ページ）</span></label>
+            <input type="range" id="ur-pages" min="1" max="100" value="10">
+            <div class="form-hint">※ 1ページ約0.8秒</div>
+          </div>
+          <button class="btn-primary" id="ur-search-btn">順位を検索</button>
+        </div>
+        <div class="card" id="ur-progress-card" style="display:none;">
+          <div class="progress-bar"><div class="progress-fill" id="ur-fill"></div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+            <div class="progress-status" id="ur-status">検索中...</div>
+            <button class="btn-stop" id="ur-stop-btn">■ 停止</button>
+          </div>
+        </div>
+        <div id="ur-results"></div>
       </div>
 
     </div><!-- /.main-content -->
@@ -2243,17 +2292,21 @@ function parseImportCSV(text, fileName) {
     byShop[key].pts.push({ x: r.date, y: r.rank, sortKey: r.sortKey });
     byShop[key].latest = r;
   }
-  return { byShop, fileName };
+  const allRows = [...rows].sort((a, b) => b.sortKey - a.sortKey);
+  return { byShop, fileName, allRows };
 }
 
 function buildImportDatasets(parsedFiles) {
   const datasets = [];
+  let allRows = [];
   let ci = 0;
-  for (const { byShop, fileName } of parsedFiles) {
+  for (const { byShop, fileName, allRows: fileRows } of parsedFiles) {
+    allRows = allRows.concat(fileRows || []);
     for (const [shop, { pts, latest }] of Object.entries(byShop)) {
       const color = IMPORT_COLORS[ci % IMPORT_COLORS.length];
       datasets.push({
-        label: shop,
+        label: latest.shopName || shop,
+        shopCode: shop,
         data: pts.sort((a, b) => a.sortKey - b.sortKey).map(({x, y}) => ({x, y})),
         borderColor: color, backgroundColor: color + '22',
         tension: 0.3, pointRadius: 4, fill: false,
@@ -2269,7 +2322,8 @@ function buildImportDatasets(parsedFiles) {
       ci++;
     }
   }
-  return datasets;
+  allRows.sort((a, b) => b.sortKey - a.sortKey);
+  return { datasets, allRows };
 }
 
 function processImportFiles(files) {
@@ -2282,7 +2336,10 @@ function processImportFiles(files) {
     reader.onload = e => {
       results.push(parseImportCSV(e.target.result, file.name));
       loaded++;
-      if (loaded === csvFiles.length) renderImportChart(buildImportDatasets(results));
+      if (loaded === csvFiles.length) {
+        const { datasets, allRows } = buildImportDatasets(results);
+        renderImportChart(datasets, allRows);
+      }
     };
     reader.readAsText(file, 'UTF-8');
   });
@@ -2327,20 +2384,44 @@ function buildLegendCard(ds) {
   </div>`;
 }
 
-function renderImportChart(datasets) {
+function renderImportChart(datasets, allRows) {
   const ownShops = getOwnShops();
-  const hasOwn = ownShops.length > 0 && datasets.some(ds => ownShops.includes(ds.meta.shopCode.toLowerCase()));
+  const ownSet = new Set(ownShops.map(s => s.toLowerCase()));
+  const hasOwn = ownShops.length > 0 && datasets.some(ds => ownSet.has((ds.shopCode || '').toLowerCase()));
+
+  const tableRows = (allRows || []).map(r => {
+    const isOwn = ownSet.has((r.shopCode || '').toLowerCase()) ? '1' : '0';
+    const imgCell = r.imageUrl
+      ? `<img src="${esc(r.imageUrl)}" style="width:36px;height:36px;object-fit:contain;display:block;" loading="lazy" onerror="this.style.display='none'">`
+      : '';
+    const shopLabel = r.shopCode + (r.shopName ? `<br><span style="font-size:11px;color:#888;">${esc(r.shopName)}</span>` : '');
+    return `<tr data-own="${isOwn}">
+      <td>${esc(r.date)}</td>
+      <td>${shopLabel}</td>
+      <td class="rank-cell">${r.rank != null ? r.rank + '位' : '-'}</td>
+      <td style="padding:4px 8px;">${imgCell}</td>
+      <td>${r.itemUrl ? `<a href="${esc(r.itemUrl)}" target="_blank" rel="noopener" style="color:#333;">${esc((r.itemName||'').slice(0,40))}</a>` : esc((r.itemName||'').slice(0,40))}</td>
+      <td>${r.itemPrice > 0 ? '¥' + Number(r.itemPrice).toLocaleString() : '-'}</td>
+      <td>${r.reviewAverage > 0 ? '★' + parseFloat(r.reviewAverage).toFixed(1) + '(' + r.reviewCount + ')' : '-'}</td>
+    </tr>`;
+  }).join('');
+
   const el = document.getElementById('tr-main-content');
   el.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-      <div style="font-size:14px;font-weight:bold;">CSVインポート — 順位推移グラフ</div>
+      <div style="font-size:14px;font-weight:bold;">CSVインポート — 順位推移</div>
       <div style="display:flex;gap:8px;align-items:center;">
-        ${hasOwn ? `<button class="btn-toggle-own" id="import-own-toggle" style="font-size:12px;padding:4px 10px;">自社店舗のみ</button>` : ''}
+        ${hasOwn ? `<button id="import-own-toggle" class="btn-secondary" style="font-size:12px;padding:4px 10px;">自店舗のみ</button>` : ''}
         <button class="btn-secondary" style="font-size:12px;padding:4px 10px;" onclick="renderTrackerMain()">← 記録データに戻る</button>
       </div>
     </div>
     <div class="chart-wrap"><canvas id="import-chart"></canvas></div>
-    <div class="tr-legend-grid" id="import-legend-grid">${datasets.map(ds => buildLegendCard(ds)).join('')}</div>`;
+    <div id="import-table-wrap" style="overflow-x:auto;margin-top:16px;">
+      <table class="snapshot-table">
+        <thead><tr><th>日時</th><th>ショップ</th><th>順位</th><th>画像</th><th>商品名</th><th>価格</th><th>評価</th></tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>`;
 
   if (trackerChart) { trackerChart.destroy(); trackerChart = null; }
   trackerChart = new Chart(document.getElementById('import-chart'), {
@@ -2353,14 +2434,16 @@ function renderImportChart(datasets) {
         x: { type: 'category', title: { display: true, text: '日時' } },
         y: { reverse: true, title: { display: true, text: '順位' }, ticks: { stepSize: 1 } },
       },
-      plugins: { legend: { display: false } },
+      plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
     },
   });
 
   if (hasOwn) {
     document.getElementById('import-own-toggle').addEventListener('click', function() {
       this.classList.toggle('active');
-      document.getElementById('import-legend-grid').classList.toggle('own-only', this.classList.contains('active'));
+      this.textContent = this.classList.contains('active') ? '全件表示' : '自店舗のみ';
+      const wrap = document.getElementById('import-table-wrap');
+      wrap.classList.toggle('tracker-own-only', this.classList.contains('active'));
     });
   }
 }
@@ -2513,6 +2596,145 @@ setTimeout(function(){
   window.addEventListener('hashchange', checkHash);
   checkHash();
 })();
+
+// ===== PRODUCT URL RANK CHECKER =====
+(function() {
+  function parseItemUrl(url) {
+    const m = (url || '').match(/item\.rakuten\.co\.jp\/([^\/]+)\/([^\/?\#]+)/);
+    if (!m) return null;
+    return { shopCode: m[1], itemCode: m[1] + ':' + m[2] };
+  }
+
+  async function findItemRankByKeyword(itemCode, keyword, maxPages, sort) {
+    for (let page = 1; page <= maxPages; page++) {
+      const { newUrl, oldUrl } = searchUrl(keyword, null, page, sort);
+      let data;
+      try { data = await rakutenApi(newUrl, oldUrl); } catch(e) { await sleep(800); continue; }
+      if (data.error || !data.Items) break;
+      const items = data.Items;
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i].Item || items[i];
+        if ((it.itemCode || '').toLowerCase() === itemCode.toLowerCase()) {
+          return { rank: (page - 1) * 30 + i + 1, item: it };
+        }
+      }
+      if (items.length < 30) break;
+      await sleep(800);
+    }
+    return null;
+  }
+
+  const urlInput = document.getElementById('ur-url');
+  const hintEl   = document.getElementById('ur-parsed');
+  const pagesEl  = document.getElementById('ur-pages');
+
+  urlInput.addEventListener('input', function() {
+    const parsed = parseItemUrl(this.value.trim());
+    if (parsed) {
+      hintEl.textContent = `ショップ: ${parsed.shopCode} / 商品コード: ${parsed.itemCode}`;
+      hintEl.style.color = '#188038';
+    } else if (this.value.trim()) {
+      hintEl.textContent = '楽天商品URLの形式ではありません（item.rakuten.co.jp/...）';
+      hintEl.style.color = '#c00';
+    } else {
+      hintEl.textContent = '';
+    }
+  });
+
+  pagesEl.addEventListener('input', () => {
+    const n = parseInt(pagesEl.value) || 10;
+    document.getElementById('ur-pages-label').textContent = `${n * 30}件（${n}ページ）`;
+  });
+
+  let urAborted = false;
+
+  document.getElementById('ur-search-btn').addEventListener('click', async () => {
+    const rawUrl = urlInput.value.trim();
+    const parsed = parseItemUrl(rawUrl);
+    if (!parsed) { alert('有効な楽天商品URLを入力してください'); return; }
+
+    const keywords = document.getElementById('ur-keywords').value
+      .split(/\n/).map(k => k.trim()).filter(Boolean);
+    if (!keywords.length) { alert('キーワードを1つ以上入力してください'); return; }
+
+    const maxPages = parseInt(pagesEl.value) || 10;
+    const sort     = document.getElementById('ur-sort').value;
+    const btn      = document.getElementById('ur-search-btn');
+    const progCard = document.getElementById('ur-progress-card');
+    const fill     = document.getElementById('ur-fill');
+    const status   = document.getElementById('ur-status');
+    const resultsEl = document.getElementById('ur-results');
+
+    btn.disabled = true;
+    btn.textContent = '検索中...';
+    progCard.style.display = 'block';
+    fill.style.width = '0%';
+    resultsEl.innerHTML = '';
+    urAborted = false;
+    document.getElementById('ur-stop-btn').onclick = () => { urAborted = true; };
+
+    const results = [];
+    for (let i = 0; i < keywords.length; i++) {
+      if (urAborted) break;
+      const kw = keywords[i];
+      fill.style.width = Math.round(((i + 1) / keywords.length) * 100) + '%';
+      status.textContent = `「${kw}」を検索中... (${i + 1}/${keywords.length})`;
+      const found = await findItemRankByKeyword(parsed.itemCode, kw, maxPages, sort);
+      results.push({ keyword: kw, rank: found?.rank ?? null, item: found?.item ?? null });
+    }
+
+    progCard.style.display = 'none';
+    btn.disabled = false;
+    btn.textContent = '順位を検索';
+    renderUrlRankResults(results, parsed);
+  });
+
+  function renderUrlRankResults(results, parsed) {
+    const el = document.getElementById('ur-results');
+    const foundItem = results.find(r => r.item)?.item;
+
+    const itemCardHtml = foundItem
+      ? `<div class="card" style="margin-bottom:12px;">
+          <div style="font-size:12px;color:#666;margin-bottom:8px;">
+            ショップコード: <b>${esc(parsed.shopCode)}</b> &nbsp;/&nbsp; 商品コード: <b>${esc(parsed.itemCode)}</b>
+          </div>
+          <div class="item-grid">${buildItemCard(foundItem, results.find(r=>r.item).rank)}</div>
+        </div>`
+      : `<div class="card" style="margin-bottom:12px;font-size:13px;color:#888;">
+          ショップコード: ${esc(parsed.shopCode)} &nbsp;/&nbsp; 商品コード: ${esc(parsed.itemCode)}<br>
+          <span style="color:#c00;">指定の商品が検索結果内で見つかりませんでした。最大ページ数を増やすか、キーワードを確認してください。</span>
+        </div>`;
+
+    const rows = results.map(r => {
+      const rankCell = r.rank != null
+        ? `<td class="rank-cell">${r.rank}位</td>`
+        : `<td style="color:#bbb;">圏外（${document.getElementById('ur-pages').value}ページ以内に未検出）</td>`;
+      const addBtn = r.rank != null
+        ? `<td><button class="btn-secondary" style="font-size:11px;padding:2px 8px;"
+              onclick="openUrlRankPreset('${esc(parsed.shopCode)}','${esc(r.keyword).replace(/'/g,'&#39;')}')">
+              + プリセットに追加</button></td>`
+        : `<td></td>`;
+      return `<tr><td>${esc(r.keyword)}</td>${rankCell}${addBtn}</tr>`;
+    }).join('');
+
+    el.innerHTML = itemCardHtml + `<div class="card">
+      <div style="font-size:14px;font-weight:bold;margin-bottom:12px;">キーワード別順位結果</div>
+      <table class="snapshot-table">
+        <thead><tr><th>キーワード</th><th>順位</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }
+})();
+
+window.openUrlRankPreset = function(shopCode, keyword) {
+  document.getElementById('pr-name').value   = keyword + ' 順位';
+  document.getElementById('pr-type').value   = 'keyword';
+  document.getElementById('pr-keyword').value = keyword;
+  document.getElementById('pr-shops').value  = shopCode;
+  updatePresetModalFields();
+  document.getElementById('modal-preset').style.display = 'flex';
+};
 
 // ===== ALL CATEGORY SCAN =====
 (function() {
