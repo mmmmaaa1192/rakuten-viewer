@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.31</title>
+<title>楽天市場 リサーチツール v3.32</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -346,7 +346,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.31</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.32</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -1913,10 +1913,14 @@ function renderTrackerMain() {
         const isOwn = ownShopsSet.has(sc.toLowerCase()) ? '1' : '0';
         const r = s.shopResults[sc] || null;
         if (r) {
+          const imgCell = r.imageUrl
+            ? `<img src="${esc(r.imageUrl)}" style="width:36px;height:36px;object-fit:contain;display:block;" loading="lazy" onerror="this.style.display='none'">`
+            : '';
           rows.push(`<tr data-own="${isOwn}">
             <td>${esc(dt)}</td>
             <td>${esc(sc)}</td>
             <td class="rank-cell">${r.rank}位</td>
+            <td style="padding:4px 8px;">${imgCell}</td>
             <td><a href="${esc(r.itemUrl)}" target="_blank" rel="noopener" style="color:#333;">${esc(r.itemName.slice(0,40))}</a></td>
             <td>¥${Number(r.itemPrice).toLocaleString()}</td>
             <td>${r.reviewAverage > 0 ? '★' + r.reviewAverage.toFixed(1) + '(' + r.reviewCount + ')' : '-'}</td>
@@ -1927,7 +1931,7 @@ function renderTrackerMain() {
             <td>${esc(dt)}</td>
             <td>${esc(sc)}</td>
             <td style="color:#bbb;">圏外</td>
-            <td>-</td><td>-</td><td>-</td>
+            <td></td><td>-</td><td>-</td><td>-</td>
             <td><button class="btn-icon" data-del-snap="${esc(s.id)}" title="削除">🗑</button></td>
           </tr>`);
         }
@@ -1935,10 +1939,14 @@ function renderTrackerMain() {
     } else {
       (s.topItems || []).forEach(it => {
         const isOwn = ownShopsSet.has(it.shopCode.toLowerCase()) ? '1' : '0';
+        const imgCell = it.imageUrl
+          ? `<img src="${esc(it.imageUrl)}" style="width:36px;height:36px;object-fit:contain;display:block;" loading="lazy" onerror="this.style.display='none'">`
+          : '';
         rows.push(`<tr data-own="${isOwn}">
           <td>${esc(dt)}</td>
           <td>${esc(it.shopCode)}</td>
           <td class="rank-cell">${it.rank}位</td>
+          <td style="padding:4px 8px;">${imgCell}</td>
           <td><a href="${esc(it.itemUrl)}" target="_blank" rel="noopener" style="color:#333;">${esc(it.itemName.slice(0,40))}</a></td>
           <td>¥${Number(it.itemPrice).toLocaleString()}</td>
           <td>${it.reviewAverage > 0 ? '★' + it.reviewAverage.toFixed(1) + '(' + it.reviewCount + ')' : '-'}</td>
@@ -1962,7 +1970,7 @@ function renderTrackerMain() {
     <div class="chart-wrap"><canvas id="tracker-chart"></canvas></div>
     <div id="tr-table-wrap" style="overflow-x:auto;">
       <table class="snapshot-table">
-        <thead><tr><th>日時</th><th>ショップ</th><th>順位</th><th>商品名</th><th>価格</th><th>評価</th><th></th></tr></thead>
+        <thead><tr><th>日時</th><th>ショップ</th><th>順位</th><th>画像</th><th>商品名</th><th>価格</th><th>評価</th><th></th></tr></thead>
         <tbody>${tableRows}</tbody>
       </table>
     </div>`;
