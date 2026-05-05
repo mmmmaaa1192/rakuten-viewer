@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.37</title>
+<title>楽天市場 リサーチツール v3.38</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -345,7 +345,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.37</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.38</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -1894,10 +1894,21 @@ function renderTrackerMain() {
   let datasets = [];
   const COLORS = ['#bf0000','#1a73e8','#188038','#f9a825','#9c27b0','#00bcd4','#e65100','#0288d1','#558b2f','#6d4c41','#ad1457','#00838f'];
 
+  // Helper: get best known shopName for a shopCode from snapshots
+  const resolveShopName = (sc) => {
+    for (const s of allSnaps) {
+      const name = s.shopResults?.[sc]?.shopName
+        || (s.topItems || []).find(it => it.shopCode === sc)?.shopName;
+      if (name) return name;
+    }
+    return sc;
+  };
+
   if (shopCodes.length > 0) {
     // One line per shopCode
     datasets = shopCodes.map((sc, idx) => ({
-      label: sc,
+      label: resolveShopName(sc),
+      shopCode: sc,
       data: allSnaps.map(s => {
         const r = s.shopResults[sc];
         return r ? r.rank : null;
@@ -1913,7 +1924,8 @@ function renderTrackerMain() {
     allSnaps.forEach(s => (s.topItems || []).forEach(it => shopSet.add(it.shopCode)));
     const topShops = [...shopSet];
     datasets = topShops.map((sc, idx) => ({
-      label: sc,
+      label: resolveShopName(sc),
+      shopCode: sc,
       data: allSnaps.map(s => {
         const it = (s.topItems || []).find(t => t.shopCode === sc);
         return it ? it.rank : null;
@@ -1942,9 +1954,10 @@ function renderTrackerMain() {
           const imgCell = r.imageUrl
             ? `<img src="${esc(r.imageUrl)}" style="width:36px;height:36px;object-fit:contain;display:block;" loading="lazy" onerror="this.style.display='none'">`
             : '';
+          const scName = r.shopName ? `${esc(sc)}<br><span style="font-size:11px;color:#888;">${esc(r.shopName)}</span>` : esc(sc);
           rows.push(`<tr data-own="${isOwn}">
             <td>${esc(dt)}</td>
-            <td>${esc(sc)}</td>
+            <td>${scName}</td>
             <td class="rank-cell">${r.rank}位</td>
             <td style="padding:4px 8px;">${imgCell}</td>
             <td><a href="${esc(r.itemUrl)}" target="_blank" rel="noopener" style="color:#333;">${esc(r.itemName.slice(0,40))}</a></td>
@@ -1970,7 +1983,7 @@ function renderTrackerMain() {
           : '';
         rows.push(`<tr data-own="${isOwn}">
           <td>${esc(dt)}</td>
-          <td>${esc(it.shopCode)}</td>
+          <td>${esc(it.shopCode)}${it.shopName ? `<br><span style="font-size:11px;color:#888;">${esc(it.shopName)}</span>` : ''}</td>
           <td class="rank-cell">${it.rank}位</td>
           <td style="padding:4px 8px;">${imgCell}</td>
           <td><a href="${esc(it.itemUrl)}" target="_blank" rel="noopener" style="color:#333;">${esc(it.itemName.slice(0,40))}</a></td>
@@ -2051,7 +2064,7 @@ function renderTrackerMain() {
       if (trackerChart) {
         const ownSet = new Set(getOwnShops().map(s => s.toLowerCase()));
         trackerChart.data.datasets.forEach((ds, i) => {
-          trackerChart.setDatasetVisibility(i, !isOn || ownSet.has((ds.label || '').toLowerCase()));
+          trackerChart.setDatasetVisibility(i, !isOn || ownSet.has((ds.shopCode || ds.label || '').toLowerCase()));
         });
         trackerChart.update();
       }
