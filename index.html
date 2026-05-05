@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.35</title>
+<title>楽天市場 リサーチツール v3.36</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -345,7 +345,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.35</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.36</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -417,8 +417,17 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
           <div class="form-group">
             <label class="form-label">並び順</label>
             <select class="form-input" id="kw-sort">
-              <option value="standard">標準（デフォルト）</option>
-              <option value="-reviewCount">レビュー数 降順</option>
+              <option value="standard">標準（楽天標準ソート）</option>
+              <option value="+itemPrice">価格順（安い順）</option>
+              <option value="-itemPrice">価格順（高い順）</option>
+              <option value="+reviewCount">レビュー件数順（少ない順）</option>
+              <option value="-reviewCount">レビュー件数順（多い順）</option>
+              <option value="+reviewAverage">レビュー平均順（低い順）</option>
+              <option value="-reviewAverage">レビュー平均順（高い順）</option>
+              <option value="+updateTimestamp">更新日時順（古い順）</option>
+              <option value="-updateTimestamp">更新日時順（新しい順）</option>
+              <option value="+affiliateRate">アフィリエイト料率順（低い順）</option>
+              <option value="-affiliateRate">アフィリエイト料率順（高い順）</option>
             </select>
           </div>
           <div class="form-group">
@@ -458,8 +467,17 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
           <div class="form-group">
             <label class="form-label">並び順</label>
             <select class="form-input" id="c-sort">
-              <option value="standard">標準（デフォルト）</option>
-              <option value="-reviewCount">レビュー数 降順</option>
+              <option value="standard">標準（楽天標準ソート）</option>
+              <option value="+itemPrice">価格順（安い順）</option>
+              <option value="-itemPrice">価格順（高い順）</option>
+              <option value="+reviewCount">レビュー件数順（少ない順）</option>
+              <option value="-reviewCount">レビュー件数順（多い順）</option>
+              <option value="+reviewAverage">レビュー平均順（低い順）</option>
+              <option value="-reviewAverage">レビュー平均順（高い順）</option>
+              <option value="+updateTimestamp">更新日時順（古い順）</option>
+              <option value="-updateTimestamp">更新日時順（新しい順）</option>
+              <option value="+affiliateRate">アフィリエイト料率順（低い順）</option>
+              <option value="-affiliateRate">アフィリエイト料率順（高い順）</option>
             </select>
           </div>
           <div class="form-group">
@@ -600,8 +618,17 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
     <div class="form-group" id="pr-group-sort">
       <label class="form-label">並び順</label>
       <select class="form-input" id="pr-sort">
-        <option value="standard">標準（デフォルト）</option>
-        <option value="-reviewCount">レビュー数 降順</option>
+        <option value="standard">標準（楽天標準ソート）</option>
+        <option value="+itemPrice">価格順（安い順）</option>
+        <option value="-itemPrice">価格順（高い順）</option>
+        <option value="+reviewCount">レビュー件数順（少ない順）</option>
+        <option value="-reviewCount">レビュー件数順（多い順）</option>
+        <option value="+reviewAverage">レビュー平均順（低い順）</option>
+        <option value="-reviewAverage">レビュー平均順（高い順）</option>
+        <option value="+updateTimestamp">更新日時順（古い順）</option>
+        <option value="-updateTimestamp">更新日時順（新しい順）</option>
+        <option value="+affiliateRate">アフィリエイト料率順（低い順）</option>
+        <option value="-affiliateRate">アフィリエイト料率順（高い順）</option>
       </select>
     </div>
     <!-- max pages (keyword/category only) -->
@@ -772,7 +799,7 @@ function searchUrl(keyword, genreId, page, sort = 'standard') {
   const aff    = affParam();
   const kw     = keyword ? '&keyword=' + encodeURIComponent(keyword) : '';
   const genre  = genreId ? '&genreId=' + genreId : '';
-  const sortParam = sort !== 'standard' ? '&sort=' + encodeURIComponent(sort) : '';
+  const sortParam = '&sort=' + encodeURIComponent(sort || 'standard');
   return {
     newUrl: `${NEW_BASE}/ichibams/api/IchibaItem/Search/20220601?applicationId=${appId}&accessKey=${accKey}${aff}&hits=30&page=${page}&format=json&formatVersion=2${kw}${genre}${sortParam}`,
     oldUrl: `${OLD_BASE}/IchibaItem/Search/20170706?applicationId=${appId}${aff}&hits=30&page=${page}&format=json${kw}${genre}${sortParam}`,
