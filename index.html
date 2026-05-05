@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.45</title>
+<title>楽天市場 リサーチツール v3.46</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -53,8 +53,15 @@ header {
 /* ===== TABS ===== */
 .tab-nav { display: flex; background: white; border-bottom: 2px solid #bf0000; padding: 0 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
 .tab-nav-item { padding: 12px 20px; cursor: pointer; font-size: 14px; border-bottom: 3px solid transparent; margin-bottom: -2px; color: #777; transition: all 0.15s; user-select: none; }
-.tab-nav-item:hover { color: #bf0000; background: #fafafa; }
-.tab-nav-item.active { border-bottom-color: #bf0000; color: #bf0000; font-weight: bold; }
+.tab-nav-item:hover { filter: brightness(0.92); }
+.tab-nav-item.tab-green  { background: #e8f5e9; color: #2e7d32; }
+.tab-nav-item.tab-red    { background: #fdecea; color: #bf0000; }
+.tab-nav-item.tab-blue   { background: #e8f0fe; color: #1a5cb0; }
+.tab-nav-item.tab-purple { background: #f3e5f5; color: #6a1b9a; }
+.tab-nav-item.tab-green.active  { border-bottom-color: #2e7d32; color: #1b5e20; font-weight: bold; background: #c8e6c9; }
+.tab-nav-item.tab-red.active    { border-bottom-color: #bf0000; color: #7f0000; font-weight: bold; background: #ffcdd2; }
+.tab-nav-item.tab-blue.active   { border-bottom-color: #1a5cb0; color: #0d3880; font-weight: bold; background: #c5d8fc; }
+.tab-nav-item.tab-purple.active { border-bottom-color: #6a1b9a; color: #4a0072; font-weight: bold; background: #e1bee7; }
 
 .tab-pane { display: none; padding: 20px 24px; max-width: 1200px; margin: 0 auto; }
 .tab-pane.active { display: block; }
@@ -234,7 +241,13 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 
 /* ===== MODAL ===== */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 100; }
-.modal-box { background: white; border-radius: 10px; padding: 28px 32px; width: 90%; max-width: 440px; box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
+.modal-box { background: white; border-radius: 10px; padding: 28px 32px; width: 90%; max-width: 440px; max-height: 92vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
+.genre-browser-item { display:flex; align-items:center; gap:4px; padding:6px 10px; cursor:pointer; border-bottom:1px solid #f0f0f0; }
+.genre-browser-item:hover { background:#fff0f0; }
+.genre-browser-item .gb-toggle { width:18px; text-align:center; color:#aaa; flex-shrink:0; }
+.genre-browser-item .gb-name { flex:1; }
+.genre-browser-item .gb-select { font-size:11px; padding:2px 7px; border-radius:4px; background:#bf0000; color:#fff; border:none; cursor:pointer; white-space:nowrap; }
+.genre-browser-children { padding-left:18px; border-left:2px solid #f0e0e0; margin-left:10px; }
 .modal-title { font-size: 16px; font-weight: bold; margin-bottom: 20px; color: #333; }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
 
@@ -260,6 +273,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 .preset-badge.keyword  { background: #1a73e8; }
 .preset-badge.category { background: #188038; }
 .preset-badge.ranking  { background: #bf0000; }
+.preset-badge.url-rank { background: #e65100; }
 .preset-item-meta { font-size: 11px; color: #aaa; margin-top: 2px; }
 .preset-actions { display: flex; gap: 4px; margin-top: 6px; }
 .btn-record { background: #bf0000; color: white; border: none; padding: 3px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; }
@@ -367,7 +381,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.45</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.46</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -376,13 +390,13 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   </header>
 
   <div class="tab-nav">
-    <div class="tab-nav-item active" data-tab="ranking">ランキング</div>
-    <div class="tab-nav-item" data-tab="keyword">キーワード順位</div>
-    <div class="tab-nav-item" data-tab="category">カテゴリ順位</div>
-    <div class="tab-nav-item" data-tab="tracker">推移チェッカー</div>
-    <div class="tab-nav-item" data-tab="related">関連商品</div>
-    <div class="tab-nav-item" data-tab="url-rank">商品URL順位</div>
-    <div class="tab-nav-item" data-tab="scan">全カテゴリスキャン</div>
+    <div class="tab-nav-item tab-green" data-tab="tracker">推移チェッカー</div>
+    <div class="tab-nav-item tab-red active" data-tab="ranking">ランキング</div>
+    <div class="tab-nav-item tab-red" data-tab="scan">全カテゴリスキャン</div>
+    <div class="tab-nav-item tab-blue" data-tab="keyword">キーワード順位</div>
+    <div class="tab-nav-item tab-blue" data-tab="category">カテゴリ順位</div>
+    <div class="tab-nav-item tab-blue" data-tab="url-rank">商品URL順位</div>
+    <div class="tab-nav-item tab-purple" data-tab="related">関連商品</div>
   </div>
 
   <div class="app-body">
@@ -596,7 +610,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
           <div class="form-hint" style="margin-bottom:12px;">楽天商品URLを入力し、指定キーワードでの検索順位を調べます。結果はプリセットに追加して定期追跡もできます。</div>
           <div class="form-group">
             <label class="form-label">商品URL</label>
-            <input type="url" class="form-input" id="ur-url" placeholder="https://item.rakuten.co.jp/shopcode/itemid/">
+            <textarea class="form-input" id="ur-url" rows="3" placeholder="https://item.rakuten.co.jp/shopcode/itemid/&#10;（1行1URL、複数入力可）" style="resize:vertical;font-size:12px;"></textarea>
             <div class="form-hint" id="ur-parsed" style="margin-top:4px;min-height:16px;"></div>
           </div>
           <div class="form-group">
@@ -654,6 +668,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
         <option value="keyword">キーワード順位</option>
         <option value="category">カテゴリ順位</option>
         <option value="ranking">ランキング</option>
+        <option value="url-rank">商品URL順位</option>
       </select>
     </div>
     <!-- keyword only -->
@@ -664,11 +679,13 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
     <!-- category/ranking -->
     <div class="form-group" id="pr-group-category" style="display:none;">
       <label class="form-label">カテゴリ</label>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span id="pr-genre-name" style="font-size:13px;color:#555;flex:1;">（未選択）</span>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span id="pr-genre-name" style="font-size:13px;color:#555;flex:1;min-width:120px;">（未選択）</span>
         <button class="btn-secondary" style="font-size:12px;padding:4px 10px;" id="pr-pick-genre-btn">サイドナビから取得</button>
+        <button class="btn-secondary" style="font-size:12px;padding:4px 10px;" id="pr-browse-genre-btn">一覧から選択 ▾</button>
       </div>
       <input type="hidden" id="pr-genre-id" value="">
+      <div id="pr-genre-browser" style="display:none;margin-top:8px;border:1px solid #e0e0e0;border-radius:6px;max-height:260px;overflow-y:auto;background:#fafafa;font-size:13px;"></div>
     </div>
     <!-- ranking period -->
     <div class="form-group" id="pr-group-period" style="display:none;">
@@ -678,8 +695,16 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
         <option value="daily">デイリー</option>
       </select>
     </div>
+    <!-- url-rank only -->
+    <div class="form-group" id="pr-group-urlrank" style="display:none;">
+      <label class="form-label">商品URL</label>
+      <input class="form-input" type="url" id="pr-urlrank-url" placeholder="https://item.rakuten.co.jp/shopcode/itemid/">
+      <div class="form-hint" id="pr-urlrank-parsed" style="margin-top:4px;min-height:14px;"></div>
+      <label class="form-label" style="margin-top:8px;">検索キーワード（1行1キーワード）</label>
+      <textarea class="form-input" id="pr-urlrank-keywords" rows="3" placeholder="キーワード1&#10;キーワード2" style="resize:vertical;margin-top:4px;"></textarea>
+    </div>
     <!-- shop codes -->
-    <div class="form-group">
+    <div class="form-group" id="pr-group-shops">
       <label class="form-label">ショップコード <span style="font-weight:normal;color:#aaa;">（任意・改行orカンマ区切り）</span></label>
       <textarea class="form-input" id="pr-shops" rows="2" placeholder="例: shopcode1&#10;shopcode2" style="font-family:monospace;font-size:13px;resize:vertical;"></textarea>
     </div>
@@ -1807,19 +1832,103 @@ let trackerChart = null;
 // ---- Preset modal field visibility ----
 function updatePresetModalFields() {
   const type = document.getElementById('pr-type').value;
+  const isUrlRank = type === 'url-rank';
   document.getElementById('pr-group-keyword').style.display  = type === 'keyword'  ? '' : 'none';
-  document.getElementById('pr-group-category').style.display = type !== 'keyword'  ? '' : 'none';
+  document.getElementById('pr-group-category').style.display = (type === 'category' || type === 'ranking') ? '' : 'none';
   document.getElementById('pr-group-period').style.display   = type === 'ranking'  ? '' : 'none';
+  document.getElementById('pr-group-shops').style.display    = isUrlRank ? 'none' : '';
   document.getElementById('pr-group-sort').style.display     = type !== 'ranking'  ? '' : 'none';
   document.getElementById('pr-group-pages').style.display    = type !== 'ranking'  ? '' : 'none';
+  document.getElementById('pr-group-urlrank').style.display  = isUrlRank ? '' : 'none';
 }
 
 document.getElementById('pr-type').addEventListener('change', updatePresetModalFields);
 updatePresetModalFields();
 
+document.getElementById('pr-urlrank-url').addEventListener('input', function() {
+  const parsed = parseItemUrl(this.value.trim());
+  const el = document.getElementById('pr-urlrank-parsed');
+  if (parsed) {
+    el.innerHTML = `ショップ: <b>${esc(parsed.shopCode)}</b> / 商品管理番号: <b>${esc(parsed.managementId)}</b>`;
+    el.style.color = '#188038';
+  } else if (this.value.trim()) {
+    el.textContent = '楽天商品URLの形式ではありません';
+    el.style.color = '#c00';
+  } else {
+    el.textContent = '';
+  }
+});
+
 document.getElementById('pr-pages').addEventListener('input', function() {
   document.getElementById('pr-pages-label').textContent = this.value + 'ページ（' + (this.value * 30) + '件）';
 });
+
+// ---- Genre browser (inline in preset modal) ----
+(function() {
+  const browser  = document.getElementById('pr-genre-browser');
+  const browseBtn = document.getElementById('pr-browse-genre-btn');
+  let   open     = false;
+
+  function selectGenre(genreId, genreName) {
+    document.getElementById('pr-genre-id').value    = genreId;
+    document.getElementById('pr-genre-name').textContent = genreName;
+    browser.style.display = 'none';
+    browseBtn.textContent = '一覧から選択 ▾';
+    open = false;
+  }
+
+  function renderItems(container, items, pathPrefix) {
+    container.innerHTML = '';
+    items.forEach(g => {
+      const row = document.createElement('div');
+      row.className = 'genre-browser-item';
+      const fullPath = pathPrefix ? pathPrefix + ' › ' + g.genreName : g.genreName;
+      row.innerHTML = `<span class="gb-toggle">▶</span>
+        <span class="gb-name">${esc(g.genreName)}</span>
+        <button class="gb-select">選択</button>`;
+      const toggle     = row.querySelector('.gb-toggle');
+      const selectBt   = row.querySelector('.gb-select');
+      selectBt.addEventListener('click', e => { e.stopPropagation(); selectGenre(g.genreId, fullPath); });
+      let childrenDiv  = null;
+      let loaded       = false;
+      let childOpen    = false;
+      const expand = async () => {
+        childOpen = !childOpen;
+        if (childOpen) {
+          toggle.textContent = '▼';
+          if (!loaded) {
+            if (!childrenDiv) { childrenDiv = document.createElement('div'); childrenDiv.className = 'genre-browser-children'; row.after(childrenDiv); }
+            childrenDiv.textContent = '読み込み中...';
+            const kids = await fetchGenreChildren(g.genreId);
+            loaded = true;
+            if (kids.length) { renderItems(childrenDiv, kids, fullPath); }
+            else { childrenDiv.textContent = ''; }
+          } else if (childrenDiv) {
+            childrenDiv.style.display = '';
+          }
+        } else {
+          toggle.textContent = '▶';
+          if (childrenDiv) childrenDiv.style.display = 'none';
+        }
+      };
+      toggle.addEventListener('click', e => { e.stopPropagation(); expand(); });
+      row.addEventListener('click', expand);
+      container.appendChild(row);
+    });
+  }
+
+  browseBtn.addEventListener('click', async () => {
+    open = !open;
+    if (!open) { browser.style.display = 'none'; browseBtn.textContent = '一覧から選択 ▾'; return; }
+    browseBtn.textContent = '一覧から選択 ▲';
+    browser.style.display = 'block';
+    if (browser.innerHTML === '') {
+      browser.textContent = '読み込み中...';
+      const top = await fetchGenreChildren(0);
+      renderItems(browser, top, '');
+    }
+  });
+})();
 
 document.getElementById('pr-pick-genre-btn').addEventListener('click', () => {
   if (!sideNav || sideNav.selected.genreId === 0) {
@@ -1842,6 +1951,13 @@ document.getElementById('tr-add-preset-btn').addEventListener('click', () => {
   document.getElementById('pr-sort').value    = 'standard';
   document.getElementById('pr-pages').value   = '10';
   document.getElementById('pr-pages-label').textContent = '10ページ（300件）';
+  document.getElementById('pr-urlrank-url').value      = '';
+  document.getElementById('pr-urlrank-keywords').value = '';
+  document.getElementById('pr-urlrank-parsed').textContent = '';
+  const gb = document.getElementById('pr-genre-browser');
+  if (gb) { gb.style.display = 'none'; gb.innerHTML = ''; }
+  const bb = document.getElementById('pr-browse-genre-btn');
+  if (bb) bb.textContent = '一覧から選択 ▾';
   updatePresetModalFields();
   document.getElementById('modal-preset').style.display = 'flex';
 });
@@ -1861,17 +1977,31 @@ document.getElementById('pr-save-btn').addEventListener('click', () => {
     alert('キーワードを入力してください'); return;
   }
   if ((type === 'category' || type === 'ranking') && !document.getElementById('pr-genre-id').value) {
-    alert('カテゴリを選択してください（サイドナビから取得ボタンを押してください）'); return;
+    alert('カテゴリを選択してください'); return;
+  }
+  if (type === 'url-rank') {
+    if (!parseItemUrl(document.getElementById('pr-urlrank-url').value.trim())) { alert('有効な楽天商品URLを入力してください'); return; }
+    if (!document.getElementById('pr-urlrank-keywords').value.trim()) { alert('キーワードを入力してください'); return; }
   }
 
-  const shopsRaw = document.getElementById('pr-shops').value;
+  const shopsRaw  = document.getElementById('pr-shops').value;
   const shopCodes = shopsRaw.split(/[\n,、]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
 
-  const preset = {
-    id: generateId(),
-    name,
-    type,
-    config: {
+  let config;
+  if (type === 'url-rank') {
+    const rawUrl = document.getElementById('pr-urlrank-url').value.trim();
+    const p      = parseItemUrl(rawUrl);
+    config = {
+      itemUrl:      rawUrl,
+      shopCode:     p.shopCode,
+      managementId: p.managementId,
+      keywords:     document.getElementById('pr-urlrank-keywords').value.split(/\n/).map(k => k.trim()).filter(Boolean),
+      sort:         document.getElementById('pr-sort').value,
+      maxPages:     parseInt(document.getElementById('pr-pages').value) || 10,
+      shopCodes:    [],
+    };
+  } else {
+    config = {
       keyword:   type === 'keyword' ? document.getElementById('pr-keyword').value.trim() : '',
       genreId:   type !== 'keyword' ? parseInt(document.getElementById('pr-genre-id').value) || 0 : 0,
       genreName: type !== 'keyword' ? document.getElementById('pr-genre-name').textContent : '',
@@ -1879,9 +2009,10 @@ document.getElementById('pr-save-btn').addEventListener('click', () => {
       shopCodes,
       maxPages:  type !== 'ranking' ? parseInt(document.getElementById('pr-pages').value) || 10 : 3,
       sort:      type !== 'ranking' ? document.getElementById('pr-sort').value : 'standard',
-    },
-    createdAt: new Date().toISOString(),
-  };
+    };
+  }
+
+  const preset = { id: generateId(), name, type, config, createdAt: new Date().toISOString() };
 
   const presets = loadPresets();
   presets.push(preset);
@@ -1900,7 +2031,10 @@ function renderPresetList() {
   }
   el.innerHTML = presets.map(p => {
     const badgeClass = p.type;
-    const badgeLabel = p.type === 'keyword' ? 'KW' : p.type === 'category' ? 'CAT' : 'RANK';
+    const badgeLabel = p.type === 'keyword' ? 'KW' : p.type === 'category' ? 'CAT' : p.type === 'ranking' ? 'RANK' : 'URL';
+    const metaText   = p.type === 'url-rank'  ? esc(p.config.managementId || p.config.itemUrl || '')
+                     : p.type === 'keyword'   ? esc(p.config.keyword)
+                     : esc(p.config.genreName);
     const isActive   = p.id === trackerSelectedPresetId;
     return `<div class="preset-item${isActive ? ' active' : ''}" data-preset-id="${esc(p.id)}">
       <div style="display:flex;align-items:flex-start;gap:6px;">
@@ -1910,7 +2044,7 @@ function renderPresetList() {
           <div class="preset-item-name" title="${esc(p.name)}">
             <span class="preset-badge ${badgeClass}">${badgeLabel}</span>${esc(p.name)}
           </div>
-          <div class="preset-item-meta">${p.type === 'keyword' ? esc(p.config.keyword) : esc(p.config.genreName)}</div>
+          <div class="preset-item-meta">${metaText}</div>
         </div>
       </div>
       <div class="preset-actions" style="margin-top:4px;">
@@ -1982,7 +2116,29 @@ async function recordSnapshot(preset) {
     topItems:    [],
   };
 
-  if (type === 'ranking') {
+  if (type === 'url-rank') {
+    const parsed = parseItemUrl(config.itemUrl);
+    if (parsed) {
+      for (const kw of (config.keywords || [])) {
+        const found  = await findItemRankByKeyword(parsed, kw, config.maxPages || 10, config.sort || 'standard');
+        const it     = found?.item;
+        const imgRaw = it?.mediumImageUrls?.[0];
+        snapshot.shopResults[kw] = {
+          rank:          found?.rank ?? null,
+          keyword:       kw,
+          itemName:      it?.itemName      || '',
+          itemPrice:     it?.itemPrice     || 0,
+          reviewAverage: parseFloat(it?.reviewAverage || 0),
+          reviewCount:   parseInt(it?.reviewCount    || 0),
+          itemUrl:       it?.itemUrl       || config.itemUrl,
+          shopCode:      it?.shopCode      || parsed.shopCode,
+          shopName:      it?.shopName      || '',
+          imageUrl:      (imgRaw && typeof imgRaw === 'object' ? imgRaw.imageUrl : imgRaw) || '',
+        };
+        await sleep(800);
+      }
+    }
+  } else if (type === 'ranking') {
     // Fetch pages 1-3 of ranking
     const pages = await Promise.all([1, 2, 3].map(p => {
       const { newUrl, oldUrl } = rankingUrl(config.genreId || 0, config.period, p);
@@ -2123,7 +2279,35 @@ function renderTrackerMain() {
     return sc;
   };
 
-  if (shopCodes.length > 0) {
+  if (preset.type === 'url-rank') {
+    const keywords = preset.config.keywords || [];
+    datasets = keywords.map((kw, idx) => ({
+      label: kw,
+      shopCode: kw,
+      data: allSnaps.map(s => s.shopResults?.[kw]?.rank ?? null),
+      borderColor: COLORS[idx % COLORS.length],
+      backgroundColor: COLORS[idx % COLORS.length] + '22',
+      tension: 0.3, spanGaps: true,
+    }));
+    for (let i = allSnaps.length - 1; i >= 0; i--) {
+      const s  = allSnaps[i];
+      const dt = new Date(s.recordedAt).toLocaleString('ja-JP');
+      keywords.forEach(kw => {
+        const r = s.shopResults?.[kw];
+        if (!r) return;
+        const rankCell = r.rank != null ? `<td class="rank-cell">${r.rank}位</td>` : `<td style="color:#bbb;">圏外</td>`;
+        const imgCell  = r.imageUrl ? `<img src="${esc(r.imageUrl)}" style="width:36px;height:36px;object-fit:contain;display:block;" loading="lazy" onerror="this.style.display='none'">` : '';
+        tableRows += `<tr>
+          <td>${esc(dt)}</td><td>${esc(kw)}</td>${rankCell}
+          <td style="padding:4px 8px;">${imgCell}</td>
+          <td><a href="${esc(r.itemUrl||'')}" target="_blank" rel="noopener" style="color:#333;">${esc((r.itemName||'').slice(0,40))}</a></td>
+          <td>¥${Number(r.itemPrice||0).toLocaleString()}</td>
+          <td>${r.reviewAverage > 0 ? '★' + r.reviewAverage.toFixed(1) + '(' + r.reviewCount + ')' : '-'}</td>
+          <td><button class="btn-icon" data-del-snap="${esc(s.id)}" title="削除">🗑</button></td>
+        </tr>`;
+      });
+    }
+  } else if (shopCodes.length > 0) {
     // One line per shopCode
     datasets = shopCodes.map((sc, idx) => ({
       label: resolveShopName(sc),
@@ -2228,7 +2412,7 @@ function renderTrackerMain() {
     <div class="chart-wrap"><canvas id="tracker-chart"></canvas></div>
     <div id="tr-table-wrap" style="overflow-x:auto;">
       <table class="snapshot-table">
-        <thead><tr><th>日時</th><th>ショップ</th><th>順位</th><th>画像</th><th>商品名</th><th>価格</th><th>評価</th><th></th></tr></thead>
+        <thead><tr><th>日時</th><th>${preset.type === 'url-rank' ? 'キーワード' : 'ショップ'}</th><th>順位</th><th>画像</th><th>商品名</th><th>価格</th><th>評価</th><th></th></tr></thead>
         <tbody>${tableRows}</tbody>
       </table>
     </div>`;
@@ -2331,7 +2515,7 @@ document.getElementById('tr-export-btn').addEventListener('click', () => {
     if (!preset) continue;
     const snaps = allSnaps.filter(s => s.presetId === pid);
     if (!snaps.length) { continue; }
-    const typeLabel = preset.type === 'keyword' ? 'keyword' : preset.type === 'category' ? 'category' : 'ranking';
+    const typeLabel = preset.type === 'keyword' ? 'keyword' : preset.type === 'category' ? 'category' : preset.type === 'url-rank' ? 'url-rank' : 'ranking';
     const safeName  = preset.name.replace(/[\\/:*?"<>|]/g, '_').slice(0, 40);
     downloadCSV(snapshotsToCSV(snaps), `JTC-${typeLabel}-${safeName}-${date}.csv`);
     exported++;
@@ -2673,66 +2857,72 @@ setTimeout(function(){
   checkHash();
 })();
 
+// ===== GENRE FETCH HELPER (global) =====
+async function fetchGenreChildren(genreId) {
+  const urls = genreUrl(genreId);
+  let data;
+  try { data = await rakutenApi(urls.newUrl, urls.oldUrl); } catch(e) { return []; }
+  if (data.error) return [];
+  const info = data.genreInformation
+    ? (Array.isArray(data.genreInformation) ? data.genreInformation[0] : data.genreInformation)
+    : data;
+  return (info?.children || []).map(c => c.child || c).filter(c => c.genreId);
+}
+
+// ===== URL RANK CHECKER HELPERS (global — also used by recordSnapshot) =====
+function parseItemUrl(url) {
+  const m = (url || '').match(/item\.rakuten\.co\.jp\/([^\/]+)\/([^\/?\#]+)/);
+  if (!m) return null;
+  return { shopCode: m[1], managementId: m[2], itemCode: m[1] + ':' + m[2] };
+}
+function itemMatches(it, parsed) {
+  const code = (it.itemCode || '').toLowerCase();
+  const iurl = (it.itemUrl  || '').toLowerCase();
+  const shop = parsed.shopCode.toLowerCase();
+  const mid  = parsed.managementId.toLowerCase();
+  return code === parsed.itemCode.toLowerCase()
+    || code === mid
+    || code.endsWith(':' + mid)
+    || iurl.includes('/' + shop + '/' + mid);
+}
+async function findItemRankByKeyword(parsed, keyword, maxPages, sort, onProgress) {
+  let lastError = null;
+  for (let page = 1; page <= maxPages; page++) {
+    if (onProgress) onProgress(page);
+    const { newUrl, oldUrl } = searchUrl(keyword, null, page, sort);
+    let data;
+    try { data = await rakutenApi(newUrl, oldUrl); } catch(e) { lastError = e.message; await sleep(800); continue; }
+    if (data.error) return { error: data };
+    if (!data.Items || !data.Items.length) break;
+    const items = data.Items;
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i].Item || items[i];
+      if (itemMatches(it, parsed)) return { rank: (page - 1) * 30 + i + 1, item: it };
+    }
+    if (items.length < 30) break;
+    await sleep(800);
+  }
+  return lastError ? { networkError: lastError } : null;
+}
+
 // ===== PRODUCT URL RANK CHECKER =====
 (function() {
-  function parseItemUrl(url) {
-    const m = (url || '').match(/item\.rakuten\.co\.jp\/([^\/]+)\/([^\/?\#]+)/);
-    if (!m) return null;
-    return {
-      shopCode:     m[1],
-      managementId: m[2],
-      itemCode:     m[1] + ':' + m[2],
-    };
-  }
-
-  // Match by itemCode, managementId, or itemUrl path
-  function itemMatches(it, parsed) {
-    const code = (it.itemCode || '').toLowerCase();
-    const iurl = (it.itemUrl || '').toLowerCase();
-    const shop = parsed.shopCode.toLowerCase();
-    const mid  = parsed.managementId.toLowerCase();
-    return code === parsed.itemCode.toLowerCase()
-      || code === mid
-      || code.endsWith(':' + mid)
-      || iurl.includes('/' + shop + '/' + mid);
-  }
-
-  async function findItemRankByKeyword(parsed, keyword, maxPages, sort, onProgress) {
-    let lastError = null;
-    for (let page = 1; page <= maxPages; page++) {
-      if (onProgress) onProgress(page);
-      const { newUrl, oldUrl } = searchUrl(keyword, null, page, sort);
-      let data;
-      try { data = await rakutenApi(newUrl, oldUrl); } catch(e) { lastError = e.message; await sleep(800); continue; }
-      if (data.error) return { error: data };
-      if (!data.Items || !data.Items.length) break;
-      const items = data.Items;
-      for (let i = 0; i < items.length; i++) {
-        const it = items[i].Item || items[i];
-        if (itemMatches(it, parsed)) {
-          return { rank: (page - 1) * 30 + i + 1, item: it };
-        }
-      }
-      if (items.length < 30) break;
-      await sleep(800);
-    }
-    return lastError ? { networkError: lastError } : null;
-  }
-
   const urlInput = document.getElementById('ur-url');
   const hintEl   = document.getElementById('ur-parsed');
   const pagesEl  = document.getElementById('ur-pages');
 
   urlInput.addEventListener('input', function() {
-    const parsed = parseItemUrl(this.value.trim());
-    if (parsed) {
-      hintEl.innerHTML = `ショップ: <b>${esc(parsed.shopCode)}</b> &nbsp;/&nbsp; 商品管理番号: <b>${esc(parsed.managementId)}</b>`;
+    const lines = this.value.split(/\n/).map(u => u.trim()).filter(Boolean);
+    if (!lines.length) { hintEl.textContent = ''; return; }
+    const parsedAll = lines.map(u => parseItemUrl(u));
+    if (parsedAll.every(Boolean)) {
+      hintEl.innerHTML = parsedAll.map(p =>
+        `ショップ: <b>${esc(p.shopCode)}</b> / 商品管理番号: <b>${esc(p.managementId)}</b>`
+      ).join('<br>');
       hintEl.style.color = '#188038';
-    } else if (this.value.trim()) {
-      hintEl.textContent = '楽天商品URLの形式ではありません（item.rakuten.co.jp/...）';
-      hintEl.style.color = '#c00';
     } else {
-      hintEl.textContent = '';
+      hintEl.textContent = '楽天商品URLの形式ではない行があります（item.rakuten.co.jp/...）';
+      hintEl.style.color = '#c00';
     }
   });
 
@@ -2744,112 +2934,117 @@ setTimeout(function(){
   let urAborted = false;
 
   document.getElementById('ur-search-btn').addEventListener('click', async () => {
-    const rawUrl = urlInput.value.trim();
-    const parsed = parseItemUrl(rawUrl);
-    if (!parsed) { alert('有効な楽天商品URLを入力してください'); return; }
+    const urlLines    = urlInput.value.split(/\n/).map(u => u.trim()).filter(Boolean);
+    const parsedUrls  = urlLines.map(u => parseItemUrl(u)).filter(Boolean);
+    if (!parsedUrls.length) { alert('有効な楽天商品URLを1つ以上入力してください'); return; }
 
     const keywords = document.getElementById('ur-keywords').value
       .split(/\n/).map(k => k.trim()).filter(Boolean);
     if (!keywords.length) { alert('キーワードを1つ以上入力してください'); return; }
 
-    const maxPages = parseInt(pagesEl.value) || 10;
-    const sort     = document.getElementById('ur-sort').value;
-    const btn      = document.getElementById('ur-search-btn');
-    const progCard = document.getElementById('ur-progress-card');
-    const fill     = document.getElementById('ur-fill');
-    const status   = document.getElementById('ur-status');
+    const maxPages  = parseInt(pagesEl.value) || 10;
+    const sort      = document.getElementById('ur-sort').value;
+    const btn       = document.getElementById('ur-search-btn');
+    const progCard  = document.getElementById('ur-progress-card');
+    const fill      = document.getElementById('ur-fill');
+    const status    = document.getElementById('ur-status');
     const resultsEl = document.getElementById('ur-results');
 
-    btn.disabled = true;
-    btn.textContent = '検索中...';
+    btn.disabled = true; btn.textContent = '検索中...';
     progCard.style.display = 'block';
-    fill.style.width = '0%';
-    resultsEl.innerHTML = '';
+    fill.style.width = '0%'; resultsEl.innerHTML = '';
     urAborted = false;
     document.getElementById('ur-stop-btn').onclick = () => { urAborted = true; };
 
-    const results = [];
-    let apiErrorData = null;
-    for (let i = 0; i < keywords.length; i++) {
+    const totalSteps   = parsedUrls.length * keywords.length;
+    let   doneSteps    = 0;
+    const allUrlResults = [];
+
+    for (let ui = 0; ui < parsedUrls.length; ui++) {
       if (urAborted) break;
-      const kw = keywords[i];
-      const kwProgress = (page) => {
-        fill.style.width = Math.round(((i + (page / maxPages)) / keywords.length) * 100) + '%';
-        status.textContent = `(${i + 1}/${keywords.length}) 「${kw}」— ${page}/${maxPages}ページ検索中...`;
-      };
-      const found = await findItemRankByKeyword(parsed, kw, maxPages, sort, kwProgress);
-      fill.style.width = Math.round(((i + 1) / keywords.length) * 100) + '%';
-      if (found?.error) { apiErrorData = found.error; results.push({ keyword: kw, rank: null, item: null, apiError: true }); }
-      else if (found?.networkError) { results.push({ keyword: kw, rank: null, item: null, networkError: found.networkError }); }
-      else { results.push({ keyword: kw, rank: found?.rank ?? null, item: found?.item ?? null }); }
+      const parsed    = parsedUrls[ui];
+      const results   = [];
+      let   apiErrData = null;
+
+      for (let i = 0; i < keywords.length; i++) {
+        if (urAborted) break;
+        const kw = keywords[i];
+        const kwProgress = (page) => {
+          fill.style.width = Math.round(((doneSteps + (page / maxPages)) / totalSteps) * 100) + '%';
+          status.textContent = `URL${ui+1}/${parsedUrls.length} (${i+1}/${keywords.length}) 「${kw}」— ${page}/${maxPages}ページ検索中...`;
+        };
+        const found = await findItemRankByKeyword(parsed, kw, maxPages, sort, kwProgress);
+        doneSteps++;
+        fill.style.width = Math.round((doneSteps / totalSteps) * 100) + '%';
+        if (found?.error)        { apiErrData = found.error; results.push({ keyword: kw, rank: null, item: null, apiError: true }); }
+        else if (found?.networkError) { results.push({ keyword: kw, rank: null, item: null, networkError: found.networkError }); }
+        else                     { results.push({ keyword: kw, rank: found?.rank ?? null, item: found?.item ?? null }); }
+      }
+      allUrlResults.push({ parsed, results, apiErrData });
     }
 
     progCard.style.display = 'none';
-    btn.disabled = false;
-    btn.textContent = '順位を検索';
-    renderUrlRankResults(results, parsed, apiErrorData);
+    btn.disabled = false; btn.textContent = '順位を検索';
+    renderUrlRankResults(allUrlResults);
   });
 
-  function renderUrlRankResults(results, parsed, apiErrorData) {
-    const el = document.getElementById('ur-results');
-    const foundResult = results.find(r => r.item);
-    const foundItem = foundResult?.item;
-    const infoLine = `ショップ: <b>${esc(parsed.shopCode)}</b> &nbsp;/&nbsp; 商品管理番号: <b>${esc(parsed.managementId)}</b>`;
+  function renderUrlRankResults(allUrlResults) {
+    const el   = document.getElementById('ur-results');
+    const maxP = document.getElementById('ur-pages').value;
 
-    let itemCardHtml;
-    if (apiErrorData) {
-      itemCardHtml = `<div class="card" style="margin-bottom:12px;font-size:13px;">
-        <div style="margin-bottom:6px;">${infoLine}</div>
-        <span style="color:#c00;">APIエラー: ${esc(apiErrorData.error_description || apiErrorData.error || JSON.stringify(apiErrorData))}</span>
+    function renderOne({ parsed, results, apiErrData }) {
+      const foundResult = results.find(r => r.item);
+      const foundItem   = foundResult?.item;
+      const infoLine    = `ショップ: <b>${esc(parsed.shopCode)}</b> &nbsp;/&nbsp; 商品管理番号: <b>${esc(parsed.managementId)}</b>`;
+
+      let topHtml;
+      if (apiErrData) {
+        topHtml = `<div style="margin-bottom:6px;">${infoLine}</div>
+          <span style="color:#c00;">APIエラー: ${esc(apiErrData.error_description || apiErrData.error || JSON.stringify(apiErrData))}</span>`;
+      } else if (foundItem) {
+        topHtml = `<div style="font-size:12px;color:#666;margin-bottom:8px;">${infoLine}</div>
+          <div class="item-grid">${buildItemCard(foundItem, foundResult.rank)}</div>`;
+      } else {
+        topHtml = `<div style="margin-bottom:6px;">${infoLine}</div>
+          <span style="color:#c00;">指定の商品が検索結果内で見つかりませんでした。最大ページ数を増やすか、キーワードを確認してください。</span>`;
+      }
+
+      const rows = results.map(r => {
+        let rankCell, addBtn;
+        if (r.apiError)       { rankCell = `<td style="color:#c00;">APIエラー</td>`; addBtn = `<td></td>`; }
+        else if (r.networkError) { rankCell = `<td style="color:#c00;" title="${esc(r.networkError)}">通信エラー</td>`; addBtn = `<td></td>`; }
+        else if (r.rank != null) {
+          rankCell = `<td class="rank-cell">${r.rank}位</td>`;
+          addBtn   = `<td><button class="btn-secondary" style="font-size:11px;padding:2px 8px;"
+            onclick="openUrlRankPreset('${esc(parsed.shopCode)}','${esc(parsed.managementId)}','${esc(r.keyword).replace(/'/g,"&#39;")}')">
+            + プリセットに追加</button></td>`;
+        } else {
+          rankCell = `<td style="color:#bbb;">圏外（${maxP}ページ以内に未検出）</td>`; addBtn = `<td></td>`;
+        }
+        return `<tr><td>${esc(r.keyword)}</td>${rankCell}${addBtn}</tr>`;
+      }).join('');
+
+      return `<div class="card" style="margin-bottom:12px;">
+        ${topHtml}
+        <div style="font-size:14px;font-weight:bold;margin:12px 0 8px;">キーワード別順位結果</div>
+        <table class="snapshot-table">
+          <thead><tr><th>キーワード</th><th>順位</th><th></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
       </div>`;
-    } else if (foundItem) {
-      itemCardHtml = `<div class="card" style="margin-bottom:12px;">
-          <div style="font-size:12px;color:#666;margin-bottom:8px;">${infoLine}</div>
-          <div class="item-grid">${buildItemCard(foundItem, foundResult.rank)}</div>
-        </div>`;
-    } else {
-      itemCardHtml = `<div class="card" style="margin-bottom:12px;font-size:13px;color:#888;">
-          <div style="margin-bottom:6px;">${infoLine}</div>
-          <span style="color:#c00;">指定の商品が検索結果内で見つかりませんでした。最大ページ数を増やすか、キーワードを確認してください。</span>
-        </div>`;
     }
 
-    const maxP = document.getElementById('ur-pages').value;
-    const rows = results.map(r => {
-      let rankCell, addBtn;
-      if (r.apiError) {
-        rankCell = `<td style="color:#c00;">APIエラー</td>`;
-        addBtn = `<td></td>`;
-      } else if (r.networkError) {
-        rankCell = `<td style="color:#c00;" title="${esc(r.networkError)}">通信エラー</td>`;
-        addBtn = `<td></td>`;
-      } else if (r.rank != null) {
-        rankCell = `<td class="rank-cell">${r.rank}位</td>`;
-        addBtn = `<td><button class="btn-secondary" style="font-size:11px;padding:2px 8px;"
-              onclick="openUrlRankPreset('${esc(parsed.shopCode)}','${esc(r.keyword).replace(/'/g,'&#39;')}')">
-              + プリセットに追加</button></td>`;
-      } else {
-        rankCell = `<td style="color:#bbb;">圏外（${maxP}ページ以内に未検出）</td>`;
-        addBtn = `<td></td>`;
-      }
-      return `<tr><td>${esc(r.keyword)}</td>${rankCell}${addBtn}</tr>`;
-    }).join('');
-
-    el.innerHTML = itemCardHtml + `<div class="card">
-      <div style="font-size:14px;font-weight:bold;margin-bottom:12px;">キーワード別順位結果</div>
-      <table class="snapshot-table">
-        <thead><tr><th>キーワード</th><th>順位</th><th></th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
+    el.innerHTML = allUrlResults.map(renderOne).join('');
   }
 })();
 
-window.openUrlRankPreset = function(shopCode, keyword) {
-  document.getElementById('pr-name').value   = keyword + ' 順位';
-  document.getElementById('pr-type').value   = 'keyword';
-  document.getElementById('pr-keyword').value = keyword;
-  document.getElementById('pr-shops').value  = shopCode;
+window.openUrlRankPreset = function(shopCode, managementId, keyword) {
+  document.getElementById('pr-name').value             = keyword + ' 順位';
+  document.getElementById('pr-type').value             = 'url-rank';
+  document.getElementById('pr-urlrank-url').value      = `https://item.rakuten.co.jp/${shopCode}/${managementId}/`;
+  document.getElementById('pr-urlrank-keywords').value = keyword;
+  const ph = document.getElementById('pr-urlrank-parsed');
+  if (ph) { ph.innerHTML = `ショップ: <b>${shopCode}</b> / 商品管理番号: <b>${managementId}</b>`; ph.style.color = '#188038'; }
   updatePresetModalFields();
   document.getElementById('modal-preset').style.display = 'flex';
 };
