@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.42</title>
+<title>楽天市場 リサーチツール v3.43</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -367,7 +367,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.42</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.43</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -2678,11 +2678,24 @@ setTimeout(function(){
   function parseItemUrl(url) {
     const m = (url || '').match(/item\.rakuten\.co\.jp\/([^\/]+)\/([^\/?\#]+)/);
     if (!m) return null;
-    return { shopCode: m[1], itemCode: m[1] + ':' + m[2] };
+    return {
+      shopCode:     m[1],
+      managementId: m[2],
+      itemCode:     m[1] + ':' + m[2],
+    };
   }
 
-  async function findItemRankByKeyword(itemCode, keyword, maxPages, sort) {
+  // Match by full itemCode OR managementId suffix (API may return either form)
+  function itemMatches(apiItemCode, parsed) {
+    const api = (apiItemCode || '').toLowerCase();
+    return api === parsed.itemCode.toLowerCase()
+      || api === parsed.managementId.toLowerCase()
+      || api.endsWith(':' + parsed.managementId.toLowerCase());
+  }
+
+  async function findItemRankByKeyword(parsed, keyword, maxPages, sort, onProgress) {
     for (let page = 1; page <= maxPages; page++) {
+      if (onProgress) onProgress(page);
       const { newUrl, oldUrl } = searchUrl(keyword, null, page, sort);
       let data;
       try { data = await rakutenApi(newUrl, oldUrl); } catch(e) { await sleep(800); continue; }
@@ -2690,7 +2703,7 @@ setTimeout(function(){
       const items = data.Items;
       for (let i = 0; i < items.length; i++) {
         const it = items[i].Item || items[i];
-        if ((it.itemCode || '').toLowerCase() === itemCode.toLowerCase()) {
+        if (itemMatches(it.itemCode, parsed)) {
           return { rank: (page - 1) * 30 + i + 1, item: it };
         }
       }
@@ -2707,7 +2720,7 @@ setTimeout(function(){
   urlInput.addEventListener('input', function() {
     const parsed = parseItemUrl(this.value.trim());
     if (parsed) {
-      hintEl.textContent = `ショップ: ${parsed.shopCode} / 商品コード: ${parsed.itemCode}`;
+      hintEl.innerHTML = `ショップ: <b>${esc(parsed.shopCode)}</b> &nbsp;/&nbsp; 商品管理番号: <b>${esc(parsed.managementId)}</b>`;
       hintEl.style.color = '#188038';
     } else if (this.value.trim()) {
       hintEl.textContent = '楽天商品URLの形式ではありません（item.rakuten.co.jp/...）';
@@ -2753,9 +2766,13 @@ setTimeout(function(){
     for (let i = 0; i < keywords.length; i++) {
       if (urAborted) break;
       const kw = keywords[i];
+      const kwProgress = (page) => {
+        fill.style.width = Math.round(((i + (page / maxPages)) / keywords.length) * 100) + '%';
+        status.textContent = `(${i + 1}/${keywords.length}) 「${kw}」— ${page}/${maxPages}ページ検索中...`;
+      };
+      kwProgress(1);
+      const found = await findItemRankByKeyword(parsed, kw, maxPages, sort, kwProgress);
       fill.style.width = Math.round(((i + 1) / keywords.length) * 100) + '%';
-      status.textContent = `「${kw}」を検索中... (${i + 1}/${keywords.length})`;
-      const found = await findItemRankByKeyword(parsed.itemCode, kw, maxPages, sort);
       results.push({ keyword: kw, rank: found?.rank ?? null, item: found?.item ?? null });
     }
 
@@ -2768,16 +2785,15 @@ setTimeout(function(){
   function renderUrlRankResults(results, parsed) {
     const el = document.getElementById('ur-results');
     const foundItem = results.find(r => r.item)?.item;
+    const infoLine = `ショップ: <b>${esc(parsed.shopCode)}</b> &nbsp;/&nbsp; 商品管理番号: <b>${esc(parsed.managementId)}</b>`;
 
     const itemCardHtml = foundItem
       ? `<div class="card" style="margin-bottom:12px;">
-          <div style="font-size:12px;color:#666;margin-bottom:8px;">
-            ショップコード: <b>${esc(parsed.shopCode)}</b> &nbsp;/&nbsp; 商品コード: <b>${esc(parsed.itemCode)}</b>
-          </div>
+          <div style="font-size:12px;color:#666;margin-bottom:8px;">${infoLine}</div>
           <div class="item-grid">${buildItemCard(foundItem, results.find(r=>r.item).rank)}</div>
         </div>`
       : `<div class="card" style="margin-bottom:12px;font-size:13px;color:#888;">
-          ショップコード: ${esc(parsed.shopCode)} &nbsp;/&nbsp; 商品コード: ${esc(parsed.itemCode)}<br>
+          <div style="margin-bottom:6px;">${infoLine}</div>
           <span style="color:#c00;">指定の商品が検索結果内で見つかりませんでした。最大ページ数を増やすか、キーワードを確認してください。</span>
         </div>`;
 
