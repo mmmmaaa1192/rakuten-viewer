@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.33</title>
+<title>楽天市場 リサーチツール v3.34</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -274,11 +274,10 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 .scan-rank-label { font-size: 16px; font-weight: bold; color: #bf0000; margin-bottom: 10px; }
 .scan-card-wrap { display: inline-flex; flex-direction: column; vertical-align: top; }
 .scan-genre-tag { font-size: 11px; color: #444; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px 4px 0 0; padding: 4px 8px; max-width: 100%; line-height: 1.5; word-break: break-all; }
-.scan-genre-chk-grid { display: flex; flex-wrap: wrap; gap: 5px; max-height: 180px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px; background: #fafafa; }
-.scan-genre-chk-label { display: flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer; padding: 3px 8px; border: 1px solid #ddd; border-radius: 3px; background: white; user-select: none; }
-.scan-genre-chk-label:hover { border-color: #aaa; }
-.scan-genre-chk-label.checked { background: #e8f0fe; border-color: #1a73e8; color: #1a73e8; }
-.scan-genre-chk-label input { margin: 0; }
+.scan-target-area { display: flex; flex-wrap: wrap; gap: 5px; min-height: 36px; border: 1px solid #e0e0e0; border-radius: 4px; padding: 6px 8px; background: #fafafa; }
+.scan-target-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; background: #e8f0fe; border: 1px solid #c5d8f8; border-radius: 4px; padding: 3px 8px; color: #1a3e6e; }
+.scan-target-chip button { background: none; border: none; cursor: pointer; font-size: 13px; color: #888; padding: 0 0 0 2px; line-height: 1; }
+.scan-target-chip button:hover { color: #c00; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -346,7 +345,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.33</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.34</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -2385,8 +2384,15 @@ setTimeout(function(){
 (function() {
   let scanPeriod = 'realtime';
   let scanAborted = false;
-  let topGenres = [];
-  let genresLoaded = false;
+  // scanTargets: [{genreId, path}]  — persisted to localStorage
+  const STORAGE_KEY_SCAN = 'rakuten_scan_targets_v2';
+
+  function loadTargets() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY_SCAN) || '[]'); } catch(e) { return []; }
+  }
+  function saveTargets(arr) {
+    localStorage.setItem(STORAGE_KEY_SCAN, JSON.stringify(arr));
+  }
 
   // ---- Inject tab HTML ----
   (() => {
@@ -2397,19 +2403,20 @@ setTimeout(function(){
       <div class="card">
         <div class="card-title">全カテゴリ 自店舗ランクインスキャン</div>
         <div class="form-group">
-          <label class="form-label">スキャン対象カテゴリ <span style="font-weight:normal;color:#aaa;font-size:12px;">（複数選択可）</span></label>
-          <div style="display:flex;gap:6px;margin-bottom:8px;">
-            <button id="scan-check-all" class="btn-secondary" style="font-size:12px;padding:4px 10px;">全選択</button>
-            <button id="scan-check-none" class="btn-secondary" style="font-size:12px;padding:4px 10px;">全解除</button>
+          <label class="form-label">スキャン対象カテゴリ</label>
+          <div class="form-hint" style="margin-bottom:8px;">左のカテゴリツリーで対象カテゴリを選択し「現在のカテゴリを追加」で追加。複数追加可。</div>
+          <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+            <button id="scan-add-btn" class="btn-primary" style="font-size:12px;padding:5px 14px;">＋ 現在のカテゴリを追加</button>
+            <button id="scan-clear-btn" class="btn-secondary" style="font-size:12px;padding:5px 10px;">すべて削除</button>
           </div>
-          <div id="scan-genre-grid" class="scan-genre-chk-grid">
-            <div class="loading-msg" style="font-size:12px;">「全カテゴリスキャン」タブを開くとカテゴリを自動読み込みします</div>
+          <div id="scan-target-area" class="scan-target-area">
+            <span id="scan-target-empty" style="color:#aaa;font-size:12px;align-self:center;">カテゴリが追加されていません</span>
           </div>
         </div>
         <div class="form-group">
           <label class="form-label">スキャン深度</label>
           <select class="form-input" id="scan-depth" style="width:auto;max-width:320px;">
-            <option value="1">トップカテゴリのみ（約30〜40件・高速）</option>
+            <option value="1">選択カテゴリのみ（高速）</option>
             <option value="2" selected>＋サブカテゴリ（1段階・推奨）</option>
             <option value="3">＋サブカテゴリ（2段階・時間がかかります）</option>
           </select>
@@ -2434,64 +2441,48 @@ setTimeout(function(){
     document.querySelector('.main-content').appendChild(pane);
   })();
 
-  const STORAGE_KEY_SCAN_SEL = 'rakuten_scan_selected';
-  function saveScanSelection() {
-    const ids = [...document.querySelectorAll('.scan-genre-chk:checked')].map(c => parseInt(c.value));
-    localStorage.setItem(STORAGE_KEY_SCAN_SEL, JSON.stringify(ids));
-  }
-  function loadScanSelection() {
-    try { return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY_SCAN_SEL) || '[]')); } catch(e) { return new Set(); }
-  }
-
-  // ---- Load genres on first tab open ----
-  document.querySelector('[data-tab="scan"]').addEventListener('click', async () => {
-    if (genresLoaded) return;
-    const grid = document.getElementById('scan-genre-grid');
-    grid.innerHTML = '<div class="loading-msg" style="font-size:12px;">カテゴリ読み込み中...</div>';
-    const gUrls = genreUrl(0);
-    let gData;
-    try { gData = await rakutenApi(gUrls.newUrl, gUrls.oldUrl); } catch(e) { gData = { error: true }; }
-    if (gData.error) {
-      grid.innerHTML = '<div style="color:#c00;font-size:12px;">カテゴリの取得に失敗しました。APIキー・ネットワークを確認して再度タブを開いてください。</div>';
-      return; // genresLoadedをtrueにしないことで再試行可能
-    }
-    genresLoaded = true;
-    const gInfo = gData.genreInformation
-      ? (Array.isArray(gData.genreInformation) ? gData.genreInformation[0] : gData.genreInformation)
-      : gData;
-    topGenres = (gInfo?.children || []).map(c => c.child || c).filter(c => c.genreId);
-    renderGenreChecklist();
-  });
-
-  function renderGenreChecklist() {
-    const grid = document.getElementById('scan-genre-grid');
-    if (!topGenres.length) {
-      grid.innerHTML = '<div style="color:#aaa;font-size:12px;">カテゴリが取得できませんでした</div>';
-      return;
-    }
-    const saved = loadScanSelection();
-    grid.innerHTML = topGenres.map(g => {
-      const on = saved.has(g.genreId);
-      return `<label class="scan-genre-chk-label${on ? ' checked' : ''}">
-        <input type="checkbox" class="scan-genre-chk" value="${g.genreId}" data-name="${esc(g.genreName)}"${on ? ' checked' : ''}>
-        ${esc(g.genreName)}
-      </label>`;
-    }).join('');
-    grid.querySelectorAll('.scan-genre-chk').forEach(chk => {
-      chk.addEventListener('change', () => {
-        chk.parentElement.classList.toggle('checked', chk.checked);
-        saveScanSelection();
+  // ---- Render target chips ----
+  function renderTargetChips() {
+    const area = document.getElementById('scan-target-area');
+    const targets = loadTargets();
+    const emptyMsg = document.getElementById('scan-target-empty');
+    // Remove existing chips
+    area.querySelectorAll('.scan-target-chip').forEach(el => el.remove());
+    if (emptyMsg) emptyMsg.style.display = targets.length ? 'none' : '';
+    targets.forEach(t => {
+      const chip = document.createElement('span');
+      chip.className = 'scan-target-chip';
+      chip.innerHTML = `${esc(t.path)}<button title="削除">×</button>`;
+      chip.querySelector('button').addEventListener('click', () => {
+        const arr = loadTargets().filter(x => x.genreId !== t.genreId);
+        saveTargets(arr);
+        renderTargetChips();
       });
+      area.appendChild(chip);
     });
   }
+  renderTargetChips();
 
-  document.getElementById('scan-check-all').addEventListener('click', () => {
-    document.querySelectorAll('.scan-genre-chk').forEach(c => { c.checked = true; c.parentElement.classList.add('checked'); });
-    saveScanSelection();
+  // ---- Add current sidebar selection ----
+  document.getElementById('scan-add-btn').addEventListener('click', () => {
+    if (!sideNav || sideNav.selected.genreId === 0) {
+      alert('左のカテゴリツリーでカテゴリを選択してください');
+      return;
+    }
+    const { genreId, path } = sideNav.selected;
+    const arr = loadTargets();
+    if (arr.some(t => t.genreId === genreId)) {
+      alert('そのカテゴリはすでに追加されています');
+      return;
+    }
+    arr.push({ genreId, path });
+    saveTargets(arr);
+    renderTargetChips();
   });
-  document.getElementById('scan-check-none').addEventListener('click', () => {
-    document.querySelectorAll('.scan-genre-chk').forEach(c => { c.checked = false; c.parentElement.classList.remove('checked'); });
-    saveScanSelection();
+
+  document.getElementById('scan-clear-btn').addEventListener('click', () => {
+    saveTargets([]);
+    renderTargetChips();
   });
 
   // Period buttons
@@ -2518,7 +2509,7 @@ setTimeout(function(){
   // ---- BFS collect all targets up to maxDepth ----
   async function collectScanTargets(selected, maxDepth, onStatus) {
     const targets = [];
-    let frontier = selected.map(g => ({ genreId: g.genreId, genreName: g.genreName, path: g.genreName, depth: 1 }));
+    let frontier = selected.map(g => ({ genreId: g.genreId, path: g.path, depth: 1 }));
 
     for (let d = 1; d <= maxDepth; d++) {
       for (const item of frontier) targets.push(item);
@@ -2526,15 +2517,15 @@ setTimeout(function(){
 
       onStatus(`サブカテゴリ取得中 (${d}→${d+1}階層)... ${frontier.length}件処理中`);
       const nextFrontier = [];
-      // Fetch in batches of 5 in parallel
       for (let i = 0; i < frontier.length; i += 5) {
         if (scanAborted) break;
         const batch = frontier.slice(i, i + 5);
         const results = await Promise.all(batch.map(item => fetchChildrenRaw(item.genreId)));
         batch.forEach((item, bi) => {
           (results[bi] || []).forEach(child => nextFrontier.push({
-            genreId: child.genreId, genreName: child.genreName,
-            path: item.path + ' › ' + child.genreName, depth: d + 1,
+            genreId: child.genreId,
+            path: item.path + ' › ' + child.genreName,
+            depth: d + 1,
           }));
         });
         await new Promise(r => setTimeout(r, 150));
@@ -2549,9 +2540,8 @@ setTimeout(function(){
     const ownShops = getOwnShops();
     if (!ownShops.length) { alert('設定で自社ショップコードを登録してください'); return; }
 
-    const selectedChecks = [...document.querySelectorAll('.scan-genre-chk:checked')];
-    if (!selectedChecks.length) { alert('スキャンするカテゴリを1つ以上選択してください'); return; }
-    const selectedGenres = selectedChecks.map(c => ({ genreId: parseInt(c.value), genreName: c.dataset.name }));
+    const selectedGenres = loadTargets();
+    if (!selectedGenres.length) { alert('スキャンするカテゴリを追加してください'); return; }
     const maxDepth = parseInt(document.getElementById('scan-depth').value);
 
     const startBtn     = document.getElementById('scan-start-btn');
@@ -2600,7 +2590,9 @@ setTimeout(function(){
             const item = res.Items[ii].Item;
             if (!item) continue;
             const rank = item.rank || (pi * 30 + ii + 1);
-            if (ownSet.has((item.shopCode || '').toLowerCase())) {
+            // itemCodeからshopCodeを抽出するフォールバック
+            const sc = (item.shopCode || (item.itemCode || '').split(':')[0]).toLowerCase();
+            if (sc && ownSet.has(sc)) {
               hits.push({ rank, path: cat.path, genreId: cat.genreId, item });
             }
           }
