@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.21</title>
+<title>楽天市場 リサーチツール v3.22</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -335,7 +335,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.21</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.22</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -2225,7 +2225,12 @@ function collect(){
 }
 window.scrollTo(0,document.body.scrollHeight);
 document.documentElement.scrollTop=document.documentElement.scrollHeight;
-setTimeout(collect,2500);
+setTimeout(function(){
+  var up=Math.round(window.innerHeight*0.01);
+  window.scrollBy(0,-up);
+  document.documentElement.scrollTop-=up;
+  setTimeout(collect,2000);
+},500);
 })()`;
     return 'javascript:' + code.replace(/\n/g, '');
   }
