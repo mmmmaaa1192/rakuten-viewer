@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.24</title>
+<title>楽天市場 リサーチツール v3.25</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -336,7 +336,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.24</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.25</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -1220,12 +1220,16 @@ document.getElementById('r-fetch-btn').addEventListener('click', async () => {
 
       if (webItems && webItems.length) {
         const cardsHtml = webItems.map((item, i) => buildItemCard(item, item.rank || (i + 1))).join('');
+        const hasOwn = getOwnShops().length > 0;
         document.getElementById('r-results').innerHTML = `<div class="card">
           <div class="result-header">
             <div class="result-header-title">${esc(genreName)}&nbsp;<span style="font-size:13px;color:#888;font-weight:normal;">${periodLabel}ランキング</span></div>
-            <div class="result-header-meta">${new Date().toLocaleString('ja-JP')}&nbsp;<span style="font-size:11px;color:#aaa;">楽天公式ページより取得</span></div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              ${hasOwn ? `<button class="btn-toggle-own" onclick="toggleOwnFilter(this,'r-ranking-grid')">自社店舗抽出</button>` : ''}
+              <div class="result-header-meta">${new Date().toLocaleString('ja-JP')}&nbsp;<span style="font-size:11px;color:#aaa;">楽天公式ページより取得</span></div>
+            </div>
           </div>
-          <div class="item-grid">${cardsHtml}</div>
+          <div class="item-grid" id="r-ranking-grid">${cardsHtml}</div>
         </div>`;
       } else {
         document.getElementById('r-results').innerHTML = `<div class="card"><div class="error-box">
@@ -1264,12 +1268,16 @@ document.getElementById('r-fetch-btn').addEventListener('click', async () => {
       .map((obj, i) => buildItemCard(obj.Item, obj.Item.rank || (i + 1)))
       .join('');
 
+    const hasOwn = getOwnShops().length > 0;
     document.getElementById('r-results').innerHTML = `<div class="card">
       <div class="result-header">
         <div class="result-header-title">${esc(genreName)}&nbsp;<span style="font-size:13px;color:#888;font-weight:normal;">${periodLabel}ランキング</span></div>
-        <div class="result-header-meta">${new Date().toLocaleString('ja-JP')}</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          ${hasOwn ? `<button class="btn-toggle-own" onclick="toggleOwnFilter(this,'r-ranking-grid')">自社店舗抽出</button>` : ''}
+          <div class="result-header-meta">${new Date().toLocaleString('ja-JP')}</div>
+        </div>
       </div>
-      <div class="item-grid">${cardsHtml}</div>
+      <div class="item-grid" id="r-ranking-grid">${cardsHtml}</div>
     </div>`;
   } catch(e) {
     document.getElementById('r-results').innerHTML = `<div class="card">${rankApiErrorHtml({error: e.message}, rankPeriod)}</div>`;
