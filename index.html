@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.34</title>
+<title>楽天市場 リサーチツール v3.35</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -271,9 +271,9 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 .tracker-own-only .snapshot-table tr[data-own="0"] { display: none; }
 /* ===== SCAN TAB ===== */
 .scan-rank-group { margin-bottom: 16px; }
+.scan-genre-tags-bar { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.scan-genre-tag { font-size: 11px; color: #444; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; padding: 3px 8px; line-height: 1.5; word-break: break-all; }
 .scan-rank-label { font-size: 16px; font-weight: bold; color: #bf0000; margin-bottom: 10px; }
-.scan-card-wrap { display: inline-flex; flex-direction: column; vertical-align: top; }
-.scan-genre-tag { font-size: 11px; color: #444; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px 4px 0 0; padding: 4px 8px; max-width: 100%; line-height: 1.5; word-break: break-all; }
 .scan-target-area { display: flex; flex-wrap: wrap; gap: 5px; min-height: 36px; border: 1px solid #e0e0e0; border-radius: 4px; padding: 6px 8px; background: #fafafa; }
 .scan-target-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; background: #e8f0fe; border: 1px solid #c5d8f8; border-radius: 4px; padding: 3px 8px; color: #1a3e6e; }
 .scan-target-chip button { background: none; border: none; cursor: pointer; font-size: 13px; color: #888; padding: 0 0 0 2px; line-height: 1; }
@@ -345,7 +345,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.34</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.35</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -2622,26 +2622,47 @@ setTimeout(function(){
       return;
     }
 
+    // Group by rank; within each rank dedup by itemCode so same product across
+    // multiple categories shows as one card (with all category tags aggregated).
     const byRank = {};
     for (const h of hits) {
-      if (!byRank[h.rank]) byRank[h.rank] = [];
-      byRank[h.rank].push(h);
+      if (!byRank[h.rank]) byRank[h.rank] = new Map();
+      const code = (h.item.itemCode || h.item.itemUrl || '').toLowerCase();
+      if (!byRank[h.rank].has(code)) {
+        byRank[h.rank].set(code, { item: h.item, paths: new Set() });
+      }
+      byRank[h.rank].get(code).paths.add(h.path);
     }
     const sortedRanks = Object.keys(byRank).map(Number).sort((a, b) => a - b);
+    const totalUniq = sortedRanks.reduce((s, r) => s + byRank[r].size, 0);
 
     let html = `<div class="card" style="margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-      <span style="font-size:15px;font-weight:bold;">${hits.length}件のランクイン商品を発見</span>
+      <span style="font-size:15px;font-weight:bold;">${totalUniq}件のランクイン商品を発見</span>
       <span style="font-size:12px;color:#aaa;">${periodLabel} / ${total}カテゴリ${aborted ? '（中断）' : ''}</span>
     </div>`;
 
     for (const rank of sortedRanks) {
-      const rankItems = byRank[rank];
+      const rankMap = byRank[rank];
       const rankLabel = rank <= 3 ? ['🥇','🥈','🥉'][rank - 1] + ` ${rank}位` : `${rank}位`;
-      const cardsHtml = rankItems.map(h =>
-        `<div class="scan-card-wrap"><div class="scan-genre-tag">${esc(h.path).replace(/›/g, '<span style="color:#aaa;margin:0 2px;">›</span>')}</div>${buildItemCard(h.item, h.rank)}</div>`
+
+      // All unique category paths for this rank (across all items)
+      const allPaths = new Set();
+      rankMap.forEach(({ paths }) => paths.forEach(p => allPaths.add(p)));
+      const genreTagsHtml = [...allPaths].map(p =>
+        `<div class="scan-genre-tag">${esc(p).replace(/›/g, '<span style="color:#aaa;margin:0 2px;">›</span>')}</div>`
       ).join('');
+
+      const cardsHtml = [...rankMap.values()].map(({ item }) => buildItemCard(item, rank)).join('');
+
+      const catCount = allPaths.size;
+      const itemCount = rankMap.size;
+      const subLabel = catCount === itemCount
+        ? `${catCount}カテゴリでランクイン`
+        : `${itemCount}商品 / ${catCount}カテゴリ`;
+
       html += `<div class="card scan-rank-group">
-        <div class="scan-rank-label">${rankLabel} <span style="font-size:13px;font-weight:normal;color:#888;">${rankItems.length}カテゴリでランクイン</span></div>
+        <div class="scan-genre-tags-bar">${genreTagsHtml}</div>
+        <div class="scan-rank-label">${rankLabel} <span style="font-size:13px;font-weight:normal;color:#888;">${subLabel}</span></div>
         <div class="item-grid">${cardsHtml}</div>
       </div>`;
     }
