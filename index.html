@@ -64,6 +64,7 @@ header {
 .tab-nav-item.tab-purple.active { border-bottom-color: #6a1b9a; color: #4a0072; font-weight: bold; background: #e1bee7; }
 
 .tab-pane { display: none; padding: 20px 24px; max-width: 1200px; margin: 0 auto; }
+#tab-tracker { max-width: none; margin: 0; padding: 0; }
 .tab-pane.active { display: block; }
 
 /* ===== UI PANELS ===== */
@@ -263,8 +264,8 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 
 /* ===== TRACKER TAB ===== */
 .tracker-layout { display: flex; gap: 0; height: 100%; min-height: calc(100vh - 110px); }
-.tracker-sidebar { width: 220px; flex-shrink: 0; border-right: 1px solid #e0e0e0; padding: 12px; background: white; border-radius: 6px 0 0 6px; overflow-y: auto; }
-.tracker-main { flex: 1; padding: 16px; overflow-y: auto; }
+.tracker-sidebar { width: 240px; flex-shrink: 0; border-right: 1px solid #e0e0e0; padding: 14px 12px; background: white; overflow-y: auto; }
+.tracker-main { flex: 1; padding: 20px 28px; overflow-y: auto; max-width: 960px; }
 .preset-item { padding: 8px 10px; border: 1px solid #e0e0e0; border-radius: 5px; margin-bottom: 6px; cursor: pointer; transition: border-color 0.12s, background 0.12s; }
 .preset-item:hover { border-color: #bf0000; background: #fff9f9; }
 .preset-item.active { border-color: #bf0000; background: #fff0f0; }
