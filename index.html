@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.43</title>
+<title>楽天市場 リサーチツール v3.44</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -367,7 +367,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.43</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.44</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -2685,32 +2685,38 @@ setTimeout(function(){
     };
   }
 
-  // Match by full itemCode OR managementId suffix (API may return either form)
-  function itemMatches(apiItemCode, parsed) {
-    const api = (apiItemCode || '').toLowerCase();
-    return api === parsed.itemCode.toLowerCase()
-      || api === parsed.managementId.toLowerCase()
-      || api.endsWith(':' + parsed.managementId.toLowerCase());
+  // Match by itemCode, managementId, or itemUrl path
+  function itemMatches(it, parsed) {
+    const code = (it.itemCode || '').toLowerCase();
+    const iurl = (it.itemUrl || '').toLowerCase();
+    const shop = parsed.shopCode.toLowerCase();
+    const mid  = parsed.managementId.toLowerCase();
+    return code === parsed.itemCode.toLowerCase()
+      || code === mid
+      || code.endsWith(':' + mid)
+      || iurl.includes('/' + shop + '/' + mid);
   }
 
   async function findItemRankByKeyword(parsed, keyword, maxPages, sort, onProgress) {
+    let lastError = null;
     for (let page = 1; page <= maxPages; page++) {
       if (onProgress) onProgress(page);
       const { newUrl, oldUrl } = searchUrl(keyword, null, page, sort);
       let data;
-      try { data = await rakutenApi(newUrl, oldUrl); } catch(e) { await sleep(800); continue; }
-      if (data.error || !data.Items) break;
+      try { data = await rakutenApi(newUrl, oldUrl); } catch(e) { lastError = e.message; await sleep(800); continue; }
+      if (data.error) return { error: data };
+      if (!data.Items || !data.Items.length) break;
       const items = data.Items;
       for (let i = 0; i < items.length; i++) {
         const it = items[i].Item || items[i];
-        if (itemMatches(it.itemCode, parsed)) {
+        if (itemMatches(it, parsed)) {
           return { rank: (page - 1) * 30 + i + 1, item: it };
         }
       }
       if (items.length < 30) break;
       await sleep(800);
     }
-    return null;
+    return lastError ? { networkError: lastError } : null;
   }
 
   const urlInput = document.getElementById('ur-url');
@@ -2763,6 +2769,7 @@ setTimeout(function(){
     document.getElementById('ur-stop-btn').onclick = () => { urAborted = true; };
 
     const results = [];
+    let apiErrorData = null;
     for (let i = 0; i < keywords.length; i++) {
       if (urAborted) break;
       const kw = keywords[i];
@@ -2770,42 +2777,61 @@ setTimeout(function(){
         fill.style.width = Math.round(((i + (page / maxPages)) / keywords.length) * 100) + '%';
         status.textContent = `(${i + 1}/${keywords.length}) 「${kw}」— ${page}/${maxPages}ページ検索中...`;
       };
-      kwProgress(1);
       const found = await findItemRankByKeyword(parsed, kw, maxPages, sort, kwProgress);
       fill.style.width = Math.round(((i + 1) / keywords.length) * 100) + '%';
-      results.push({ keyword: kw, rank: found?.rank ?? null, item: found?.item ?? null });
+      if (found?.error) { apiErrorData = found.error; results.push({ keyword: kw, rank: null, item: null, apiError: true }); }
+      else if (found?.networkError) { results.push({ keyword: kw, rank: null, item: null, networkError: found.networkError }); }
+      else { results.push({ keyword: kw, rank: found?.rank ?? null, item: found?.item ?? null }); }
     }
 
     progCard.style.display = 'none';
     btn.disabled = false;
     btn.textContent = '順位を検索';
-    renderUrlRankResults(results, parsed);
+    renderUrlRankResults(results, parsed, apiErrorData);
   });
 
-  function renderUrlRankResults(results, parsed) {
+  function renderUrlRankResults(results, parsed, apiErrorData) {
     const el = document.getElementById('ur-results');
-    const foundItem = results.find(r => r.item)?.item;
+    const foundResult = results.find(r => r.item);
+    const foundItem = foundResult?.item;
     const infoLine = `ショップ: <b>${esc(parsed.shopCode)}</b> &nbsp;/&nbsp; 商品管理番号: <b>${esc(parsed.managementId)}</b>`;
 
-    const itemCardHtml = foundItem
-      ? `<div class="card" style="margin-bottom:12px;">
+    let itemCardHtml;
+    if (apiErrorData) {
+      itemCardHtml = `<div class="card" style="margin-bottom:12px;font-size:13px;">
+        <div style="margin-bottom:6px;">${infoLine}</div>
+        <span style="color:#c00;">APIエラー: ${esc(apiErrorData.error_description || apiErrorData.error || JSON.stringify(apiErrorData))}</span>
+      </div>`;
+    } else if (foundItem) {
+      itemCardHtml = `<div class="card" style="margin-bottom:12px;">
           <div style="font-size:12px;color:#666;margin-bottom:8px;">${infoLine}</div>
-          <div class="item-grid">${buildItemCard(foundItem, results.find(r=>r.item).rank)}</div>
-        </div>`
-      : `<div class="card" style="margin-bottom:12px;font-size:13px;color:#888;">
+          <div class="item-grid">${buildItemCard(foundItem, foundResult.rank)}</div>
+        </div>`;
+    } else {
+      itemCardHtml = `<div class="card" style="margin-bottom:12px;font-size:13px;color:#888;">
           <div style="margin-bottom:6px;">${infoLine}</div>
           <span style="color:#c00;">指定の商品が検索結果内で見つかりませんでした。最大ページ数を増やすか、キーワードを確認してください。</span>
         </div>`;
+    }
 
+    const maxP = document.getElementById('ur-pages').value;
     const rows = results.map(r => {
-      const rankCell = r.rank != null
-        ? `<td class="rank-cell">${r.rank}位</td>`
-        : `<td style="color:#bbb;">圏外（${document.getElementById('ur-pages').value}ページ以内に未検出）</td>`;
-      const addBtn = r.rank != null
-        ? `<td><button class="btn-secondary" style="font-size:11px;padding:2px 8px;"
+      let rankCell, addBtn;
+      if (r.apiError) {
+        rankCell = `<td style="color:#c00;">APIエラー</td>`;
+        addBtn = `<td></td>`;
+      } else if (r.networkError) {
+        rankCell = `<td style="color:#c00;" title="${esc(r.networkError)}">通信エラー</td>`;
+        addBtn = `<td></td>`;
+      } else if (r.rank != null) {
+        rankCell = `<td class="rank-cell">${r.rank}位</td>`;
+        addBtn = `<td><button class="btn-secondary" style="font-size:11px;padding:2px 8px;"
               onclick="openUrlRankPreset('${esc(parsed.shopCode)}','${esc(r.keyword).replace(/'/g,'&#39;')}')">
-              + プリセットに追加</button></td>`
-        : `<td></td>`;
+              + プリセットに追加</button></td>`;
+      } else {
+        rankCell = `<td style="color:#bbb;">圏外（${maxP}ページ以内に未検出）</td>`;
+        addBtn = `<td></td>`;
+      }
       return `<tr><td>${esc(r.keyword)}</td>${rankCell}${addBtn}</tr>`;
     }).join('');
 
