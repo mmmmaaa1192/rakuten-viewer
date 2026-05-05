@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.30</title>
+<title>楽天市場 リサーチツール v3.31</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -273,7 +273,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 .scan-rank-group { margin-bottom: 16px; }
 .scan-rank-label { font-size: 16px; font-weight: bold; color: #bf0000; margin-bottom: 10px; }
 .scan-card-wrap { display: inline-flex; flex-direction: column; vertical-align: top; }
-.scan-genre-tag { font-size: 11px; color: #444; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px 4px 0 0; padding: 3px 7px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 100%; line-height: 1.4; }
+.scan-genre-tag { font-size: 11px; color: #444; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px 4px 0 0; padding: 4px 8px; max-width: 100%; line-height: 1.5; word-break: break-all; }
 .scan-genre-chk-grid { display: flex; flex-wrap: wrap; gap: 5px; max-height: 180px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px; background: #fafafa; }
 .scan-genre-chk-label { display: flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer; padding: 3px 8px; border: 1px solid #ddd; border-radius: 3px; background: white; user-select: none; }
 .scan-genre-chk-label:hover { border-color: #aaa; }
@@ -346,7 +346,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.30</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.31</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -2453,8 +2453,8 @@ setTimeout(function(){
       return;
     }
     grid.innerHTML = topGenres.map(g =>
-      `<label class="scan-genre-chk-label checked">
-        <input type="checkbox" class="scan-genre-chk" value="${g.genreId}" data-name="${esc(g.genreName)}" checked>
+      `<label class="scan-genre-chk-label">
+        <input type="checkbox" class="scan-genre-chk" value="${g.genreId}" data-name="${esc(g.genreName)}">
         ${esc(g.genreName)}
       </label>`
     ).join('');
@@ -2569,13 +2569,15 @@ setTimeout(function(){
           const { newUrl, oldUrl } = rankingUrl(cat.genreId, scanPeriod, p);
           return rakutenApi(newUrl, oldUrl).catch(() => null);
         }));
-        for (const res of pages) {
+        for (let pi = 0; pi < pages.length; pi++) {
+          const res = pages[pi];
           if (!res || res.error || !res.Items) continue;
-          for (const obj of res.Items) {
-            const item = obj.Item;
+          for (let ii = 0; ii < res.Items.length; ii++) {
+            const item = res.Items[ii].Item;
             if (!item) continue;
+            const rank = item.rank || (pi * 30 + ii + 1);
             if (ownSet.has((item.shopCode || '').toLowerCase())) {
-              hits.push({ rank: item.rank || 0, path: cat.path, genreId: cat.genreId, item });
+              hits.push({ rank, path: cat.path, genreId: cat.genreId, item });
             }
           }
         }
@@ -2620,7 +2622,7 @@ setTimeout(function(){
       const rankItems = byRank[rank];
       const rankLabel = rank <= 3 ? ['🥇','🥈','🥉'][rank - 1] + ` ${rank}位` : `${rank}位`;
       const cardsHtml = rankItems.map(h =>
-        `<div class="scan-card-wrap"><div class="scan-genre-tag" title="${esc(h.path)}">${esc(h.path)}</div>${buildItemCard(h.item, h.rank)}</div>`
+        `<div class="scan-card-wrap"><div class="scan-genre-tag">${esc(h.path).replace(/›/g, '<span style="color:#aaa;margin:0 2px;">›</span>')}</div>${buildItemCard(h.item, h.rank)}</div>`
       ).join('');
       html += `<div class="card scan-rank-group">
         <div class="scan-rank-label">${rankLabel} <span style="font-size:13px;font-weight:normal;color:#888;">${rankItems.length}カテゴリでランクイン</span></div>
