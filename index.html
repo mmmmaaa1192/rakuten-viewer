@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.44</title>
+<title>楽天市場 リサーチツール v3.45</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -367,7 +367,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.44</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.45</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -2968,6 +2968,19 @@ window.openUrlRankPreset = function(shopCode, keyword) {
     scanPeriod = btn.dataset.scanPeriod;
   });
 
+  // ---- Fetch one ranking page with 1 retry on failure ----
+  async function fetchRankingPage(genreId, period, page) {
+    const { newUrl, oldUrl } = rankingUrl(genreId, period, page);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0) await sleep(1200);
+      try {
+        const data = await rakutenApi(newUrl, oldUrl);
+        if (!data.error && data.Items) return data;
+      } catch(e) {}
+    }
+    return null;
+  }
+
   // ---- Fetch children (genre API) ----
   async function fetchChildrenRaw(genreId) {
     const urls = genreUrl(genreId);
@@ -3053,26 +3066,25 @@ window.openUrlRankPreset = function(shopCode, keyword) {
       fill.style.width = Math.round(((i + 1) / targets.length) * 100) + '%';
       status.textContent = `${i + 1} / ${targets.length} — ${cat.path}`;
       try {
-        const pages = await Promise.all([1, 2, 3].map(p => {
-          const { newUrl, oldUrl } = rankingUrl(cat.genreId, scanPeriod, p);
-          return rakutenApi(newUrl, oldUrl).catch(() => null);
-        }));
-        for (let pi = 0; pi < pages.length; pi++) {
-          const res = pages[pi];
-          if (!res || res.error || !res.Items) continue;
+        for (let p = 1; p <= 3; p++) {
+          const res = await fetchRankingPage(cat.genreId, scanPeriod, p);
+          if (!res || !res.Items) break;
+          let pageHit = false;
           for (let ii = 0; ii < res.Items.length; ii++) {
-            const item = res.Items[ii].Item;
-            if (!item) continue;
-            const rank = item.rank || (pi * 30 + ii + 1);
-            // itemCodeからshopCodeを抽出するフォールバック
+            const item = res.Items[ii].Item || res.Items[ii];
+            if (!item || typeof item !== 'object') continue;
+            const rank = item.rank || ((p - 1) * 30 + ii + 1);
             const sc = (item.shopCode || (item.itemCode || '').split(':')[0]).toLowerCase();
             if (sc && ownSet.has(sc)) {
               hits.push({ rank, path: cat.path, genreId: cat.genreId, item });
+              pageHit = true;
             }
           }
+          if (res.Items.length < 30) break; // ページ末尾なので次ページなし
+          if (p < 3) await sleep(300);
         }
       } catch(e) { /* skip */ }
-      await new Promise(r => setTimeout(r, 400));
+      await sleep(200);
     }
 
     fill.style.width = '100%';
