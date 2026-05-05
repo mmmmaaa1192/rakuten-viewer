@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.38</title>
+<title>楽天市場 リサーチツール v3.39</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -97,6 +97,18 @@ header {
 .genre-row.is-selected .genre-pick { border-color: #bf0000; color: #bf0000; background: #fff0f0; font-weight: bold; }
 .genre-children { display: block; }
 .genre-leaf-msg { font-size: 12px; color: #aaa; display: flex; align-items: center; gap: 6px; padding: 4px; }
+.genre-pin-btn { background: none; border: none; cursor: pointer; font-size: 13px; color: #ccc; padding: 0 2px; flex-shrink: 0; line-height: 1; transition: color 0.1s; }
+.genre-pin-btn:hover, .genre-pin-btn.pinned { color: #e67e00; }
+.pinned-section { border-bottom: 1px solid #e8e8e8; margin-bottom: 8px; padding-bottom: 6px; }
+.pinned-section-label { font-size: 10px; color: #aaa; padding: 2px 4px 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.pinned-item { display: flex; align-items: center; gap: 4px; padding: 3px 4px; border-radius: 3px; transition: background 0.1s; }
+.pinned-item:hover { background: #fafafa; }
+.pinned-item-name { font-size: 12px; color: #333; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; }
+.pinned-item-name:hover { color: #bf0000; }
+.pinned-unpin { background: none; border: none; cursor: pointer; font-size: 13px; color: #ccc; padding: 0 2px; flex-shrink: 0; line-height: 1; }
+.pinned-unpin:hover { color: #c00; }
+.pinned-item.is-selected { background: #fff0f0; }
+.pinned-item.is-selected .pinned-item-name { color: #bf0000; font-weight: bold; }
 
 /* ===== SELECTED CATEGORY DISPLAY ===== */
 .selected-genre-box {
@@ -345,7 +357,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.38</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.39</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -896,6 +908,8 @@ function rankApiErrorHtml(data, period) {
 }
 
 // ===== GENRE NAVIGATOR (tree toggle style) =====
+const STORAGE_KEY_PINS = 'rakuten_pinned_genres';
+
 class GenreNav {
   constructor(gridId, bcId, onChange) {
     this.container = document.getElementById(gridId);
@@ -903,6 +917,73 @@ class GenreNav {
     this.selected  = { genreId: 0, genreName: '全体（全カテゴリ）', path: '全体（全カテゴリ）' };
     this.onChange  = onChange || null;
     this._initRoot();
+  }
+
+  // ---- Pin helpers ----
+  _loadPins() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY_PINS) || '[]'); } catch(e) { return []; }
+  }
+  _savePins(arr) { localStorage.setItem(STORAGE_KEY_PINS, JSON.stringify(arr)); }
+
+  _togglePin(genreId, genreName, path) {
+    const pins = this._loadPins();
+    const idx = pins.findIndex(p => p.genreId === genreId);
+    if (idx >= 0) {
+      pins.splice(idx, 1);
+    } else {
+      pins.unshift({ genreId, genreName, path });
+    }
+    this._savePins(pins);
+    this._renderPinSection();
+    // Update pin button state in tree
+    this.container.querySelectorAll(`.genre-pin-btn[data-gid="${genreId}"]`).forEach(b => {
+      b.classList.toggle('pinned', idx < 0);
+      b.title = idx < 0 ? 'ピン留め中（クリックで解除）' : 'ピン留め';
+    });
+  }
+
+  _renderPinSection() {
+    const pins = this._loadPins();
+    let sec = this.container.querySelector('.pinned-section');
+    if (!pins.length) {
+      if (sec) sec.remove();
+      return;
+    }
+    if (!sec) {
+      sec = document.createElement('div');
+      sec.className = 'pinned-section';
+      this.container.prepend(sec);
+    }
+    sec.innerHTML = `<div class="pinned-section-label">📌 ピン留め</div>` +
+      pins.map(p => {
+        const short = p.path.split(' › ').slice(-2).join(' › ');
+        return `<div class="pinned-item" data-gid="${p.genreId}">
+          <span class="pinned-item-name" title="${esc(p.path)}">${esc(short)}</span>
+          <button class="pinned-unpin" data-gid="${p.genreId}" title="ピン解除">×</button>
+        </div>`;
+      }).join('');
+
+    sec.querySelectorAll('.pinned-item-name').forEach(el => {
+      const gid = parseInt(el.closest('.pinned-item').dataset.gid);
+      const pin = pins.find(p => p.genreId === gid);
+      if (!pin) return;
+      el.addEventListener('click', () => {
+        this.container.querySelectorAll('.genre-row').forEach(r => r.classList.remove('is-selected'));
+        this.container.querySelectorAll('.genre-pick').forEach(b => { if (b.textContent === '✓') b.textContent = '選択'; });
+        sec.querySelectorAll('.pinned-item').forEach(i => i.classList.remove('is-selected'));
+        el.closest('.pinned-item').classList.add('is-selected');
+        this.selected = { genreId: pin.genreId, genreName: pin.genreName, path: pin.path };
+        this._updateBc(pin.path);
+        this._notify();
+      });
+    });
+    sec.querySelectorAll('.pinned-unpin').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const gid = parseInt(btn.dataset.gid);
+        const pin = pins.find(p => p.genreId === gid);
+        if (pin) this._togglePin(pin.genreId, pin.genreName, pin.path);
+      });
+    });
   }
 
   _notify() {
@@ -936,9 +1017,11 @@ class GenreNav {
     const children = await this._fetchChildren(0);
     if (children === null) {
       this._renderManualInput(this.container);
+      this._renderPinSection();
       return;
     }
     this.container.innerHTML = '';
+    this._renderPinSection();
     children.forEach(g => this.container.appendChild(this._makeRow(g, 0, '全体（全カテゴリ）')));
   }
 
@@ -965,10 +1048,20 @@ class GenreNav {
     pick.className   = 'genre-pick';
     pick.textContent = '選択';
 
+    const pinBtn = document.createElement('button');
+    pinBtn.className = 'genre-pin-btn';
+    pinBtn.dataset.gid = g.genreId;
+    const isPinned = this._loadPins().some(p => p.genreId === g.genreId);
+    pinBtn.textContent = '📌';
+    pinBtn.classList.toggle('pinned', isPinned);
+    pinBtn.title = isPinned ? 'ピン留め中（クリックで解除）' : 'ピン留め';
+    pinBtn.addEventListener('click', () => this._togglePin(g.genreId, g.genreName, myPath));
+
     pick.addEventListener('click', () => {
       // 選択状態をリセット
       this.container.querySelectorAll('.genre-row').forEach(r => r.classList.remove('is-selected'));
       this.container.querySelectorAll('.genre-pick').forEach(b => { if (b.textContent === '✓') b.textContent = '選択'; });
+      this.container.querySelectorAll('.pinned-item').forEach(i => i.classList.remove('is-selected'));
       row.classList.add('is-selected');
       pick.textContent = '✓';
       this.selected = { genreId: g.genreId, genreName: g.genreName, path: myPath };
@@ -1009,6 +1102,7 @@ class GenreNav {
 
     row.appendChild(toggle);
     row.appendChild(nameEl);
+    row.appendChild(pinBtn);
     row.appendChild(pick);
     wrap.appendChild(row);
     return wrap;
