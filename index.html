@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.46</title>
+<title>楽天市場 リサーチツール v3.47</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -381,7 +381,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.46</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.47</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -727,8 +727,8 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
     </div>
     <!-- max pages (keyword/category only) -->
     <div class="form-group" id="pr-group-pages">
-      <label class="form-label">最大ページ数: <span id="pr-pages-label">10ページ（300件）</span></label>
-      <input type="range" id="pr-pages" min="1" max="100" value="10">
+      <label class="form-label">最大ページ数: <span id="pr-pages-label">3ページ（90件）</span></label>
+      <input type="range" id="pr-pages" min="1" max="100" value="3">
     </div>
     <div class="modal-actions">
       <button class="btn-cancel" id="pr-cancel-btn">キャンセル</button>
@@ -1949,8 +1949,8 @@ document.getElementById('tr-add-preset-btn').addEventListener('click', () => {
   document.getElementById('pr-period').value  = 'realtime';
   document.getElementById('pr-shops').value   = '';
   document.getElementById('pr-sort').value    = 'standard';
-  document.getElementById('pr-pages').value   = '10';
-  document.getElementById('pr-pages-label').textContent = '10ページ（300件）';
+  document.getElementById('pr-pages').value   = '3';
+  document.getElementById('pr-pages-label').textContent = '3ページ（90件）';
   document.getElementById('pr-urlrank-url').value      = '';
   document.getElementById('pr-urlrank-keywords').value = '';
   document.getElementById('pr-urlrank-parsed').textContent = '';
@@ -2171,7 +2171,7 @@ async function recordSnapshot(preset) {
         itemUrl:       it.itemUrl || '',
         imageUrl:      (imgRaw && typeof imgRaw === 'object' ? imgRaw.imageUrl : imgRaw) || '',
       };
-      if (i < 30) snapshot.topItems.push(entry);
+      if (i < 80) snapshot.topItems.push(entry);
       if (config.shopCodes.length > 0 && sc && config.shopCodes.includes(sc) && !snapshot.shopResults[sc]) {
         snapshot.shopResults[sc] = entry;
       }
@@ -2212,7 +2212,7 @@ async function recordSnapshot(preset) {
           itemUrl:       it.itemUrl || '',
           imageUrl:      (imgRaw && typeof imgRaw === 'object' ? imgRaw.imageUrl : imgRaw) || '',
         };
-        if (allItems.length < 30) allItems.push(entry);
+        if (allItems.length < 80) allItems.push(entry);
         if (shopCodes.length > 0 && sc && shopCodes.includes(sc) && !foundMap.has(sc)) {
           foundMap.set(sc, entry);
           snapshot.shopResults[sc] = entry;
@@ -2220,6 +2220,7 @@ async function recordSnapshot(preset) {
       }
 
       if (shopCodes.length > 0 && foundMap.size >= shopCodes.length) break;
+      if (allItems.length >= 80 && !shopCodes.length) break;
       if (items.length < 30) break;
       await sleep(800);
     }
