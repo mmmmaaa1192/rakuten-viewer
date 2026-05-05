@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.41</title>
+<title>楽天市場 リサーチツール v3.42</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -367,7 +367,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.41</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.42</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -1165,6 +1165,8 @@ class GenreNav {
     nameEl.className   = 'genre-row-name';
     nameEl.textContent = g.genreName;
     nameEl.title       = g.genreName;
+    nameEl.style.cursor = 'pointer';
+    nameEl.addEventListener('click', () => toggle.click());
 
     const pick = document.createElement('button');
     pick.className   = 'genre-pick';
