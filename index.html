@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.28</title>
+<title>楽天市場 リサーチツール v3.29</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -273,7 +273,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 .scan-rank-group { margin-bottom: 16px; }
 .scan-rank-label { font-size: 16px; font-weight: bold; color: #bf0000; margin-bottom: 10px; }
 .scan-card-wrap { display: inline-flex; flex-direction: column; vertical-align: top; }
-.scan-genre-tag { font-size: 10px; text-align: center; color: white; background: #555; border-radius: 0 0 5px 5px; padding: 2px 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 100%; }
+.scan-genre-tag { font-size: 11px; color: #444; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px 4px 0 0; padding: 3px 7px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 100%; line-height: 1.4; }
 .scan-genre-chk-grid { display: flex; flex-wrap: wrap; gap: 5px; max-height: 180px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px; background: #fafafa; }
 .scan-genre-chk-label { display: flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer; padding: 3px 8px; border: 1px solid #ddd; border-radius: 3px; background: white; user-select: none; }
 .scan-genre-chk-label:hover { border-color: #aaa; }
@@ -346,7 +346,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.28</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.29</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -2560,9 +2560,12 @@ setTimeout(function(){
       fill.style.width = Math.round(((i + 1) / targets.length) * 100) + '%';
       status.textContent = `${i + 1} / ${targets.length} — ${cat.path}`;
       try {
-        const { newUrl, oldUrl } = rankingUrl(cat.genreId, scanPeriod, 1);
-        const res = await rakutenApi(newUrl, oldUrl);
-        if (!res.error && res.Items) {
+        const pages = await Promise.all([1, 2, 3].map(p => {
+          const { newUrl, oldUrl } = rankingUrl(cat.genreId, scanPeriod, p);
+          return rakutenApi(newUrl, oldUrl).catch(() => null);
+        }));
+        for (const res of pages) {
+          if (!res || res.error || !res.Items) continue;
           for (const obj of res.Items) {
             const item = obj.Item;
             if (!item) continue;
@@ -2572,7 +2575,7 @@ setTimeout(function(){
           }
         }
       } catch(e) { /* skip */ }
-      await new Promise(r => setTimeout(r, 350));
+      await new Promise(r => setTimeout(r, 400));
     }
 
     fill.style.width = '100%';
@@ -2612,7 +2615,7 @@ setTimeout(function(){
       const rankItems = byRank[rank];
       const rankLabel = rank <= 3 ? ['🥇','🥈','🥉'][rank - 1] + ` ${rank}位` : `${rank}位`;
       const cardsHtml = rankItems.map(h =>
-        `<div class="scan-card-wrap">${buildItemCard(h.item, h.rank)}<div class="scan-genre-tag" title="${esc(h.path)}">${esc(h.path)}</div></div>`
+        `<div class="scan-card-wrap"><div class="scan-genre-tag" title="${esc(h.path)}">${esc(h.path)}</div>${buildItemCard(h.item, h.rank)}</div>`
       ).join('');
       html += `<div class="card scan-rank-group">
         <div class="scan-rank-label">${rankLabel} <span style="font-size:13px;font-weight:normal;color:#888;">${rankItems.length}カテゴリでランクイン</span></div>
