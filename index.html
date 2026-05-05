@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.20</title>
+<title>楽天市場 リサーチツール v3.21</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -335,7 +335,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.20</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.21</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -2177,61 +2177,55 @@ renderPresetList();
     const code = `(function(){
 var TOOL='${tool}';
 var HEADER='この商品の楽天市場の関連商品';
-var sec=null;
-var all=document.querySelectorAll('*');
-for(var i=0;i<all.length;i++){
-  var el=all[i];
-  if(el.childElementCount===0&&el.textContent.trim()===HEADER&&!el.closest('[aria-hidden="true"]')){
-    var p=el.parentElement;
-    for(var j=0;j<12;j++){
-      if(!p)break;
-      if(p.querySelectorAll('[role="button"]').length>1){sec=p;break;}
-      p=p.parentElement;
+function findSec(){
+  var all=document.querySelectorAll('*');
+  for(var i=0;i<all.length;i++){
+    var el=all[i];
+    if(el.childElementCount===0&&el.textContent.trim()===HEADER&&!el.closest('[aria-hidden="true"]')){
+      var p=el.parentElement;
+      for(var j=0;j<12;j++){
+        if(!p)break;
+        if(p.querySelectorAll('[role="button"]').length>1)return p;
+        p=p.parentElement;
+      }
     }
-    break;
   }
+  return null;
 }
-if(!sec){
-  alert('「'+HEADER+'」が見つかりませんでした。\\n\\n① Chromeでモバイルビューにする（F12 → スマホアイコン → リロード）\\n② 関連商品セクションが見えるところまで手動でスクロール\\n③ もう一度ブックマークをクリック');
-  return;
+function collect(){
+  var sec=findSec();
+  if(!sec){alert('「'+HEADER+'」が見つかりませんでした。\\nモバイルビューでページを一番下までスクロールしてから再度クリックしてください。');return;}
+  var seen={};var items=[];
+  var cur=location.href.split('?')[0].replace(/\\/$/,'');
+  var cards=sec.querySelectorAll('[role="button"]');
+  for(var k=0;k<cards.length;k++){
+    var card=cards[k];
+    var a=card.querySelector('a[href*="item.rakuten.co.jp"]');
+    if(!a)continue;
+    var url=a.href.split('?')[0].replace(/\\/$/,'');
+    var m=url.match(/item\\.rakuten\\.co\\.jp\\/([^\\/#]+)\\/([^\\/#]+)/);
+    if(!m||seen[url]||url===cur)continue;
+    seen[url]=1;
+    var imgs=card.querySelectorAll('img');
+    var imgSrc='';
+    for(var ii=0;ii<imgs.length;ii++){var s=imgs[ii].src||'';if(s.indexOf('shop.r10s.jp')>=0||s.indexOf('/gold/')>=0){imgSrc=s;break;}}
+    var nameEl=card.querySelector('span[style*="--linesToClamp"]');
+    var name=(nameEl?nameEl.textContent:a.textContent).trim().replace(/\\s+/g,' ').slice(0,80);
+    var priceNum=0;
+    var allEls=card.querySelectorAll('*');
+    for(var pi=0;pi<allEls.length;pi++){var pt=allEls[pi].textContent.trim();if(allEls[pi].childElementCount===0&&/^[\\d,]+$/.test(pt)&&pt.replace(/,/g,'').length>2){var n=parseInt(pt.replace(/,/g,''));if(n>100){priceNum=n;break;}}}
+    var reviewScore=0;
+    for(var ri=0;ri<allEls.length;ri++){var rt=allEls[ri].textContent.trim();if(allEls[ri].childElementCount===0&&/^[1-5]\\.[0-9]+$/.test(rt)){reviewScore=parseFloat(rt);break;}}
+    var shopLogoImg=card.querySelector('img');
+    items.push({u:url,n:name,p:priceNum,sc:m[1],sn:shopLogoImg?shopLogoImg.alt||'':'',img:imgSrc.slice(0,300),rv:reviewScore});
+  }
+  if(!items.length){alert('商品データを取得できませんでした。');return;}
+  var payload=encodeURIComponent(JSON.stringify({src:cur,at:new Date().toISOString(),items:items.slice(0,50)}));
+  window.open(TOOL+'#rk_related='+payload,'_blank');
 }
-var seen={};var items=[];
-var cur=location.href.split('?')[0].replace(/\\/$/,'');
-var cards=sec.querySelectorAll('[role="button"]');
-for(var k=0;k<cards.length;k++){
-  var card=cards[k];
-  var a=card.querySelector('a[href*="item.rakuten.co.jp"]');
-  if(!a)continue;
-  var url=a.href.split('?')[0].replace(/\\/$/,'');
-  var m=url.match(/item\\.rakuten\\.co\\.jp\\/([^\\/#]+)\\/([^\\/#]+)/);
-  if(!m||seen[url]||url===cur)continue;
-  seen[url]=1;
-  var imgs=card.querySelectorAll('img');
-  var imgSrc='';
-  for(var ii=0;ii<imgs.length;ii++){
-    var s=imgs[ii].src||'';
-    if(s.indexOf('shop.r10s.jp')>=0||s.indexOf('/gold/')>=0){imgSrc=s;break;}
-  }
-  var nameEl=card.querySelector('span[style*="--linesToClamp"]');
-  var name=(nameEl?nameEl.textContent:a.textContent).trim().replace(/\\s+/g,' ').slice(0,80);
-  var priceNum=0;
-  var allEls=card.querySelectorAll('*');
-  for(var pi=0;pi<allEls.length;pi++){
-    var pt=allEls[pi].textContent.trim();
-    if(allEls[pi].childElementCount===0&&/^[\\d,]+$/.test(pt)&&pt.replace(/,/g,'').length>2){var n=parseInt(pt.replace(/,/g,''));if(n>100){priceNum=n;break;}}
-  }
-  var reviewScore=0;
-  for(var ri=0;ri<allEls.length;ri++){
-    var rt=allEls[ri].textContent.trim();
-    if(allEls[ri].childElementCount===0&&/^[1-5]\\.[0-9]+$/.test(rt)){reviewScore=parseFloat(rt);break;}
-  }
-  var shopLogoImg=card.querySelector('img');
-  var shopName=shopLogoImg?shopLogoImg.alt||'':'';
-  items.push({u:url,n:name,p:priceNum,sc:m[1],sn:shopName,img:imgSrc.slice(0,300),rv:reviewScore});
-}
-if(!items.length){alert('商品データを取得できませんでした。\\n関連商品セクションまでスクロールしてから再度クリックしてください。');return;}
-var payload=encodeURIComponent(JSON.stringify({src:cur,at:new Date().toISOString(),items:items.slice(0,50)}));
-window.open(TOOL+'#rk_related='+payload,'_blank');
+window.scrollTo(0,document.body.scrollHeight);
+document.documentElement.scrollTop=document.documentElement.scrollHeight;
+setTimeout(collect,2500);
 })()`;
     return 'javascript:' + code.replace(/\n/g, '');
   }
