@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.19</title>
+<title>楽天市場 リサーチツール v3.20</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -335,7 +335,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.19</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.20</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -520,8 +520,9 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
           </div>
           <div style="font-size:13px;line-height:2;color:#444;margin-bottom:4px;">
             <b>② 使い方</b><br>
-            調べたい楽天商品ページを開いて登録したブックマークをクリック。<br>
-            自動でモバイル表示に切り替えてリロード→関連商品を取得→このツールに結果表示。
+            1. 調べたい楽天商品ページを Chrome のモバイルビュー（F12 → スマホアイコン → リロード）で開く<br>
+            2. ページを下にスクロールして「この商品の楽天市場の関連商品」セクションを表示させる<br>
+            3. 登録したブックマークをクリック → このツールに関連商品が自動表示
           </div>
           <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:5px;padding:8px 12px;font-size:12px;color:#7a5c00;line-height:1.7;">
             ⚠️ 取得できない場合は Chrome で F12 → スマホアイコン（Ctrl+Shift+M）→ リロード後に再クリックしてください。
@@ -2191,10 +2192,9 @@ for(var i=0;i<all.length;i++){
   }
 }
 if(!sec){
-  alert('「'+HEADER+'」が見つかりませんでした。\\n\\nChromeの場合：\\n1. F12キーを押す\\n2. スマホアイコン（Ctrl+Shift+M）をクリック\\n3. ページをリロード\\n4. もう一度ブックマークをクリック');
+  alert('「'+HEADER+'」が見つかりませんでした。\\n\\n① Chromeでモバイルビューにする（F12 → スマホアイコン → リロード）\\n② 関連商品セクションが見えるところまで手動でスクロール\\n③ もう一度ブックマークをクリック');
   return;
 }
-var scrolled=0;var ticker=setInterval(function(){window.scrollBy(0,400);scrolled+=400;if(scrolled>document.body.scrollHeight){clearInterval(ticker);setTimeout(function(){
 var seen={};var items=[];
 var cur=location.href.split('?')[0].replace(/\\/$/,'');
 var cards=sec.querySelectorAll('[role="button"]');
@@ -2229,11 +2229,9 @@ for(var k=0;k<cards.length;k++){
   var shopName=shopLogoImg?shopLogoImg.alt||'':'';
   items.push({u:url,n:name,p:priceNum,sc:m[1],sn:shopName,img:imgSrc.slice(0,300),rv:reviewScore});
 }
-if(!items.length){alert('商品データを取得できませんでした。');return;}
-if(!items.length){alert('商品データを取得できませんでした。');return;}
+if(!items.length){alert('商品データを取得できませんでした。\\n関連商品セクションまでスクロールしてから再度クリックしてください。');return;}
 var payload=encodeURIComponent(JSON.stringify({src:cur,at:new Date().toISOString(),items:items.slice(0,50)}));
 window.open(TOOL+'#rk_related='+payload,'_blank');
-},800);}},80);
 })()`;
     return 'javascript:' + code.replace(/\n/g, '');
   }
