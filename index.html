@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.27</title>
+<title>楽天市場 リサーチツール v3.28</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -274,6 +274,11 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 .scan-rank-label { font-size: 16px; font-weight: bold; color: #bf0000; margin-bottom: 10px; }
 .scan-card-wrap { display: inline-flex; flex-direction: column; vertical-align: top; }
 .scan-genre-tag { font-size: 10px; text-align: center; color: white; background: #555; border-radius: 0 0 5px 5px; padding: 2px 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 100%; }
+.scan-genre-chk-grid { display: flex; flex-wrap: wrap; gap: 5px; max-height: 180px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px; background: #fafafa; }
+.scan-genre-chk-label { display: flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer; padding: 3px 8px; border: 1px solid #ddd; border-radius: 3px; background: white; user-select: none; }
+.scan-genre-chk-label:hover { border-color: #aaa; }
+.scan-genre-chk-label.checked { background: #e8f0fe; border-color: #1a73e8; color: #1a73e8; }
+.scan-genre-chk-label input { margin: 0; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -341,7 +346,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.27</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.28</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -2367,23 +2372,42 @@ setTimeout(function(){
 (function() {
   let scanPeriod = 'realtime';
   let scanAborted = false;
+  let topGenres = [];
+  let genresLoaded = false;
 
-  // Tab HTML (injected here since it needs JS context)
+  // ---- Inject tab HTML ----
   (() => {
     const pane = document.createElement('div');
-    pane.id        = 'tab-scan';
+    pane.id = 'tab-scan';
     pane.className = 'tab-pane';
     pane.innerHTML = `
       <div class="card">
         <div class="card-title">全カテゴリ 自店舗ランクインスキャン</div>
-        <div class="form-group" style="margin-bottom:10px;">
+        <div class="form-group">
+          <label class="form-label">スキャン対象カテゴリ <span style="font-weight:normal;color:#aaa;font-size:12px;">（複数選択可）</span></label>
+          <div style="display:flex;gap:6px;margin-bottom:8px;">
+            <button id="scan-check-all" class="btn-secondary" style="font-size:12px;padding:4px 10px;">全選択</button>
+            <button id="scan-check-none" class="btn-secondary" style="font-size:12px;padding:4px 10px;">全解除</button>
+          </div>
+          <div id="scan-genre-grid" class="scan-genre-chk-grid">
+            <div class="loading-msg" style="font-size:12px;">「全カテゴリスキャン」タブを開くとカテゴリを自動読み込みします</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">スキャン深度</label>
+          <select class="form-input" id="scan-depth" style="width:auto;max-width:320px;">
+            <option value="1">トップカテゴリのみ（約30〜40件・高速）</option>
+            <option value="2" selected>＋サブカテゴリ（1段階・推奨）</option>
+            <option value="3">＋サブカテゴリ（2段階・時間がかかります）</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
           <label class="form-label">期間</label>
           <div class="period-row">
             <button class="period-btn active" data-scan-period="realtime">リアルタイム</button>
             <button class="period-btn" data-scan-period="daily">デイリー</button>
           </div>
         </div>
-        <div class="form-hint" style="margin-bottom:12px;">楽天市場の全トップカテゴリ（約30〜40）のランキングを順番にスキャンし、自店舗商品がランクインしているカテゴリ・順位を一覧表示します。</div>
         <button class="btn-primary" id="scan-start-btn">スキャン開始</button>
       </div>
       <div class="card" id="scan-progress-card" style="display:none;">
@@ -2397,8 +2421,52 @@ setTimeout(function(){
     document.querySelector('.main-content').appendChild(pane);
   })();
 
+  // ---- Load genres on first tab open ----
+  document.querySelector('[data-tab="scan"]').addEventListener('click', async () => {
+    if (genresLoaded) return;
+    genresLoaded = true;
+    const grid = document.getElementById('scan-genre-grid');
+    grid.innerHTML = '<div class="loading-msg" style="font-size:12px;">カテゴリ読み込み中...</div>';
+    const gUrls = genreUrl(0);
+    let gData;
+    try { gData = await rakutenApi(gUrls.newUrl, gUrls.oldUrl); } catch(e) { gData = { error: true }; }
+    if (gData.error) {
+      grid.innerHTML = '<div style="color:#c00;font-size:12px;">カテゴリの取得に失敗しました。APIキーを確認してください。</div>';
+      return;
+    }
+    const gInfo = gData.genreInformation
+      ? (Array.isArray(gData.genreInformation) ? gData.genreInformation[0] : gData.genreInformation)
+      : gData;
+    topGenres = (gInfo?.children || []).map(c => c.child || c).filter(c => c.genreId);
+    renderGenreChecklist();
+  });
+
+  function renderGenreChecklist() {
+    const grid = document.getElementById('scan-genre-grid');
+    if (!topGenres.length) {
+      grid.innerHTML = '<div style="color:#aaa;font-size:12px;">カテゴリが取得できませんでした</div>';
+      return;
+    }
+    grid.innerHTML = topGenres.map(g =>
+      `<label class="scan-genre-chk-label checked">
+        <input type="checkbox" class="scan-genre-chk" value="${g.genreId}" data-name="${esc(g.genreName)}" checked>
+        ${esc(g.genreName)}
+      </label>`
+    ).join('');
+    grid.querySelectorAll('.scan-genre-chk').forEach(chk => {
+      chk.addEventListener('change', () => chk.parentElement.classList.toggle('checked', chk.checked));
+    });
+  }
+
+  document.getElementById('scan-check-all').addEventListener('click', () => {
+    document.querySelectorAll('.scan-genre-chk').forEach(c => { c.checked = true; c.parentElement.classList.add('checked'); });
+  });
+  document.getElementById('scan-check-none').addEventListener('click', () => {
+    document.querySelectorAll('.scan-genre-chk').forEach(c => { c.checked = false; c.parentElement.classList.remove('checked'); });
+  });
+
   // Period buttons
-  document.querySelector('#tab-scan').addEventListener('click', e => {
+  document.getElementById('tab-scan').addEventListener('click', e => {
     const btn = e.target.closest('[data-scan-period]');
     if (!btn) return;
     document.querySelectorAll('[data-scan-period]').forEach(b => b.classList.remove('active'));
@@ -2406,12 +2474,56 @@ setTimeout(function(){
     scanPeriod = btn.dataset.scanPeriod;
   });
 
+  // ---- Fetch children (genre API) ----
+  async function fetchChildrenRaw(genreId) {
+    const urls = genreUrl(genreId);
+    let data;
+    try { data = await rakutenApi(urls.newUrl, urls.oldUrl); } catch(e) { return []; }
+    if (data.error) return [];
+    const info = data.genreInformation
+      ? (Array.isArray(data.genreInformation) ? data.genreInformation[0] : data.genreInformation)
+      : data;
+    return (info?.children || []).map(c => c.child || c).filter(c => c.genreId);
+  }
+
+  // ---- BFS collect all targets up to maxDepth ----
+  async function collectScanTargets(selected, maxDepth, onStatus) {
+    const targets = [];
+    let frontier = selected.map(g => ({ genreId: g.genreId, genreName: g.genreName, path: g.genreName, depth: 1 }));
+
+    for (let d = 1; d <= maxDepth; d++) {
+      for (const item of frontier) targets.push(item);
+      if (d >= maxDepth || scanAborted) break;
+
+      onStatus(`サブカテゴリ取得中 (${d}→${d+1}階層)... ${frontier.length}件処理中`);
+      const nextFrontier = [];
+      // Fetch in batches of 5 in parallel
+      for (let i = 0; i < frontier.length; i += 5) {
+        if (scanAborted) break;
+        const batch = frontier.slice(i, i + 5);
+        const results = await Promise.all(batch.map(item => fetchChildrenRaw(item.genreId)));
+        batch.forEach((item, bi) => {
+          (results[bi] || []).forEach(child => nextFrontier.push({
+            genreId: child.genreId, genreName: child.genreName,
+            path: item.path + ' › ' + child.genreName, depth: d + 1,
+          }));
+        });
+        await new Promise(r => setTimeout(r, 150));
+      }
+      frontier = nextFrontier;
+    }
+    return targets;
+  }
+
+  // ---- Start scan ----
   document.getElementById('scan-start-btn').addEventListener('click', async () => {
     const ownShops = getOwnShops();
-    if (!ownShops.length) {
-      alert('設定で自社ショップコードを登録してください');
-      return;
-    }
+    if (!ownShops.length) { alert('設定で自社ショップコードを登録してください'); return; }
+
+    const selectedChecks = [...document.querySelectorAll('.scan-genre-chk:checked')];
+    if (!selectedChecks.length) { alert('スキャンするカテゴリを1つ以上選択してください'); return; }
+    const selectedGenres = selectedChecks.map(c => ({ genreId: parseInt(c.value), genreName: c.dataset.name }));
+    const maxDepth = parseInt(document.getElementById('scan-depth').value);
 
     const startBtn     = document.getElementById('scan-start-btn');
     const progressCard = document.getElementById('scan-progress-card');
@@ -2423,68 +2535,54 @@ setTimeout(function(){
     startBtn.textContent = 'スキャン中...';
     progressCard.style.display = 'block';
     fill.style.width = '0%';
-    resultsEl.innerHTML  = '';
-    scanAborted          = false;
-
+    resultsEl.innerHTML = '';
+    scanAborted = false;
     document.getElementById('scan-stop-btn').onclick = () => { scanAborted = true; };
 
-    // Fetch top-level genres
-    status.textContent = 'カテゴリ一覧を取得中...';
-    const gUrls = genreUrl(0);
-    let gData;
-    try { gData = await rakutenApi(gUrls.newUrl, gUrls.oldUrl); } catch(e) { gData = { error: true }; }
-    if (gData.error) {
-      alert('カテゴリ一覧の取得に失敗しました。APIキーを確認してください。');
-      startBtn.disabled = false; startBtn.textContent = 'スキャン開始';
+    // Phase 1: Collect all target categories
+    status.textContent = 'スキャン対象カテゴリを収集中...';
+    const targets = await collectScanTargets(selectedGenres, maxDepth, txt => { status.textContent = txt; });
+
+    if (!targets.length || scanAborted) {
       progressCard.style.display = 'none';
-      return;
-    }
-    const gInfo   = gData.genreInformation
-      ? (Array.isArray(gData.genreInformation) ? gData.genreInformation[0] : gData.genreInformation)
-      : gData;
-    const genres  = (gInfo?.children || []).map(c => c.child || c).filter(c => c.genreId);
-    if (!genres.length) {
-      alert('カテゴリを取得できませんでした');
       startBtn.disabled = false; startBtn.textContent = 'スキャン開始';
-      progressCard.style.display = 'none';
+      if (!scanAborted) alert('スキャン対象カテゴリがありませんでした');
       return;
     }
 
+    // Phase 2: Scan rankings
     const ownSet = new Set(ownShops.map(s => s.toLowerCase()));
-    const hits   = []; // { rank, genreName, genreId, item }
+    const hits = [];
 
-    for (let i = 0; i < genres.length; i++) {
+    for (let i = 0; i < targets.length; i++) {
       if (scanAborted) break;
-      const genre = genres[i];
-      fill.style.width = Math.round((i / genres.length) * 100) + '%';
-      status.textContent = `${i + 1} / ${genres.length} — ${genre.genreName}`;
-
+      const cat = targets[i];
+      fill.style.width = Math.round(((i + 1) / targets.length) * 100) + '%';
+      status.textContent = `${i + 1} / ${targets.length} — ${cat.path}`;
       try {
-        const { newUrl, oldUrl } = rankingUrl(genre.genreId, scanPeriod, 1);
+        const { newUrl, oldUrl } = rankingUrl(cat.genreId, scanPeriod, 1);
         const res = await rakutenApi(newUrl, oldUrl);
         if (!res.error && res.Items) {
           for (const obj of res.Items) {
             const item = obj.Item;
             if (!item) continue;
-            const sc = (item.shopCode || '').toLowerCase();
-            if (ownSet.has(sc)) {
-              hits.push({ rank: item.rank || 0, genreName: genre.genreName, genreId: genre.genreId, item });
+            if (ownSet.has((item.shopCode || '').toLowerCase())) {
+              hits.push({ rank: item.rank || 0, path: cat.path, genreId: cat.genreId, item });
             }
           }
         }
-      } catch(e) { /* skip on error */ }
-
-      await new Promise(r => setTimeout(r, 400));
+      } catch(e) { /* skip */ }
+      await new Promise(r => setTimeout(r, 350));
     }
 
     fill.style.width = '100%';
     progressCard.style.display = 'none';
-    startBtn.disabled    = false;
+    startBtn.disabled = false;
     startBtn.textContent = 'スキャン開始';
-
-    renderScanResults(hits, scanAborted, genres.length);
+    renderScanResults(hits, scanAborted, targets.length);
   });
 
+  // ---- Render results grouped by rank ----
   function renderScanResults(hits, aborted, total) {
     const el = document.getElementById('scan-results');
     const periodLabel = scanPeriod === 'realtime' ? 'リアルタイム' : 'デイリー';
@@ -2498,12 +2596,10 @@ setTimeout(function(){
       return;
     }
 
-    // Group by rank
     const byRank = {};
     for (const h of hits) {
-      const r = h.rank;
-      if (!byRank[r]) byRank[r] = [];
-      byRank[r].push(h);
+      if (!byRank[h.rank]) byRank[h.rank] = [];
+      byRank[h.rank].push(h);
     }
     const sortedRanks = Object.keys(byRank).map(Number).sort((a, b) => a - b);
 
@@ -2515,10 +2611,9 @@ setTimeout(function(){
     for (const rank of sortedRanks) {
       const rankItems = byRank[rank];
       const rankLabel = rank <= 3 ? ['🥇','🥈','🥉'][rank - 1] + ` ${rank}位` : `${rank}位`;
-      const cardsHtml = rankItems.map(h => {
-        const cardHtml = buildItemCard(h.item, h.rank);
-        return `<div class="scan-card-wrap">${cardHtml}<div class="scan-genre-tag" title="${esc(h.genreName)}">${esc(h.genreName)}</div></div>`;
-      }).join('');
+      const cardsHtml = rankItems.map(h =>
+        `<div class="scan-card-wrap">${buildItemCard(h.item, h.rank)}<div class="scan-genre-tag" title="${esc(h.path)}">${esc(h.path)}</div></div>`
+      ).join('');
       html += `<div class="card scan-rank-group">
         <div class="scan-rank-label">${rankLabel} <span style="font-size:13px;font-weight:normal;color:#888;">${rankItems.length}カテゴリでランクイン</span></div>
         <div class="item-grid">${cardsHtml}</div>
