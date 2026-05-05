@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.25</title>
+<title>楽天市場 リサーチツール v3.26</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -336,7 +336,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.25</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.26</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -1850,7 +1850,7 @@ function renderTrackerMain() {
   const labels    = allSnaps.map(s => new Date(s.recordedAt).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }));
 
   let datasets = [];
-  const COLORS = ['#bf0000','#1a73e8','#188038','#f9a825','#9c27b0','#00bcd4'];
+  const COLORS = ['#bf0000','#1a73e8','#188038','#f9a825','#9c27b0','#00bcd4','#e65100','#0288d1','#558b2f','#6d4c41','#ad1457','#00838f'];
 
   if (shopCodes.length > 0) {
     // One line per shopCode
@@ -1868,8 +1868,8 @@ function renderTrackerMain() {
   } else {
     // top 3 unique shops across all snapshots
     const shopSet = new Set();
-    allSnaps.forEach(s => (s.topItems || []).slice(0, 10).forEach(it => shopSet.add(it.shopCode)));
-    const topShops = [...shopSet].slice(0, 3);
+    allSnaps.forEach(s => (s.topItems || []).forEach(it => shopSet.add(it.shopCode)));
+    const topShops = [...shopSet];
     datasets = topShops.map((sc, idx) => ({
       label: sc,
       data: allSnaps.map(s => {
@@ -1917,7 +1917,7 @@ function renderTrackerMain() {
         }
       });
     } else {
-      (s.topItems || []).slice(0, 5).forEach(it => {
+      (s.topItems || []).forEach(it => {
         const isOwn = ownShopsSet.has(it.shopCode.toLowerCase()) ? '1' : '0';
         rows.push(`<tr data-own="${isOwn}">
           <td>${esc(dt)}</td>
@@ -1934,7 +1934,7 @@ function renderTrackerMain() {
   }
 
   const ownFilterBtn = hasOwnShops
-    ? `<button id="tr-own-filter-btn" class="btn-secondary" style="font-size:12px;padding:4px 10px;margin-left:10px;">自社のみ</button>`
+    ? `<button id="tr-own-filter-btn" class="btn-secondary" style="font-size:12px;padding:4px 10px;margin-left:10px;">自店舗のみ</button>`
     : '';
 
   el.innerHTML = `
@@ -1997,6 +1997,14 @@ function renderTrackerMain() {
       const wrap = document.getElementById('tr-table-wrap');
       const isOn = wrap.classList.toggle('tracker-own-only');
       trOwnBtn.classList.toggle('active', isOn);
+      trOwnBtn.textContent = isOn ? '全件表示' : '自店舗のみ';
+      if (trackerChart) {
+        const ownSet = new Set(getOwnShops().map(s => s.toLowerCase()));
+        trackerChart.data.datasets.forEach((ds, i) => {
+          trackerChart.setDatasetVisibility(i, !isOn || ownSet.has((ds.label || '').toLowerCase()));
+        });
+        trackerChart.update();
+      }
     });
   }
 }
@@ -2005,7 +2013,7 @@ function renderTrackerMain() {
 function snapshotsToCSV(snapshots) {
   const rows = [['日時', 'ショップコード', '順位', '商品名', '価格', 'レビュー平均', 'レビュー件数', '商品URL', 'ショップ名', '画像URL']];
   for (const snap of snapshots) {
-    const dt = new Date(snap.recordedAt).toLocaleString('ja-JP');
+    const dt = new Date(snap.recordedAt).toISOString().slice(0, 16);
     if (snap.shopResults && Object.keys(snap.shopResults).length) {
       for (const [sc, r] of Object.entries(snap.shopResults)) {
         rows.push([dt, sc, r.rank??'', r.itemName??'', r.itemPrice??'', r.reviewAverage??'', r.reviewCount??'', r.itemUrl??'', r.shopName??'', r.imageUrl??'']);
@@ -2034,7 +2042,7 @@ document.getElementById('tr-export-btn').addEventListener('click', () => {
   if (!checked.length) { alert('エクスポートするプリセットをチェックしてください'); return; }
   const allSnaps = loadSnapshots();
   const presets  = loadPresets();
-  const date     = new Date().toISOString().slice(0, 10);
+  const date     = new Date().toISOString().slice(0, 16).replace('T', '_').replace(/:/g, '-');
   let exported   = 0;
   for (const pid of checked) {
     const preset = presets.find(p => p.id === pid);
@@ -2056,8 +2064,15 @@ function parseImportCSV(text, fileName) {
   const lines = text.replace(/^﻿/, '').split(/\r?\n/).filter(Boolean);
   const rows = lines.slice(1).map(line => {
     const cols = line.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(c => c.replace(/^"|"$/g, '').replace(/""/g, '"'));
+    const rawDate = cols[0] || '';
+    // Support both ISO "2026-05-05T12:34" and legacy Japanese "2026/5/5 12:00:00"
+    const parsedDate = new Date(rawDate.replace(/\//g, '-').replace(' ', 'T'));
+    const sortKey = isNaN(parsedDate) ? 0 : parsedDate.getTime();
+    const displayDate = isNaN(parsedDate) ? rawDate
+      : `${parsedDate.getMonth()+1}/${parsedDate.getDate()} ${String(parsedDate.getHours()).padStart(2,'0')}:${String(parsedDate.getMinutes()).padStart(2,'0')}`;
     return {
-      date: cols[0] || '', shopCode: cols[1] || '', rank: parseInt(cols[2]) || null,
+      date: displayDate, sortKey,
+      shopCode: cols[1] || '', rank: parseInt(cols[2]) || null,
       itemName: cols[3] || '', itemPrice: parseFloat(cols[4]) || 0,
       reviewAverage: parseFloat(cols[5]) || 0, reviewCount: parseInt(cols[6]) || 0,
       itemUrl: cols[7] || '', shopName: cols[8] || '', imageUrl: cols[9] || '',
@@ -2068,7 +2083,7 @@ function parseImportCSV(text, fileName) {
   for (const r of rows) {
     const key = r.shopCode || '（不明）';
     if (!byShop[key]) byShop[key] = { pts: [], latest: null };
-    byShop[key].pts.push({ x: r.date, y: r.rank });
+    byShop[key].pts.push({ x: r.date, y: r.rank, sortKey: r.sortKey });
     byShop[key].latest = r;
   }
   return { byShop, fileName };
@@ -2082,7 +2097,7 @@ function buildImportDatasets(parsedFiles) {
       const color = IMPORT_COLORS[ci % IMPORT_COLORS.length];
       datasets.push({
         label: shop,
-        data: pts.sort((a, b) => a.x.localeCompare(b.x)),
+        data: pts.sort((a, b) => a.sortKey - b.sortKey).map(({x, y}) => ({x, y})),
         borderColor: color, backgroundColor: color + '22',
         tension: 0.3, pointRadius: 4, fill: false,
         meta: {
