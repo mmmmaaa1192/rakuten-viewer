@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.29</title>
+<title>楽天市場 リサーチツール v3.30</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -346,7 +346,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.29</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.30</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -1402,20 +1402,21 @@ async function runRankSearch({ keyword, genreId, shopCode, maxPages, sort, fillI
           const scDirect   = (it.shopCode || '').toLowerCase();
           const scFromCode = (it.itemCode || '').split(':')[0].toLowerCase();
           const sc = scDirect || scFromCode;
-          if (sc && shopCodes.includes(sc) && !foundMap.has(sc)) {
-            foundMap.set(sc, { rank, item: it });
+          if (sc && shopCodes.includes(sc)) {
+            if (!foundMap.has(sc)) foundMap.set(sc, []);
+            foundMap.get(sc).push({ rank, item: it });
           }
         }
       }
 
-      if (!showAll && foundMap.size === shopCodes.length) break;
       if (items.length < 30) break;
 
       page++;
 
-      // ショップ指定モードで未発見のショップがあれば自動延長
-      if (!showAll && page > effectiveMax && foundMap.size < shopCodes.length && !controller.aborted) {
-        effectiveMax = page + 9;
+      // ショップ指定モードでまだ1件も見つかっていないショップがあれば自動延長
+      if (!showAll && page > effectiveMax && !controller.aborted) {
+        const anyNotFound = shopCodes.some(sc => !foundMap.has(sc) || foundMap.get(sc).length === 0);
+        if (anyNotFound) effectiveMax = page + 9;
       }
 
       if (!controller.aborted) await sleep(1100);
@@ -1449,13 +1450,17 @@ async function runRankSearch({ keyword, genreId, shopCode, maxPages, sort, fillI
     } else {
       const sections = shopCodes.map(sc => {
         const found = foundMap.get(sc);
-        if (found) {
+        if (found && found.length > 0) {
+          const rankLabel = found.length === 1
+            ? `${found[0].rank}位`
+            : found.map(f => f.rank + '位').join('・');
+          const cardsHtml = found.map(f => buildItemCard(f.item, f.rank)).join('');
           return `<div class="card">
             <div class="result-header">
-              <div class="result-header-title">${esc(contextLabel)}&nbsp;<span style="font-size:13px;color:#888;font-weight:normal;">${found.rank}位 / ${totalSearched.toLocaleString()}件中${controller.aborted ? '（中断）' : ''}</span></div>
+              <div class="result-header-title">${esc(contextLabel)}&nbsp;<span style="font-size:13px;color:#888;font-weight:normal;">${rankLabel} / ${totalSearched.toLocaleString()}件中${controller.aborted ? '（中断）' : ''}</span></div>
               <div class="result-header-meta">ショップコード: ${esc(sc)}</div>
             </div>
-            <div class="item-grid">${buildItemCard(found.item, found.rank)}</div>
+            <div class="item-grid">${cardsHtml}</div>
           </div>`;
         } else {
           return `<div class="card">
