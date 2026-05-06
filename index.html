@@ -720,7 +720,12 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
       <label class="form-label">スキャン対象カテゴリ</label>
       <div id="pr-scan-genres" style="font-size:12px;color:#555;margin-bottom:6px;min-height:16px;">（未選択）</div>
       <input type="hidden" id="pr-scan-genres-data" value="[]">
-      <button class="btn-secondary" type="button" id="pr-scan-import-btn" style="font-size:12px;padding:4px 10px;">スキャンタブの設定を取得</button>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px;">
+        <button class="btn-secondary" type="button" id="pr-scan-import-btn" style="font-size:12px;padding:4px 10px;">スキャンタブから取得</button>
+        <button class="btn-secondary" type="button" id="pr-scan-pick-btn" style="font-size:12px;padding:4px 10px;">サイドナビから追加</button>
+        <button class="btn-secondary" type="button" id="pr-scan-browse-btn" style="font-size:12px;padding:4px 10px;">一覧から選択 ▾</button>
+      </div>
+      <div id="pr-scan-genre-browser" style="display:none;border:1px solid #e0e0e0;border-radius:6px;max-height:220px;overflow-y:auto;background:#fafafa;font-size:13px;margin-bottom:4px;"></div>
       <label class="form-label" style="margin-top:10px;">深度</label>
       <select class="form-input" id="pr-scan-depth">
         <option value="1">選択カテゴリのみ</option>
@@ -1738,7 +1743,7 @@ async function runRankSearch({ keyword, genreId, shopCode, maxPages, sort, fillI
       }
       const cardsHtml = allItems.map(({ it, rank }) => buildItemCard(it, rank)).join('');
       const kwPresetBtn = keyword
-        ? `<button class="btn-secondary" style="font-size:11px;padding:3px 8px;" onclick="openKwPreset(${JSON.stringify(keyword)}, '')">推移チェッカーに登録</button>`
+        ? `<button class="btn-secondary" style="font-size:11px;padding:3px 8px;" onclick="openKwPreset(${JSON.stringify(keyword).replace(/"/g,'&quot;')}, '')">推移チェッカーに登録</button>`
         : '';
       document.getElementById(resultId).innerHTML = `<div class="card">
         <div class="result-header">
@@ -1760,7 +1765,7 @@ async function runRankSearch({ keyword, genreId, shopCode, maxPages, sort, fillI
             : found.map(f => f.rank + '位').join('・');
           const cardsHtml = found.map(f => buildItemCard(f.item, f.rank)).join('');
           const kwPresetBtn = keyword
-            ? `<button class="btn-secondary" style="font-size:11px;padding:3px 8px;" onclick="openKwPreset(${JSON.stringify(keyword)}, ${JSON.stringify(sc)})">推移チェッカーに登録</button>`
+            ? `<button class="btn-secondary" style="font-size:11px;padding:3px 8px;" onclick="openKwPreset(${JSON.stringify(keyword).replace(/"/g,'&quot;')}, ${JSON.stringify(sc).replace(/"/g,'&quot;')})">推移チェッカーに登録</button>`
             : '';
           return `<div class="card">
             <div class="result-header">
@@ -1969,13 +1974,103 @@ document.getElementById('pr-pages').addEventListener('input', function() {
   });
 })();
 
+// ---- Scan genre list helpers ----
+function getScanGenres() {
+  try { return JSON.parse(document.getElementById('pr-scan-genres-data').value || '[]'); } catch { return []; }
+}
+function setScanGenres(genres) {
+  document.getElementById('pr-scan-genres-data').value = JSON.stringify(genres);
+  const el = document.getElementById('pr-scan-genres');
+  if (!genres.length) { el.textContent = '（未選択）'; return; }
+  el.innerHTML = genres.map((g, i) =>
+    `<span style="display:inline-flex;align-items:center;gap:4px;background:#e8f0fe;border-radius:4px;padding:2px 6px;margin:2px;">
+      ${esc(g.path)}
+      <button type="button" style="background:none;border:none;color:#888;font-size:11px;cursor:pointer;padding:0 2px;" data-scan-remove="${i}">✕</button>
+    </span>`
+  ).join('');
+  el.querySelectorAll('[data-scan-remove]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.scanRemove);
+      const updated = getScanGenres().filter((_, i) => i !== idx);
+      setScanGenres(updated);
+    });
+  });
+}
+function addScanGenre(genreId, path) {
+  const genres = getScanGenres();
+  if (genres.some(g => g.genreId === genreId)) return;
+  genres.push({ genreId, path });
+  setScanGenres(genres);
+}
+
 document.getElementById('pr-scan-import-btn').addEventListener('click', () => {
   const targets = JSON.parse(localStorage.getItem('rakuten_scan_targets_v2') || '[]');
   if (!targets.length) { alert('スキャンタブにカテゴリが設定されていません'); return; }
-  const genres = targets.map(t => ({ genreId: t.genreId, path: t.path }));
-  document.getElementById('pr-scan-genres-data').value = JSON.stringify(genres);
-  document.getElementById('pr-scan-genres').innerHTML = genres.map(g => esc(g.path)).join('<br>');
+  setScanGenres(targets.map(t => ({ genreId: t.genreId, path: t.path })));
 });
+
+document.getElementById('pr-scan-pick-btn').addEventListener('click', () => {
+  if (!sideNav || sideNav.selected.genreId === 0) {
+    alert('サイドナビでカテゴリを先に選択してください'); return;
+  }
+  addScanGenre(sideNav.selected.genreId, sideNav.selected.path);
+});
+
+(function() {
+  const browser  = document.getElementById('pr-scan-genre-browser');
+  const browseBtn = document.getElementById('pr-scan-browse-btn');
+  let open = false;
+
+  function renderScanBrowserItems(container, items, pathPrefix) {
+    container.innerHTML = '';
+    items.forEach(g => {
+      const row = document.createElement('div');
+      row.className = 'genre-browser-item';
+      const fullPath = pathPrefix ? pathPrefix + ' › ' + g.genreName : g.genreName;
+      row.innerHTML = `<span class="gb-toggle">▶</span>
+        <span class="gb-name">${esc(g.genreName)}</span>
+        <button class="gb-select">追加</button>`;
+      row.querySelector('.gb-select').addEventListener('click', e => {
+        e.stopPropagation();
+        addScanGenre(g.genreId, fullPath);
+      });
+      let childrenDiv = null, loaded = false, childOpen = false;
+      const expand = async () => {
+        childOpen = !childOpen;
+        const toggle = row.querySelector('.gb-toggle');
+        if (childOpen) {
+          toggle.textContent = '▼';
+          if (!loaded) {
+            if (!childrenDiv) { childrenDiv = document.createElement('div'); childrenDiv.className = 'genre-browser-children'; row.after(childrenDiv); }
+            childrenDiv.textContent = '読み込み中...';
+            const kids = await fetchGenreChildren(g.genreId);
+            loaded = true;
+            if (kids.length) renderScanBrowserItems(childrenDiv, kids, fullPath);
+            else childrenDiv.textContent = '';
+          } else if (childrenDiv) childrenDiv.style.display = '';
+        } else {
+          toggle.textContent = '▶';
+          if (childrenDiv) childrenDiv.style.display = 'none';
+        }
+      };
+      row.querySelector('.gb-toggle').addEventListener('click', e => { e.stopPropagation(); expand(); });
+      row.addEventListener('click', expand);
+      container.appendChild(row);
+    });
+  }
+
+  browseBtn.addEventListener('click', async () => {
+    open = !open;
+    if (!open) { browser.style.display = 'none'; browseBtn.textContent = '一覧から選択 ▾'; return; }
+    browseBtn.textContent = '一覧から選択 ▲';
+    browser.style.display = 'block';
+    if (!browser.innerHTML) {
+      browser.textContent = '読み込み中...';
+      const top = await fetchGenreChildren(0);
+      renderScanBrowserItems(browser, top, '');
+    }
+  });
+})();
 
 document.querySelectorAll('#pr-scan-period-row .period-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -2008,9 +2103,12 @@ document.getElementById('tr-add-preset-btn').addEventListener('click', () => {
   document.getElementById('pr-urlrank-url').value      = '';
   document.getElementById('pr-urlrank-keywords').value = '';
   document.getElementById('pr-urlrank-parsed').textContent = '';
-  document.getElementById('pr-scan-genres-data').value = '[]';
-  document.getElementById('pr-scan-genres').textContent = '（未選択）';
+  setScanGenres([]);
   document.getElementById('pr-scan-depth').value = '2';
+  const sgb = document.getElementById('pr-scan-genre-browser');
+  if (sgb) { sgb.style.display = 'none'; sgb.innerHTML = ''; }
+  const sbb = document.getElementById('pr-scan-browse-btn');
+  if (sbb) sbb.textContent = '一覧から選択 ▾';
   document.querySelectorAll('#pr-scan-period-row .period-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
   const gb = document.getElementById('pr-genre-browser');
   if (gb) { gb.style.display = 'none'; gb.innerHTML = ''; }
