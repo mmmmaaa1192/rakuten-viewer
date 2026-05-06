@@ -40,6 +40,7 @@ button { font-family: inherit; cursor: pointer; }
 header {
   background: #bf0000; color: white; padding: 12px 24px;
   display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 200;
 }
 .header-title { font-size: 17px; font-weight: bold; letter-spacing: 0.3px; }
 .header-right { display: flex; align-items: center; gap: 10px; }
@@ -51,7 +52,7 @@ header {
 .api-badge.old { background: rgba(255,200,100,0.3); }
 
 /* ===== TABS ===== */
-.tab-nav { display: flex; background: white; border-bottom: 2px solid #dbdbdb; padding: 0 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
+.tab-nav { display: flex; background: white; border-bottom: 2px solid #dbdbdb; padding: 0 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); position: sticky; top: 44px; z-index: 199; }
 .tab-nav-item { padding: 12px 20px; cursor: pointer; font-size: 14px; border-bottom: 3px solid transparent; margin-bottom: -2px; color: #777; transition: all 0.15s; user-select: none; }
 .tab-nav-item:hover { filter: brightness(0.92); }
 .tab-nav-item.tab-green  { background: #e8f5e9; color: #2e7d32; }
@@ -383,7 +384,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.47</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.50</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -545,13 +546,20 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
             <div class="tracker-sidebar-actions">
               <button class="btn-secondary" style="font-size:12px;padding:6px 10px;" id="tr-export-btn">選択をCSVエクスポート</button>
               <label class="btn-primary" style="font-size:12px;padding:6px 10px;text-align:center;cursor:pointer;">
-                ファイルインポート
+                CSVインポート
                 <input type="file" id="tr-import-file" accept=".csv" multiple style="display:none;">
               </label>
               <label class="btn-primary" style="font-size:12px;padding:6px 10px;text-align:center;cursor:pointer;">
                 フォルダインポート
                 <input type="file" id="tr-import-folder" multiple webkitdirectory style="display:none;">
               </label>
+              <div style="border-top:1px solid #f0f0f0;margin-top:4px;padding-top:6px;display:flex;flex-direction:column;gap:6px;">
+                <button class="btn-secondary" style="font-size:12px;padding:6px 10px;" id="tr-json-export-btn">全データJSON書き出し</button>
+                <label class="btn-secondary" style="font-size:12px;padding:6px 10px;text-align:center;cursor:pointer;">
+                  全データJSON読み込み
+                  <input type="file" id="tr-json-import-file" accept=".json" style="display:none;">
+                </label>
+              </div>
             </div>
           </div>
           <!-- Main: Chart + Table -->
@@ -1728,10 +1736,14 @@ async function runRankSearch({ keyword, genreId, shopCode, maxPages, sort, fillI
         return;
       }
       const cardsHtml = allItems.map(({ it, rank }) => buildItemCard(it, rank)).join('');
+      const kwPresetBtn = keyword
+        ? `<button class="btn-secondary" style="font-size:11px;padding:3px 8px;" onclick="openKwPreset(${JSON.stringify(keyword)}, '')">推移チェッカーに登録</button>`
+        : '';
       document.getElementById(resultId).innerHTML = `<div class="card">
         <div class="result-header">
           <div class="result-header-title">${esc(contextLabel)}</div>
-          <div style="display:flex;align-items:center;gap:8px;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            ${kwPresetBtn}
             ${ownToggleBtn}
             <div class="result-header-meta">${totalSearched.toLocaleString()}件 / ${new Date().toLocaleString('ja-JP')}${controller.aborted ? '（中断）' : ''}</div>
           </div>
@@ -1746,10 +1758,13 @@ async function runRankSearch({ keyword, genreId, shopCode, maxPages, sort, fillI
             ? `${found[0].rank}位`
             : found.map(f => f.rank + '位').join('・');
           const cardsHtml = found.map(f => buildItemCard(f.item, f.rank)).join('');
+          const kwPresetBtn = keyword
+            ? `<button class="btn-secondary" style="font-size:11px;padding:3px 8px;" onclick="openKwPreset(${JSON.stringify(keyword)}, ${JSON.stringify(sc)})">推移チェッカーに登録</button>`
+            : '';
           return `<div class="card">
             <div class="result-header">
               <div class="result-header-title">${esc(contextLabel)}&nbsp;<span style="font-size:13px;color:#888;font-weight:normal;">${rankLabel} / ${totalSearched.toLocaleString()}件中${controller.aborted ? '（中断）' : ''}</span></div>
-              <div class="result-header-meta">ショップコード: ${esc(sc)}</div>
+              <div style="display:flex;align-items:center;gap:8px;">${kwPresetBtn}<div class="result-header-meta">ショップコード: ${esc(sc)}</div></div>
             </div>
             <div class="item-grid">${cardsHtml}</div>
           </div>`;
@@ -2074,7 +2089,33 @@ document.getElementById('pr-save-btn').addEventListener('click', () => {
   presets.push(preset);
   savePresets(presets);
   document.getElementById('modal-preset').style.display = 'none';
-  renderPresetList();
+
+  // url-rank: select preset in tracker and auto-record
+  if (type === 'url-rank') {
+    trackerSelectedPresetId = preset.id;
+    // Switch to tracker tab
+    document.querySelectorAll('.tab-nav-item').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => { p.style.display = 'none'; });
+    document.querySelector('[data-tab="tracker"]').classList.add('active');
+    document.getElementById('tab-tracker').style.display = 'block';
+    renderPresetList();
+    renderTrackerMain();
+    // Auto-record after short delay so UI updates first
+    setTimeout(async () => {
+      const btn = document.querySelector(`[data-record-id="${preset.id}"]`);
+      if (btn) { btn.disabled = true; btn.textContent = '記録中...'; }
+      try {
+        await recordSnapshot(preset);
+        if (trackerSelectedPresetId === preset.id) renderTrackerMain();
+      } catch(err) {
+        alert('自動記録失敗: ' + err.message);
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '今すぐ記録'; }
+      }
+    }, 150);
+  } else {
+    renderPresetList();
+  }
 });
 
 // ---- Render preset list ----
@@ -2393,11 +2434,14 @@ function renderTrackerMain() {
   };
 
   if (preset.type === 'url-rank') {
-    const keywords = preset.config.keywords || [];
+    const keywords = Array.isArray(preset.config.keywords) ? preset.config.keywords : [];
     datasets = keywords.map((kw, idx) => ({
       label: kw,
       shopCode: kw,
-      data: allSnaps.map(s => s.shopResults?.[kw]?.rank ?? null),
+      data: allSnaps.map(s => {
+        const r = s.shopResults && s.shopResults[kw];
+        return (r && r.rank != null) ? r.rank : null;
+      }),
       borderColor: COLORS[idx % COLORS.length],
       backgroundColor: COLORS[idx % COLORS.length] + '22',
       tension: 0.3, spanGaps: true,
@@ -2405,17 +2449,17 @@ function renderTrackerMain() {
     for (let i = allSnaps.length - 1; i >= 0; i--) {
       const s  = allSnaps[i];
       const dt = new Date(s.recordedAt).toLocaleString('ja-JP');
+      const sr = s.shopResults || {};
       keywords.forEach(kw => {
-        const r = s.shopResults?.[kw];
-        if (!r) return;
-        const rankCell = r.rank != null ? `<td class="rank-cell">${r.rank}位</td>` : `<td style="color:#bbb;">圏外</td>`;
-        const imgCell  = r.imageUrl ? `<img src="${esc(r.imageUrl)}" style="width:36px;height:36px;object-fit:contain;display:block;" loading="lazy" onerror="this.style.display='none'">` : '';
+        const r = sr[kw];
+        const rankCell = (r && r.rank != null) ? `<td class="rank-cell">${r.rank}位</td>` : `<td style="color:#bbb;">圏外</td>`;
+        const imgCell  = (r && r.imageUrl) ? `<img src="${esc(r.imageUrl)}" style="width:36px;height:36px;object-fit:contain;display:block;" loading="lazy" onerror="this.style.display='none'">` : '';
         tableRows += `<tr>
           <td>${esc(dt)}</td><td>${esc(kw)}</td>${rankCell}
           <td style="padding:4px 8px;">${imgCell}</td>
-          <td><a href="${esc(r.itemUrl||'')}" target="_blank" rel="noopener" style="color:#333;">${esc((r.itemName||'').slice(0,40))}</a></td>
-          <td>¥${Number(r.itemPrice||0).toLocaleString()}</td>
-          <td>${r.reviewAverage > 0 ? '★' + r.reviewAverage.toFixed(1) + '(' + r.reviewCount + ')' : '-'}</td>
+          <td><a href="${esc(r&&r.itemUrl||'')}" target="_blank" rel="noopener" style="color:#333;">${esc(((r&&r.itemName)||'').slice(0,40))}</a></td>
+          <td>¥${Number(r&&r.itemPrice||0).toLocaleString()}</td>
+          <td>${(r&&r.reviewAverage>0) ? '★'+Number(r.reviewAverage).toFixed(1)+'('+r.reviewCount+')' : '-'}</td>
           <td><button class="btn-icon" data-del-snap="${esc(s.id)}" title="削除">🗑</button></td>
         </tr>`;
       });
@@ -2664,6 +2708,51 @@ document.getElementById('tr-export-btn').addEventListener('click', () => {
   if (!exported) alert('選択したプリセットに記録データがありません');
 });
 
+// ---- JSON full backup export / import ----
+function downloadJSON(json, filename) {
+  const blob = new Blob([json], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById('tr-json-export-btn').addEventListener('click', () => {
+  const data = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    presets:   loadPresets(),
+    snapshots: loadSnapshots(),
+  };
+  downloadJSON(JSON.stringify(data, null, 2), `tracker-backup-${new Date().toISOString().slice(0,10)}.json`);
+});
+
+document.getElementById('tr-json-import-file').addEventListener('change', function() {
+  const file = this.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!Array.isArray(data.presets) || !Array.isArray(data.snapshots)) throw new Error('形式が不正です');
+      const existingPresets = loadPresets();
+      const existingSnaps   = loadSnapshots();
+      const existingPIds    = new Set(existingPresets.map(p => p.id));
+      const existingSIds    = new Set(existingSnaps.map(s => s.id));
+      const newPresets      = data.presets.filter(p => !existingPIds.has(p.id));
+      const newSnaps        = data.snapshots.filter(s => !existingSIds.has(s.id));
+      savePresets([...existingPresets, ...newPresets]);
+      saveSnapshots([...existingSnaps, ...newSnaps]);
+      renderPresetList();
+      alert(`インポート完了: プリセット${newPresets.length}件、スナップショット${newSnaps.length}件を追加しました`);
+    } catch(err) {
+      alert('インポート失敗: ' + err.message);
+    }
+    this.value = '';
+  };
+  reader.readAsText(file);
+});
+
 // ---- Import CSV → chart display ----
 const IMPORT_COLORS = ['#bf0000','#1a73e8','#188038','#f9a825','#9c27b0','#00897b','#e65100','#0288d1','#558b2f','#6d4c41'];
 
@@ -2676,7 +2765,7 @@ function parseImportCSV(text, fileName) {
     const parsedDate = new Date(rawDate.replace(/\//g, '-').replace(' ', 'T'));
     const sortKey = isNaN(parsedDate) ? 0 : parsedDate.getTime();
     const displayDate = isNaN(parsedDate) ? rawDate
-      : `${parsedDate.getMonth()+1}/${parsedDate.getDate()} ${String(parsedDate.getHours()).padStart(2,'0')}:${String(parsedDate.getMinutes()).padStart(2,'0')}`;
+      : `${parsedDate.getFullYear()}/${parsedDate.getMonth()+1}/${parsedDate.getDate()} ${String(parsedDate.getHours()).padStart(2,'0')}:${String(parsedDate.getMinutes()).padStart(2,'0')}`;
     return {
       date: displayDate, sortKey,
       shopCode: cols[1] || '', rank: parseInt(cols[2]) || null,
@@ -3186,6 +3275,21 @@ window.openUrlRankPreset = function(shopCode, managementId, keyword) {
   document.getElementById('pr-urlrank-keywords').value = keyword;
   const ph = document.getElementById('pr-urlrank-parsed');
   if (ph) { ph.innerHTML = `ショップ: <b>${shopCode}</b> / 商品管理番号: <b>${managementId}</b>`; ph.style.color = '#188038'; }
+  updatePresetModalFields();
+  document.getElementById('modal-preset').style.display = 'flex';
+};
+
+window.openKwPreset = function(keyword, shopCode) {
+  document.getElementById('pr-name').value    = keyword + (shopCode ? ' (' + shopCode + ')' : '') + ' 推移';
+  document.getElementById('pr-type').value    = 'keyword';
+  document.getElementById('pr-keyword').value = keyword;
+  document.getElementById('pr-shops').value   = shopCode || '';
+  document.getElementById('pr-genre-id').value = '';
+  document.getElementById('pr-genre-name').textContent = '（未選択）';
+  document.getElementById('pr-period').value  = 'realtime';
+  document.getElementById('pr-sort').value    = 'standard';
+  document.getElementById('pr-pages').value   = '3';
+  document.getElementById('pr-pages-label').textContent = '3ページ（90件）';
   updatePresetModalFields();
   document.getElementById('modal-preset').style.display = 'flex';
 };
