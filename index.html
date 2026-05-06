@@ -7,7 +7,8 @@
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic', sans-serif; background: #f2f2f2; color: #333; font-size: 14px; }
+html { height: 100%; overflow: hidden; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic', sans-serif; background: #f2f2f2; color: #333; font-size: 14px; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
 a { color: inherit; }
 button { font-family: inherit; cursor: pointer; }
 
@@ -254,7 +255,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
 
 /* sidebar */
-.app-body { display: flex; height: calc(100vh - 52px); overflow: hidden; }
+.app-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
 .side-menu { width: 260px; flex-shrink: 0; background: white; border-right: 1px solid #e0e0e0; overflow-y: auto; transition: width 0.2s, padding 0.2s; }
 .side-menu.collapsed { width: 0; padding: 0; overflow: hidden; }
 .side-menu-inner { padding: 12px; min-width: 260px; }
@@ -264,7 +265,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 .tab-toggle-btn:hover { background: rgba(255,255,255,0.35); }
 
 /* ===== TRACKER TAB ===== */
-.tracker-layout { display: flex; gap: 0; height: 100%; min-height: calc(100vh - 110px); }
+.tracker-layout { display: flex; gap: 0; height: 100%; }
 .tracker-sidebar { width: 240px; flex-shrink: 0; border-right: 1px solid #e0e0e0; padding: 14px 12px; background: white; overflow-y: auto; }
 .tracker-main { flex: 1; padding: 20px 28px; overflow-y: auto; max-width: 960px; }
 .preset-item { padding: 8px 10px; border: 1px solid #e0e0e0; border-radius: 5px; margin-bottom: 6px; cursor: pointer; transition: border-color 0.12s, background 0.12s; }
