@@ -275,6 +275,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 .preset-badge.category { background: #188038; }
 .preset-badge.ranking  { background: #bf0000; }
 .preset-badge.url-rank { background: #e65100; }
+.preset-badge.scan     { background: #bf0000; }
 .preset-item-meta { font-size: 11px; color: #aaa; margin-top: 2px; }
 .preset-actions { display: flex; gap: 4px; margin-top: 6px; }
 .btn-record { background: #bf0000; color: white; border: none; padding: 3px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; }
@@ -670,6 +671,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
         <option value="category">カテゴリ順位</option>
         <option value="ranking">ランキング</option>
         <option value="url-rank">商品URL順位</option>
+        <option value="scan">全カテゴリスキャン</option>
       </select>
     </div>
     <!-- keyword only -->
@@ -703,6 +705,24 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
       <div class="form-hint" id="pr-urlrank-parsed" style="margin-top:4px;min-height:14px;"></div>
       <label class="form-label" style="margin-top:8px;">検索キーワード（1行1キーワード）</label>
       <textarea class="form-input" id="pr-urlrank-keywords" rows="3" placeholder="キーワード1&#10;キーワード2" style="resize:vertical;margin-top:4px;"></textarea>
+    </div>
+    <!-- scan only -->
+    <div class="form-group" id="pr-group-scan" style="display:none;">
+      <label class="form-label">スキャン対象カテゴリ</label>
+      <div id="pr-scan-genres" style="font-size:12px;color:#555;margin-bottom:6px;min-height:16px;">（未選択）</div>
+      <input type="hidden" id="pr-scan-genres-data" value="[]">
+      <button class="btn-secondary" type="button" id="pr-scan-import-btn" style="font-size:12px;padding:4px 10px;">スキャンタブの設定を取得</button>
+      <label class="form-label" style="margin-top:10px;">深度</label>
+      <select class="form-input" id="pr-scan-depth">
+        <option value="1">選択カテゴリのみ</option>
+        <option value="2" selected>＋サブカテゴリ（1段階）</option>
+        <option value="3">＋サブカテゴリ（2段階）</option>
+      </select>
+      <label class="form-label" style="margin-top:10px;">期間</label>
+      <div class="period-row" id="pr-scan-period-row">
+        <button class="period-btn active" type="button" data-pr-scan-period="realtime">リアルタイム</button>
+        <button class="period-btn" type="button" data-pr-scan-period="daily">デイリー</button>
+      </div>
     </div>
     <!-- shop codes -->
     <div class="form-group" id="pr-group-shops">
@@ -1834,13 +1854,15 @@ let trackerChart = null;
 function updatePresetModalFields() {
   const type = document.getElementById('pr-type').value;
   const isUrlRank = type === 'url-rank';
+  const isScan    = type === 'scan';
   document.getElementById('pr-group-keyword').style.display  = type === 'keyword'  ? '' : 'none';
   document.getElementById('pr-group-category').style.display = (type === 'category' || type === 'ranking') ? '' : 'none';
   document.getElementById('pr-group-period').style.display   = type === 'ranking'  ? '' : 'none';
-  document.getElementById('pr-group-shops').style.display    = isUrlRank ? 'none' : '';
-  document.getElementById('pr-group-sort').style.display     = type !== 'ranking'  ? '' : 'none';
-  document.getElementById('pr-group-pages').style.display    = type !== 'ranking'  ? '' : 'none';
+  document.getElementById('pr-group-shops').style.display    = (isUrlRank || isScan) ? 'none' : '';
+  document.getElementById('pr-group-sort').style.display     = (type !== 'ranking' && !isScan) ? '' : 'none';
+  document.getElementById('pr-group-pages').style.display    = (type !== 'ranking' && !isScan) ? '' : 'none';
   document.getElementById('pr-group-urlrank').style.display  = isUrlRank ? '' : 'none';
+  document.getElementById('pr-group-scan').style.display     = isScan ? '' : 'none';
 }
 
 document.getElementById('pr-type').addEventListener('change', updatePresetModalFields);
@@ -1931,6 +1953,21 @@ document.getElementById('pr-pages').addEventListener('input', function() {
   });
 })();
 
+document.getElementById('pr-scan-import-btn').addEventListener('click', () => {
+  const targets = JSON.parse(localStorage.getItem('rakuten_scan_targets_v2') || '[]');
+  if (!targets.length) { alert('スキャンタブにカテゴリが設定されていません'); return; }
+  const genres = targets.map(t => ({ genreId: t.genreId, path: t.path }));
+  document.getElementById('pr-scan-genres-data').value = JSON.stringify(genres);
+  document.getElementById('pr-scan-genres').innerHTML = genres.map(g => esc(g.path)).join('<br>');
+});
+
+document.querySelectorAll('#pr-scan-period-row .period-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#pr-scan-period-row .period-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
 document.getElementById('pr-pick-genre-btn').addEventListener('click', () => {
   if (!sideNav || sideNav.selected.genreId === 0) {
     alert('サイドナビでカテゴリを先に選択してください');
@@ -1955,6 +1992,10 @@ document.getElementById('tr-add-preset-btn').addEventListener('click', () => {
   document.getElementById('pr-urlrank-url').value      = '';
   document.getElementById('pr-urlrank-keywords').value = '';
   document.getElementById('pr-urlrank-parsed').textContent = '';
+  document.getElementById('pr-scan-genres-data').value = '[]';
+  document.getElementById('pr-scan-genres').textContent = '（未選択）';
+  document.getElementById('pr-scan-depth').value = '2';
+  document.querySelectorAll('#pr-scan-period-row .period-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
   const gb = document.getElementById('pr-genre-browser');
   if (gb) { gb.style.display = 'none'; gb.innerHTML = ''; }
   const bb = document.getElementById('pr-browse-genre-btn');
@@ -1984,12 +2025,26 @@ document.getElementById('pr-save-btn').addEventListener('click', () => {
     if (!parseItemUrl(document.getElementById('pr-urlrank-url').value.trim())) { alert('有効な楽天商品URLを入力してください'); return; }
     if (!document.getElementById('pr-urlrank-keywords').value.trim()) { alert('キーワードを入力してください'); return; }
   }
+  if (type === 'scan') {
+    let genres = [];
+    try { genres = JSON.parse(document.getElementById('pr-scan-genres-data').value || '[]'); } catch {}
+    if (!genres.length) { alert('スキャンタブの設定を取得してください'); return; }
+  }
 
   const shopsRaw  = document.getElementById('pr-shops').value;
   const shopCodes = shopsRaw.split(/[\n,、]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
 
   let config;
-  if (type === 'url-rank') {
+  if (type === 'scan') {
+    let genres = [];
+    try { genres = JSON.parse(document.getElementById('pr-scan-genres-data').value || '[]'); } catch {}
+    const activeBtn = document.querySelector('#pr-scan-period-row .period-btn.active');
+    config = {
+      genres,
+      maxDepth: parseInt(document.getElementById('pr-scan-depth').value) || 2,
+      period: activeBtn?.dataset.prScanPeriod || 'realtime',
+    };
+  } else if (type === 'url-rank') {
     const rawUrl = document.getElementById('pr-urlrank-url').value.trim();
     const p      = parseItemUrl(rawUrl);
     config = {
@@ -2032,9 +2087,10 @@ function renderPresetList() {
   }
   el.innerHTML = presets.map(p => {
     const badgeClass = p.type;
-    const badgeLabel = p.type === 'keyword' ? 'KW' : p.type === 'category' ? 'CAT' : p.type === 'ranking' ? 'RANK' : 'URL';
-    const metaText   = p.type === 'url-rank'  ? esc(p.config.managementId || p.config.itemUrl || '')
-                     : p.type === 'keyword'   ? esc(p.config.keyword)
+    const badgeLabel = p.type === 'keyword' ? 'KW' : p.type === 'category' ? 'CAT' : p.type === 'ranking' ? 'RANK' : p.type === 'scan' ? 'SCAN' : 'URL';
+    const metaText   = p.type === 'url-rank' ? esc(p.config.managementId || p.config.itemUrl || '')
+                     : p.type === 'scan'     ? esc((p.config.genres || []).map(g => g.path).join(', ').slice(0, 50))
+                     : p.type === 'keyword'  ? esc(p.config.keyword)
                      : esc(p.config.genreName);
     const isActive   = p.id === trackerSelectedPresetId;
     return `<div class="preset-item${isActive ? ' active' : ''}" data-preset-id="${esc(p.id)}">
@@ -2178,6 +2234,60 @@ async function recordSnapshot(preset) {
       }
     });
 
+  } else if (type === 'scan') {
+    const ownShops = getOwnShops();
+    const ownSet = new Set(ownShops.map(s => s.toLowerCase()));
+    const genres = config.genres || [];
+    let frontier = genres.map(g => ({ genreId: g.genreId, path: g.path }));
+    const targets = [];
+    const maxDep = config.maxDepth || 2;
+    for (let d = 1; d <= maxDep; d++) {
+      for (const item of frontier) targets.push(item);
+      if (d >= maxDep) break;
+      const nextFrontier = [];
+      for (let i = 0; i < frontier.length; i += 5) {
+        const batch = frontier.slice(i, i + 5);
+        const results = await Promise.all(batch.map(item => fetchGenreChildren(item.genreId)));
+        batch.forEach((item, bi) => {
+          (results[bi] || []).forEach(child => nextFrontier.push({
+            genreId: child.genreId,
+            path: item.path + ' › ' + child.genreName,
+          }));
+        });
+        await sleep(150);
+      }
+      frontier = nextFrontier;
+    }
+    for (const cat of targets) {
+      for (let p = 1; p <= 3; p++) {
+        const { newUrl, oldUrl } = rankingUrl(cat.genreId, config.period || 'realtime', p);
+        let data;
+        try { data = await rakutenApi(newUrl, oldUrl); } catch(e) { break; }
+        if (!data || data.error || !data.Items || !data.Items.length) break;
+        for (let ii = 0; ii < data.Items.length; ii++) {
+          const item = data.Items[ii].Item || data.Items[ii];
+          if (!item || typeof item !== 'object') continue;
+          const rank = item.rank || ((p - 1) * 30 + ii + 1);
+          const sc = (item.shopCode || (item.itemCode || '').split(':')[0]).toLowerCase();
+          if (sc && ownSet.has(sc)) {
+            const imgRaw = item.mediumImageUrls?.[0];
+            snapshot.topItems.push({
+              rank, path: cat.path, genreId: cat.genreId, shopCode: sc,
+              shopName: item.shopName || '', itemName: item.itemName || '',
+              itemPrice: item.itemPrice || 0,
+              reviewAverage: parseFloat(item.reviewAverage || 0),
+              reviewCount: parseInt(item.reviewCount || 0),
+              itemUrl: item.itemUrl || '',
+              imageUrl: (imgRaw && typeof imgRaw === 'object' ? imgRaw.imageUrl : imgRaw) || '',
+            });
+          }
+        }
+        if (data.Items.length < 30) break;
+        await sleep(300);
+      }
+      await sleep(200);
+    }
+    snapshot.scanTotal = targets.length;
   } else {
     // keyword / category: paginate and search
     const keyword = type === 'keyword' ? config.keyword : null;
@@ -2269,6 +2379,7 @@ function renderTrackerMain() {
   const labels    = allSnaps.map(s => new Date(s.recordedAt).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }));
 
   let datasets = [];
+  let tableRows = '';
   const COLORS = ['#bf0000','#1a73e8','#188038','#f9a825','#9c27b0','#00bcd4','#e65100','#0288d1','#558b2f','#6d4c41','#ad1457','#00838f'];
 
   // Helper: get best known shopName for a shopCode from snapshots
@@ -2309,6 +2420,31 @@ function renderTrackerMain() {
         </tr>`;
       });
     }
+  } else if (preset.type === 'scan') {
+    datasets = [{
+      label: 'ランクイン件数',
+      data: allSnaps.map(s => (s.topItems || []).length),
+      borderColor: COLORS[0],
+      backgroundColor: COLORS[0] + '22',
+      tension: 0.3, spanGaps: true,
+    }];
+    for (let i = allSnaps.length - 1; i >= 0; i--) {
+      const s = allSnaps[i];
+      const dt = new Date(s.recordedAt).toLocaleString('ja-JP');
+      (s.topItems || []).forEach(it => {
+        const imgCell = it.imageUrl ? `<img src="${esc(it.imageUrl)}" style="width:36px;height:36px;object-fit:contain;display:block;" loading="lazy" onerror="this.style.display='none'">` : '';
+        tableRows += `<tr>
+          <td>${esc(dt)}</td>
+          <td style="font-size:11px;max-width:160px;word-break:break-all;">${esc(it.path || '')}</td>
+          <td class="rank-cell">${it.rank}位</td>
+          <td style="padding:4px 8px;">${imgCell}</td>
+          <td><a href="${esc(it.itemUrl||'')}" target="_blank" rel="noopener" style="color:#333;">${esc((it.itemName||'').slice(0,40))}</a></td>
+          <td>¥${Number(it.itemPrice||0).toLocaleString()}</td>
+          <td>${it.reviewAverage > 0 ? '★' + it.reviewAverage.toFixed(1) + '(' + it.reviewCount + ')' : '-'}</td>
+          <td><button class="btn-icon" data-del-snap="${esc(s.id)}" title="削除">🗑</button></td>
+        </tr>`;
+      });
+    }
   } else if (shopCodes.length > 0) {
     // One line per shopCode
     datasets = shopCodes.map((sc, idx) => ({
@@ -2345,7 +2481,7 @@ function renderTrackerMain() {
   // Table rows
   const ownShopsSet = new Set(getOwnShops().map(s => s.toLowerCase()));
   const hasOwnShops = ownShopsSet.size > 0;
-  let tableRows = '';
+  if (preset.type !== 'url-rank' && preset.type !== 'scan') {
   for (let i = allSnaps.length - 1; i >= 0; i--) {
     const s = allSnaps[i];
     const dt = new Date(s.recordedAt).toLocaleString('ja-JP');
@@ -2400,8 +2536,9 @@ function renderTrackerMain() {
     }
     tableRows += rows.join('');
   }
+  } // end if not url-rank/scan
 
-  const ownFilterBtn = hasOwnShops
+  const ownFilterBtn = hasOwnShops && preset.type !== 'scan'
     ? `<button id="tr-own-filter-btn" class="btn-secondary" style="font-size:12px;padding:4px 10px;margin-left:10px;">自店舗のみ</button>`
     : '';
 
@@ -2414,7 +2551,7 @@ function renderTrackerMain() {
     <div class="chart-wrap"><canvas id="tracker-chart"></canvas></div>
     <div id="tr-table-wrap" style="overflow-x:auto;">
       <table class="snapshot-table">
-        <thead><tr><th>日時</th><th>${preset.type === 'url-rank' ? 'キーワード' : 'ショップ'}</th><th>順位</th><th>画像</th><th>商品名</th><th>価格</th><th>評価</th><th></th></tr></thead>
+        <thead><tr><th>日時</th><th>${preset.type === 'url-rank' ? 'キーワード' : preset.type === 'scan' ? 'カテゴリ' : 'ショップ'}</th><th>順位</th><th>画像</th><th>商品名</th><th>価格</th><th>評価</th><th></th></tr></thead>
         <tbody>${tableRows}</tbody>
       </table>
     </div>`;
@@ -2431,8 +2568,8 @@ function renderTrackerMain() {
         maintainAspectRatio: false,
         scales: {
           y: {
-            reverse: true,
-            title: { display: true, text: '順位' },
+            reverse: preset.type !== 'scan',
+            title: { display: true, text: preset.type === 'scan' ? 'ランクイン件数' : '順位' },
             ticks: { precision: 0 },
           },
         },
@@ -2440,7 +2577,9 @@ function renderTrackerMain() {
           legend: { position: 'top' },
           tooltip: {
             callbacks: {
-              label: ctx => ctx.dataset.label + ': ' + (ctx.parsed.y != null ? ctx.parsed.y + '位' : '圏外'),
+              label: ctx => preset.type === 'scan'
+                ? ctx.dataset.label + ': ' + (ctx.parsed.y ?? 0) + '件'
+                : ctx.dataset.label + ': ' + (ctx.parsed.y != null ? ctx.parsed.y + '位' : '圏外'),
             },
           },
         },
@@ -2479,17 +2618,17 @@ function renderTrackerMain() {
 
 // ---- Export (results CSV per preset) ----
 function snapshotsToCSV(snapshots) {
-  const rows = [['日時', 'ショップコード', '順位', '商品名', '価格', 'レビュー平均', 'レビュー件数', '商品URL', 'ショップ名', '画像URL']];
+  const rows = [['日時', 'ショップコード', '順位', '商品名', '価格', 'レビュー平均', 'レビュー件数', '商品URL', 'ショップ名', '画像URL', 'カテゴリ']];
   for (const snap of snapshots) {
     const dt = new Date(snap.recordedAt).toISOString().slice(0, 16);
     if (snap.shopResults && Object.keys(snap.shopResults).length) {
       for (const [sc, r] of Object.entries(snap.shopResults)) {
-        rows.push([dt, sc, r.rank??'', r.itemName??'', r.itemPrice??'', r.reviewAverage??'', r.reviewCount??'', r.itemUrl??'', r.shopName??'', r.imageUrl??'']);
+        rows.push([dt, sc, r.rank??'', r.itemName??'', r.itemPrice??'', r.reviewAverage??'', r.reviewCount??'', r.itemUrl??'', r.shopName??'', r.imageUrl??'', '']);
       }
     }
     if (snap.topItems && snap.topItems.length) {
       for (const it of snap.topItems) {
-        rows.push([dt, it.shopCode??'', it.rank??'', it.itemName??'', it.itemPrice??'', it.reviewAverage??'', it.reviewCount??'', it.itemUrl??'', it.shopName??'', it.imageUrl??'']);
+        rows.push([dt, it.shopCode??'', it.rank??'', it.itemName??'', it.itemPrice??'', it.reviewAverage??'', it.reviewCount??'', it.itemUrl??'', it.shopName??'', it.imageUrl??'', it.path??'']);
       }
     }
   }
