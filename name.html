@@ -23,8 +23,9 @@
     <h1>楽天ショップ商品名CSV出力ツール</h1>
     <p class="hint">Rakuten Ichiba Item Search API を利用し、指定ショップの全商品名を取得してCSVダウンロードします。</p>
 
-    <label for="appId">Application ID（必須）</label>
+    <label for="appId">Application ID（アクセスキー・必須）</label>
     <input id="appId" type="text" placeholder="楽天デベロッパーの Application ID" />
+    <p class="hint">※ 楽天市場Web APIでは通常、Application ID がアクセスキーとして機能します（シークレットキー入力は不要）。</p>
 
     <label for="affiliateId">Affiliate ID（任意）</label>
     <input id="affiliateId" type="text" placeholder="任意（未入力可）" />
@@ -83,6 +84,7 @@
       const params = new URLSearchParams({
         applicationId: appId,
         format: "json",
+        formatVersion: "2",
         shopCode,
         page: String(page),
         hits: String(hits)
@@ -91,10 +93,21 @@
 
       const url = `${API_ENDPOINT}?${params.toString()}`;
       const res = await fetch(url);
-      if (!res.ok) {
-        throw new Error(`HTTPエラー: ${res.status} ${res.statusText}`);
+      let data = null;
+      try {
+        data = await res.json();
+      } catch (_) {
+        // JSONでないレスポンスの場合は後段でHTTPエラーを返す
       }
-      const data = await res.json();
+
+      if (!res.ok) {
+        const detail = data?.error_description || data?.message || "";
+        throw new Error(`HTTPエラー: ${res.status} ${res.statusText}${detail ? ` (${detail})` : ""}`);
+      }
+
+      if (!data) {
+        throw new Error("APIレスポンスのJSON解析に失敗しました。");
+      }
       if (data.error) {
         throw new Error(`APIエラー: ${data.error} ${data.error_description || ""}`.trim());
       }
@@ -128,10 +141,9 @@
           pageCount = Number(data.pageCount || 1);
           total = Number(data.count || 0);
 
-          for (const itemWrap of (data.Items || [])) {
-            if (itemWrap && itemWrap.Item && itemWrap.Item.itemName) {
-              names.push(itemWrap.Item.itemName);
-            }
+          for (const raw of (data.Items || [])) {
+            const item = raw?.Item || raw;
+            if (item?.itemName) names.push(item.itemName);
           }
 
           page += 1;
