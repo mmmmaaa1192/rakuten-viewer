@@ -45,9 +45,13 @@
     </div>
 
     <div class="actions">
-      <button id="runBtn" class="primary">取得してCSV出力</button>
+      <button id="runBtn" class="primary">商品一覧を取得</button>
+      <button id="downloadBtn" type="button" disabled>一覧をCSVダウンロード</button>
       <button id="clearBtn" type="button">ログクリア</button>
     </div>
+
+    <label for="preview">取得結果（商品名一覧）</label>
+    <textarea id="preview" rows="10" readonly style="width:100%;margin-top:6px;padding:8px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;"></textarea>
 
     <div id="log"></div>
   </div>
@@ -59,6 +63,11 @@
     const logEl = $("log");
     const runBtn = $("runBtn");
     const clearBtn = $("clearBtn");
+    const downloadBtn = $("downloadBtn");
+    const previewEl = $("preview");
+
+    let lastShopCode = "";
+    let lastNames = [];
 
     const appendLog = (message) => {
       const t = new Date().toLocaleTimeString("ja-JP", { hour12: false });
@@ -135,6 +144,7 @@
         appendLog(`取得開始: shopCode=${shopCode}, hits=${hits}`);
 
         const names = [];
+        downloadBtn.disabled = true;
         let page = 1;
         let pageCount = 1;
         let total = 0;
@@ -166,12 +176,12 @@
 
         appendLog(`取得完了: ${names.length}件（API count: ${total}）`);
 
-        const now = new Date();
-        const stamp = now.toISOString().replace(/[:T]/g, "-").slice(0, 19);
-        const csv = toCsv([["shopCode", "itemName"], ...names.map((name) => [shopCode, name])]);
-        downloadCsv(`rakuten_${shopCode}_items_${stamp}.csv`, csv);
+        lastShopCode = shopCode;
+        lastNames = names;
+        previewEl.value = names.map((n, i) => `${i + 1}. ${n}`).join("\n");
+        downloadBtn.disabled = names.length === 0;
 
-        appendLog("CSVをダウンロードしました。");
+        appendLog("画面に一覧表示しました。内容確認後にCSVをダウンロードしてください。");
       } catch (err) {
         appendLog(`エラー: ${err.message || err}`);
       } finally {
@@ -181,6 +191,22 @@
 
     clearBtn.addEventListener("click", () => {
       logEl.textContent = "";
+      previewEl.value = "";
+      lastShopCode = "";
+      lastNames = [];
+      downloadBtn.disabled = true;
+    });
+
+    downloadBtn.addEventListener("click", () => {
+      if (!lastNames.length || !lastShopCode) {
+        appendLog("先に商品一覧を取得してください。");
+        return;
+      }
+      const now = new Date();
+      const stamp = now.toISOString().replace(/[:T]/g, "-").slice(0, 19);
+      const csv = toCsv([["shopCode", "itemName"], ...lastNames.map((name) => [lastShopCode, name])]);
+      downloadCsv(`rakuten_${lastShopCode}_items_${stamp}.csv`, csv);
+      appendLog("CSVをダウンロードしました。");
     });
   </script>
 </body>
