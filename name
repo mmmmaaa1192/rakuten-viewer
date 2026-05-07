@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>楽天商品API: ショップ商品名CSV出力</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; line-height: 1.6; }
+    .card { max-width: 840px; border: 1px solid #ddd; border-radius: 10px; padding: 20px; }
+    label { display: block; margin-top: 12px; font-weight: 600; }
+    input, button { font-size: 14px; padding: 8px 10px; margin-top: 6px; }
+    input { width: 100%; box-sizing: border-box; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .actions { margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; }
+    button { cursor: pointer; border: 1px solid #ccc; border-radius: 8px; background: #fff; }
+    button.primary { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+    #log { margin-top: 18px; white-space: pre-wrap; background: #f7f7f7; border: 1px solid #eee; padding: 12px; border-radius: 8px; min-height: 88px; }
+    .hint { color: #666; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>楽天ショップ商品名CSV出力ツール</h1>
+    <p class="hint">Rakuten Ichiba Item Search API を利用し、指定ショップの全商品名を取得してCSVダウンロードします。</p>
+
+    <label for="appId">Application ID（必須）</label>
+    <input id="appId" type="text" placeholder="楽天デベロッパーの Application ID" />
+
+    <label for="affiliateId">Affiliate ID（任意）</label>
+    <input id="affiliateId" type="text" placeholder="任意（未入力可）" />
+
+    <div class="row">
+      <div>
+        <label for="shopCode">shopCode（必須）</label>
+        <input id="shopCode" type="text" placeholder="例: rakuten24" />
+      </div>
+      <div>
+        <label for="hits">1ページ件数（1〜30）</label>
+        <input id="hits" type="number" min="1" max="30" value="30" />
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="runBtn" class="primary">取得してCSV出力</button>
+      <button id="clearBtn" type="button">ログクリア</button>
+    </div>
+
+    <div id="log"></div>
+  </div>
+
+  <script>
+    const API_ENDPOINT = "https://app.rakuten.co.jp/services/api/IchibaItem/Search/20220601";
+
+    const $ = (id) => document.getElementById(id);
+    const logEl = $("log");
+    const runBtn = $("runBtn");
+    const clearBtn = $("clearBtn");
+
+    const appendLog = (message) => {
+      const t = new Date().toLocaleTimeString("ja-JP", { hour12: false });
+      logEl.textContent += `[${t}] ${message}\n`;
+      logEl.scrollTop = logEl.scrollHeight;
+    };
+
+    const toCsv = (rows) => {
+      const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+      return rows.map((r) => r.map(esc).join(",")).join("\r\n");
+    };
+
+    const downloadCsv = (filename, csvText) => {
+      const bom = "\uFEFF";
+      const blob = new Blob([bom + csvText], { type: "text/csv;charset=utf-8;" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+    };
+
+    const fetchPage = async ({ appId, affiliateId, shopCode, page, hits }) => {
+      const params = new URLSearchParams({
+        applicationId: appId,
+        format: "json",
+        shopCode,
+        page: String(page),
+        hits: String(hits)
+      });
+      if (affiliateId) params.set("affiliateId", affiliateId);
+
+      const url = `${API_ENDPOINT}?${params.toString()}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`HTTPエラー: ${res.status} ${res.statusText}`);
+      }
+      const data = await res.json();
+      if (data.error) {
+        throw new Error(`APIエラー: ${data.error} ${data.error_description || ""}`.trim());
+      }
+      return data;
+    };
+
+    runBtn.addEventListener("click", async () => {
+      const appId = $("appId").value.trim();
+      const affiliateId = $("affiliateId").value.trim();
+      const shopCode = $("shopCode").value.trim();
+      const hits = Math.min(30, Math.max(1, Number($("hits").value || 30)));
+
+      if (!appId || !shopCode) {
+        appendLog("Application ID と shopCode は必須です。");
+        return;
+      }
+
+      runBtn.disabled = true;
+      try {
+        appendLog(`取得開始: shopCode=${shopCode}, hits=${hits}`);
+
+        const names = [];
+        let page = 1;
+        let pageCount = 1;
+        let total = 0;
+
+        while (page <= pageCount) {
+          appendLog(`ページ取得中: ${page}/${pageCount}`);
+          const data = await fetchPage({ appId, affiliateId, shopCode, page, hits });
+
+          pageCount = Number(data.pageCount || 1);
+          total = Number(data.count || 0);
+
+          for (const itemWrap of (data.Items || [])) {
+            if (itemWrap && itemWrap.Item && itemWrap.Item.itemName) {
+              names.push(itemWrap.Item.itemName);
+            }
+          }
+
+          page += 1;
+        }
+
+        appendLog(`取得完了: ${names.length}件（API count: ${total}）`);
+
+        const now = new Date();
+        const stamp = now.toISOString().replace(/[:T]/g, "-").slice(0, 19);
+        const csv = toCsv([["shopCode", "itemName"], ...names.map((name) => [shopCode, name])]);
+        downloadCsv(`rakuten_${shopCode}_items_${stamp}.csv`, csv);
+
+        appendLog("CSVをダウンロードしました。");
+      } catch (err) {
+        appendLog(`エラー: ${err.message || err}`);
+      } finally {
+        runBtn.disabled = false;
+      }
+    });
+
+    clearBtn.addEventListener("click", () => {
+      logEl.textContent = "";
+    });
+  </script>
+</body>
+</html>
