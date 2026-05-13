@@ -296,6 +296,9 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 .snap-sep td { background: #f0f0f0; padding: 4px 8px; border-top: 2px solid #ddd; font-size: 11px; color: #555; }
 .snap-sep:hover td { background: #e8e8e8 !important; }
 .rank-cell { font-weight: bold; color: #bf0000; }
+tr[data-chart-key] { cursor: pointer; }
+tr.chart-row-active td { background: #fff3e0 !important; }
+tr.chart-row-dim td { opacity: 0.4; }
 .tracker-sidebar-actions { margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f0f0; display: flex; flex-direction: column; gap: 6px; }
 
 /* Tracker legend cards (small) */
@@ -2562,7 +2565,7 @@ function renderTrackerMain() {
         const r = sr[kw];
         const rankCell = (r && r.rank != null) ? `<td class="rank-cell">${r.rank}位</td>` : `<td style="color:#bbb;">圏外</td>`;
         const imgCell  = (r && r.imageUrl) ? `<img src="${esc(r.imageUrl)}" style="width:36px;height:36px;object-fit:contain;display:block;" loading="lazy" onerror="this.style.display='none'">` : '';
-        tableRows += `<tr>
+        tableRows += `<tr data-chart-key="${esc(kw)}">
           <td>${esc(dt)}</td><td>${esc(kw)}</td>${rankCell}
           <td style="padding:4px 8px;">${imgCell}</td>
           <td><a href="${esc(r&&r.itemUrl||'')}" target="_blank" rel="noopener" style="color:#333;">${esc(((r&&r.itemName)||'').slice(0,40))}</a></td>
@@ -2649,7 +2652,7 @@ function renderTrackerMain() {
             ? `<img src="${esc(r.imageUrl)}" style="width:36px;height:36px;object-fit:contain;display:block;" loading="lazy" onerror="this.style.display='none'">`
             : '';
           const scName = r.shopName ? `${esc(sc)}<br><span style="font-size:11px;color:#888;">${esc(r.shopName)}</span>` : esc(sc);
-          rows.push(`<tr data-own="${isOwn}">
+          rows.push(`<tr data-own="${isOwn}" data-chart-key="${esc(sc)}">
             <td>${esc(dt)}</td>
             <td>${scName}</td>
             <td class="rank-cell">${r.rank}位</td>
@@ -2660,7 +2663,7 @@ function renderTrackerMain() {
             <td><button class="btn-icon" data-del-snap="${esc(s.id)}" title="削除">🗑</button></td>
           </tr>`);
         } else {
-          rows.push(`<tr data-own="${isOwn}">
+          rows.push(`<tr data-own="${isOwn}" data-chart-key="${esc(sc)}">
             <td>${esc(dt)}</td>
             <td>${esc(sc)}</td>
             <td style="color:#bbb;">圏外</td>
@@ -2675,7 +2678,7 @@ function renderTrackerMain() {
         const imgCell = it.imageUrl
           ? `<img src="${esc(it.imageUrl)}" style="width:36px;height:36px;object-fit:contain;display:block;" loading="lazy" onerror="this.style.display='none'">`
           : '';
-        rows.push(`<tr data-own="${isOwn}">
+        rows.push(`<tr data-own="${isOwn}" data-chart-key="${esc(it.shopCode)}">
           <td>${esc(dt)}</td>
           <td>${esc(it.shopCode)}${it.shopName ? `<br><span style="font-size:11px;color:#888;">${esc(it.shopName)}</span>` : ''}</td>
           <td class="rank-cell">${it.rank}位</td>
@@ -2753,6 +2756,29 @@ function renderTrackerMain() {
       const snaps = loadSnapshots().filter(s => s.id !== sid);
       saveSnapshots(snaps);
       renderTrackerMain();
+    });
+  });
+
+  // Chart filter by row click
+  let chartFilterKey = null;
+  tableEl.querySelectorAll('tr[data-chart-key]').forEach(row => {
+    row.addEventListener('click', e => {
+      if (e.target.closest('button, a')) return;
+      if (!trackerChart) return;
+      const key = row.dataset.chartKey;
+      if (chartFilterKey === key) {
+        chartFilterKey = null;
+      } else {
+        chartFilterKey = key;
+      }
+      trackerChart.data.datasets.forEach((ds, i) => {
+        trackerChart.setDatasetVisibility(i, chartFilterKey === null || ds.shopCode === chartFilterKey || ds.label === chartFilterKey);
+      });
+      trackerChart.update();
+      tableEl.querySelectorAll('tr[data-chart-key]').forEach(r => {
+        r.classList.toggle('chart-row-active', chartFilterKey !== null && r.dataset.chartKey === chartFilterKey);
+        r.classList.toggle('chart-row-dim',    chartFilterKey !== null && r.dataset.chartKey !== chartFilterKey);
+      });
     });
   });
 
