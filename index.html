@@ -2744,7 +2744,12 @@ function renderTrackerMain() {
   // Snapshot delete buttons
   tableEl.querySelectorAll('[data-del-snap]').forEach(btn => {
     btn.addEventListener('click', () => {
-      const sid   = btn.dataset.delSnap;
+      const sid = btn.dataset.delSnap;
+      const isBatch = !!btn.closest('tr.snap-sep');
+      if (isBatch) {
+        const dt = btn.closest('tr.snap-sep').querySelector('td')?.firstChild?.textContent?.trim() || '';
+        if (!confirm(`「${dt}」のデータをすべて削除しますか？`)) return;
+      }
       const snaps = loadSnapshots().filter(s => s.id !== sid);
       saveSnapshots(snaps);
       renderTrackerMain();
