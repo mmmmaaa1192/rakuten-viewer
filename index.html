@@ -267,7 +267,9 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 /* ===== TRACKER TAB ===== */
 .tracker-layout { display: flex; gap: 0; height: 100%; }
 .tracker-sidebar { width: 240px; flex-shrink: 0; min-height: 0; border-right: 1px solid #e0e0e0; padding: 14px 12px; background: white; overflow-y: auto; }
-.tracker-main { flex: 1; min-height: 0; padding: 20px 28px; overflow-y: auto; }
+.tracker-main { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+#tr-chart-area { flex-shrink: 0; padding: 20px 28px 12px; background: #fff; border-bottom: 1px solid #f0f0f0; }
+#tr-table-area { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 28px 24px; }
 .preset-item { padding: 8px 10px; border: 1px solid #e0e0e0; border-radius: 5px; margin-bottom: 6px; cursor: pointer; transition: border-color 0.12s, background 0.12s; }
 .preset-item:hover { border-color: #bf0000; background: #fff9f9; }
 .preset-item.active { border-color: #bf0000; background: #fff0f0; }
@@ -396,8 +398,8 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   </header>
 
   <div class="tab-nav">
-    <div class="tab-nav-item tab-green" data-tab="tracker">推移チェッカー</div>
-    <div class="tab-nav-item tab-red active" data-tab="ranking">ランキング</div>
+    <div class="tab-nav-item tab-green active" data-tab="tracker">推移チェッカー</div>
+    <div class="tab-nav-item tab-red" data-tab="ranking">ランキング</div>
     <div class="tab-nav-item tab-red" data-tab="scan">全カテゴリスキャン</div>
     <div class="tab-nav-item tab-blue" data-tab="keyword">キーワード順位</div>
     <div class="tab-nav-item tab-blue" data-tab="category">カテゴリ順位</div>
@@ -421,7 +423,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
     <!-- ===== Main Content ===== -->
     <div class="main-content">
       <!-- ===== Tab: Ranking ===== -->
-      <div id="tab-ranking" class="tab-pane active">
+      <div id="tab-ranking" class="tab-pane">
         <div class="card">
           <div class="card-title">期間と取得</div>
           <div class="selected-genre-box">
@@ -540,7 +542,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
       </div>
 
       <!-- ===== Tab: Tracker ===== -->
-      <div id="tab-tracker" class="tab-pane">
+      <div id="tab-tracker" class="tab-pane active">
         <div class="tracker-layout">
           <!-- Sidebar: Preset List -->
           <div class="tracker-sidebar">
@@ -565,9 +567,10 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
               </div>
             </div>
           </div>
-          <!-- Main: Chart + Table -->
+          <!-- Main: Chart (fixed) + Table (scroll) -->
           <div class="tracker-main">
-            <div id="tr-main-content">
+            <div id="tr-chart-area"></div>
+            <div id="tr-table-area">
               <div class="tracker-empty">
                 <div style="font-size:32px;margin-bottom:12px;">📈</div>
                 <div style="font-size:14px;font-weight:bold;margin-bottom:8px;">推移チェッカー</div>
@@ -2487,9 +2490,11 @@ async function recordSnapshot(preset) {
 
 // ---- Render tracker main (chart + table) ----
 function renderTrackerMain() {
-  const el = document.getElementById('tr-main-content');
+  const chartEl = document.getElementById('tr-chart-area');
+  const tableEl = document.getElementById('tr-table-area');
   if (!trackerSelectedPresetId) {
-    el.innerHTML = `<div class="tracker-empty">
+    chartEl.innerHTML = '';
+    tableEl.innerHTML = `<div class="tracker-empty">
       <div style="font-size:32px;margin-bottom:12px;">📈</div>
       <div style="font-size:14px;font-weight:bold;margin-bottom:8px;">推移チェッカー</div>
       <div style="font-size:12px;line-height:1.8;">
@@ -2503,13 +2508,14 @@ function renderTrackerMain() {
   }
 
   const preset   = loadPresets().find(p => p.id === trackerSelectedPresetId);
-  if (!preset) { trackerSelectedPresetId = null; el.innerHTML = ''; return; }
+  if (!preset) { trackerSelectedPresetId = null; chartEl.innerHTML = ''; tableEl.innerHTML = ''; return; }
 
   const allSnaps = loadSnapshots().filter(s => s.presetId === trackerSelectedPresetId)
     .sort((a, b) => new Date(a.recordedAt) - new Date(b.recordedAt));
 
   if (!allSnaps.length) {
-    el.innerHTML = `<div class="tracker-empty">
+    chartEl.innerHTML = '';
+    tableEl.innerHTML = `<div class="tracker-empty">
       <div style="font-size:28px;margin-bottom:10px;">📊</div>
       <div style="font-size:14px;font-weight:bold;margin-bottom:6px;">${esc(preset.name)}</div>
       <div style="font-size:12px;color:#bbb;">まだスナップショットがありません。<br>「今すぐ記録」ボタンで最初のデータを取得してください。</div>
@@ -2689,13 +2695,14 @@ function renderTrackerMain() {
     ? `<button id="tr-own-filter-btn" class="btn-secondary" style="font-size:12px;padding:4px 10px;margin-left:10px;">自店舗のみ</button>`
     : '';
 
-  el.innerHTML = `
-    <div style="margin-bottom:12px;display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
+  chartEl.innerHTML = `
+    <div style="margin-bottom:10px;display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
       <span style="font-size:15px;font-weight:bold;">${esc(preset.name)}</span>
       <span style="font-size:12px;color:#aaa;margin-left:4px;">${allSnaps.length}件のスナップショット</span>
       ${ownFilterBtn}
     </div>
-    <div class="chart-wrap"><canvas id="tracker-chart"></canvas></div>
+    <div class="chart-wrap"><canvas id="tracker-chart"></canvas></div>`;
+  tableEl.innerHTML = `
     <div id="tr-table-wrap" style="overflow-x:auto;">
       <table class="snapshot-table">
         <thead><tr><th>日時</th><th>${preset.type === 'url-rank' ? 'キーワード' : preset.type === 'scan' ? 'カテゴリ' : 'ショップ'}</th><th>順位</th><th>画像</th><th>商品名</th><th>価格</th><th>評価</th><th></th></tr></thead>
@@ -2999,17 +3006,19 @@ function renderImportChart(datasets, allRows) {
     </tr>`;
   }).join('');
 
-  const el = document.getElementById('tr-main-content');
-  el.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+  const chartEl = document.getElementById('tr-chart-area');
+  const tableEl = document.getElementById('tr-table-area');
+  chartEl.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
       <div style="font-size:14px;font-weight:bold;">CSVインポート — 順位推移</div>
       <div style="display:flex;gap:8px;align-items:center;">
         ${hasOwn ? `<button id="import-own-toggle" class="btn-secondary" style="font-size:12px;padding:4px 10px;">自店舗のみ</button>` : ''}
         <button class="btn-secondary" style="font-size:12px;padding:4px 10px;" onclick="renderTrackerMain()">← 記録データに戻る</button>
       </div>
     </div>
-    <div class="chart-wrap"><canvas id="import-chart"></canvas></div>
-    <div id="import-table-wrap" style="overflow-x:auto;margin-top:16px;">
+    <div class="chart-wrap"><canvas id="import-chart"></canvas></div>`;
+  tableEl.innerHTML = `
+    <div id="import-table-wrap" style="overflow-x:auto;">
       <table class="snapshot-table">
         <thead><tr><th>日時</th><th>ショップ</th><th>順位</th><th>画像</th><th>商品名</th><th>価格</th><th>評価</th></tr></thead>
         <tbody>${tableRows}</tbody>
