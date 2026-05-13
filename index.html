@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.47</title>
+<title>楽天市場 リサーチツール v3.52</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -65,9 +65,9 @@ header {
 .tab-nav-item.tab-blue.active   { border-bottom-color: #1a5cb0; color: #0d3880; font-weight: bold; background: #c5d8fc; }
 .tab-nav-item.tab-purple.active { border-bottom-color: #6a1b9a; color: #4a0072; font-weight: bold; background: #e1bee7; }
 
-.tab-pane { display: none; padding: 20px 24px; max-width: 1200px; margin: 0 auto; }
-#tab-tracker { max-width: none; margin: 0; padding: 0; }
-.tab-pane.active { display: block; }
+.tab-pane { display: none; padding: 20px 24px; max-width: 1200px; margin: 0 auto; box-sizing: border-box; }
+#tab-tracker { max-width: none; margin: 0; padding: 0; overflow: hidden; }
+.tab-pane.active { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; }
 
 /* ===== UI PANELS ===== */
 .card { background: white; border-radius: 8px; padding: 18px 20px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.09); }
@@ -260,14 +260,14 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 .side-menu.collapsed { width: 0; padding: 0; overflow: hidden; }
 .side-menu-inner { padding: 12px; min-width: 260px; }
 .side-menu-title { font-size: 13px; font-weight: bold; color: #bf0000; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #f0f0f0; }
-.main-content { flex: 1; min-height: 0; overflow-y: auto; }
+.main-content { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
 .tab-toggle-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 10px; border-radius: 4px; font-size: 16px; cursor: pointer; transition: background 0.15s; margin-right: 8px; }
 .tab-toggle-btn:hover { background: rgba(255,255,255,0.35); }
 
 /* ===== TRACKER TAB ===== */
 .tracker-layout { display: flex; gap: 0; height: 100%; }
-.tracker-sidebar { width: 240px; flex-shrink: 0; border-right: 1px solid #e0e0e0; padding: 14px 12px; background: white; overflow-y: auto; }
-.tracker-main { flex: 1; padding: 20px 28px; overflow-y: auto; max-width: 960px; }
+.tracker-sidebar { width: 240px; flex-shrink: 0; min-height: 0; border-right: 1px solid #e0e0e0; padding: 14px 12px; background: white; overflow-y: auto; }
+.tracker-main { flex: 1; min-height: 0; padding: 20px 28px; overflow-y: auto; max-width: 960px; }
 .preset-item { padding: 8px 10px; border: 1px solid #e0e0e0; border-radius: 5px; margin-bottom: 6px; cursor: pointer; transition: border-color 0.12s, background 0.12s; }
 .preset-item:hover { border-color: #bf0000; background: #fff9f9; }
 .preset-item.active { border-color: #bf0000; background: #fff0f0; }
@@ -387,7 +387,7 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.51</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.52</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -2196,9 +2196,9 @@ document.getElementById('pr-save-btn').addEventListener('click', () => {
     trackerSelectedPresetId = preset.id;
     // Switch to tracker tab
     document.querySelectorAll('.tab-nav-item').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-pane').forEach(p => { p.style.display = 'none'; });
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     document.querySelector('[data-tab="tracker"]').classList.add('active');
-    document.getElementById('tab-tracker').style.display = 'block';
+    document.getElementById('tab-tracker').classList.add('active');
     renderPresetList();
     renderTrackerMain();
     // Auto-record after short delay so UI updates first
