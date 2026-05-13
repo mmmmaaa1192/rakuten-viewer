@@ -36,7 +36,7 @@ button { font-family: inherit; cursor: pointer; }
 .badge-required { font-size: 11px; font-weight: normal; color: #cc0000; margin-left: 4px; }
 
 /* ===== MAIN APP ===== */
-#screen-app { display: none; }
+#screen-app { display: none; flex: 1; min-height: 0; flex-direction: column; overflow: hidden; }
 
 header {
   background: #bf0000; color: white; padding: 12px 24px;
@@ -945,7 +945,7 @@ function showSetup() {
 
 function showApp() {
   document.getElementById('screen-setup').style.display = 'none';
-  document.getElementById('screen-app').style.display   = 'block';
+  document.getElementById('screen-app').style.display   = 'flex';
   if (!sideNav) {
     sideNav = new GenreNav('side-genres', 'side-bc', ({ genreId, path }) => {
       document.getElementById('side-selected-path').textContent = path;
