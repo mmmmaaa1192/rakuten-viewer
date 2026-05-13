@@ -2742,7 +2742,7 @@ function renderTrackerMain() {
   }
 
   // Snapshot delete buttons
-  el.querySelectorAll('[data-del-snap]').forEach(btn => {
+  tableEl.querySelectorAll('[data-del-snap]').forEach(btn => {
     btn.addEventListener('click', () => {
       const sid   = btn.dataset.delSnap;
       const snaps = loadSnapshots().filter(s => s.id !== sid);
