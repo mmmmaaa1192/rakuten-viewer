@@ -256,11 +256,11 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 
 /* sidebar */
 .app-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
-.side-menu { width: 260px; flex-shrink: 0; background: white; border-right: 1px solid #e0e0e0; overflow-y: auto; transition: width 0.2s, padding 0.2s; }
+.side-menu { width: 260px; flex-shrink: 0; min-height: 0; background: white; border-right: 1px solid #e0e0e0; overflow-y: auto; transition: width 0.2s, padding 0.2s; }
 .side-menu.collapsed { width: 0; padding: 0; overflow: hidden; }
 .side-menu-inner { padding: 12px; min-width: 260px; }
 .side-menu-title { font-size: 13px; font-weight: bold; color: #bf0000; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #f0f0f0; }
-.main-content { flex: 1; overflow-y: auto; }
+.main-content { flex: 1; min-height: 0; overflow-y: auto; }
 .tab-toggle-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 10px; border-radius: 4px; font-size: 16px; cursor: pointer; transition: background 0.15s; margin-right: 8px; }
 .tab-toggle-btn:hover { background: rgba(255,255,255,0.35); }
 
@@ -291,6 +291,8 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 .snapshot-table th { background: #f5f5f5; padding: 6px 8px; text-align: left; border-bottom: 2px solid #e0e0e0; }
 .snapshot-table td { padding: 6px 8px; border-bottom: 1px solid #f0f0f0; }
 .snapshot-table tr:hover td { background: #fafafa; }
+.snap-sep td { background: #f0f0f0; padding: 4px 8px; border-top: 2px solid #ddd; font-size: 11px; color: #555; }
+.snap-sep:hover td { background: #e8e8e8 !important; }
 .rank-cell { font-weight: bold; color: #bf0000; }
 .tracker-sidebar-actions { margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f0f0; display: flex; flex-direction: column; gap: 6px; }
 
@@ -2549,6 +2551,7 @@ function renderTrackerMain() {
       const s  = allSnaps[i];
       const dt = new Date(s.recordedAt).toLocaleString('ja-JP');
       const sr = s.shopResults || {};
+      tableRows += `<tr class="snap-sep"><td colspan="8">${esc(dt)}&ensp;<button class="btn-secondary" style="font-size:11px;padding:1px 8px;" data-del-snap="${esc(s.id)}">この日時をすべて削除</button></td></tr>`;
       keywords.forEach(kw => {
         const r = sr[kw];
         const rankCell = (r && r.rank != null) ? `<td class="rank-cell">${r.rank}位</td>` : `<td style="color:#bbb;">圏外</td>`;
@@ -2574,6 +2577,7 @@ function renderTrackerMain() {
     for (let i = allSnaps.length - 1; i >= 0; i--) {
       const s = allSnaps[i];
       const dt = new Date(s.recordedAt).toLocaleString('ja-JP');
+      tableRows += `<tr class="snap-sep"><td colspan="8">${esc(dt)}&ensp;<button class="btn-secondary" style="font-size:11px;padding:1px 8px;" data-del-snap="${esc(s.id)}">この日時をすべて削除</button></td></tr>`;
       (s.topItems || []).forEach(it => {
         const imgCell = it.imageUrl ? `<img src="${esc(it.imageUrl)}" style="width:36px;height:36px;object-fit:contain;display:block;" loading="lazy" onerror="this.style.display='none'">` : '';
         tableRows += `<tr>
@@ -2628,7 +2632,7 @@ function renderTrackerMain() {
   for (let i = allSnaps.length - 1; i >= 0; i--) {
     const s = allSnaps[i];
     const dt = new Date(s.recordedAt).toLocaleString('ja-JP');
-    const rows = [];
+    const rows = [`<tr class="snap-sep"><td colspan="8">${esc(dt)}&ensp;<button class="btn-secondary" style="font-size:11px;padding:1px 8px;" data-del-snap="${esc(s.id)}">この日時をすべて削除</button></td></tr>`];
 
     if (shopCodes.length > 0) {
       shopCodes.forEach(sc => {
