@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.56</title>
+<title>楽天市場 リサーチツール v3.57</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -270,6 +270,10 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 .tracker-main { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 #tr-chart-area { flex-shrink: 0; padding: 20px 28px 12px; background: #fff; border-bottom: 1px solid #f0f0f0; }
 #tr-table-area { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 28px 24px; }
+#tr-progress { display: none; align-items: center; gap: 10px; padding: 8px 28px; background: #fff8e1; border-bottom: 1px solid #ffe082; font-size: 12px; color: #5d4037; }
+#tr-progress.visible { display: flex; }
+#tr-progress-spinner { width: 14px; height: 14px; border: 2px solid #ffca28; border-top-color: #f57f17; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+#tr-progress-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .preset-item { padding: 8px 10px; border: 1px solid #e0e0e0; border-radius: 5px; margin-bottom: 6px; cursor: pointer; transition: border-color 0.12s, background 0.12s; }
 .preset-item:hover { border-color: #bf0000; background: #fff9f9; }
 .preset-item.active { border-color: #bf0000; background: #fff0f0; }
@@ -325,6 +329,7 @@ tr.chart-row-dim td { opacity: 0.4; }
 .scan-target-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; background: #e8f0fe; border: 1px solid #c5d8f8; border-radius: 4px; padding: 3px 8px; color: #1a3e6e; }
 .scan-target-chip button { background: none; border: none; cursor: pointer; font-size: 13px; color: #888; padding: 0 0 0 2px; line-height: 1; }
 .scan-target-chip button:hover { color: #c00; }
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -392,7 +397,7 @@ tr.chart-row-dim td { opacity: 0.4; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.56</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.57</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -572,6 +577,10 @@ tr.chart-row-dim td { opacity: 0.4; }
           </div>
           <!-- Main: Chart (fixed) + Table (scroll) -->
           <div class="tracker-main">
+            <div id="tr-progress">
+              <div id="tr-progress-spinner"></div>
+              <div id="tr-progress-text">取得中...</div>
+            </div>
             <div id="tr-chart-area"></div>
             <div id="tr-table-area">
               <div class="tracker-empty">
@@ -2282,12 +2291,14 @@ document.getElementById('pr-save-btn').addEventListener('click', () => {
     setTimeout(async () => {
       const btn = document.querySelector(`[data-record-id="${preset.id}"]`);
       if (btn) { btn.disabled = true; btn.textContent = '記録中...'; }
+      showTrackerProgress('取得を開始しています...');
       try {
-        await recordSnapshot(preset);
+        await recordSnapshot(preset, showTrackerProgress);
         if (trackerSelectedPresetId === preset.id) renderTrackerMain();
       } catch(err) {
         alert('自動記録失敗: ' + err.message);
       } finally {
+        hideTrackerProgress();
         if (btn) { btn.disabled = false; btn.textContent = '今すぐ記録'; }
       }
     }, 150);
@@ -2352,12 +2363,14 @@ function renderPresetList() {
       if (!preset) return;
       btn.disabled    = true;
       btn.textContent = '記録中...';
+      showTrackerProgress('取得を開始しています...');
       try {
-        await recordSnapshot(preset);
+        await recordSnapshot(preset, showTrackerProgress);
         if (trackerSelectedPresetId === pid) renderTrackerMain();
       } catch(err) {
         alert('記録失敗: ' + err.message);
       } finally {
+        hideTrackerProgress();
         btn.disabled    = false;
         btn.textContent = '今すぐ記録';
       }
@@ -2397,8 +2410,21 @@ function renderPresetList() {
   });
 }
 
+// ---- Progress bar helpers ----
+function showTrackerProgress(msg) {
+  const el = document.getElementById('tr-progress');
+  const txt = document.getElementById('tr-progress-text');
+  if (!el) return;
+  if (txt) txt.textContent = msg;
+  el.classList.add('visible');
+}
+function hideTrackerProgress() {
+  const el = document.getElementById('tr-progress');
+  if (el) el.classList.remove('visible');
+}
+
 // ---- Record snapshot ----
-async function recordSnapshot(preset) {
+async function recordSnapshot(preset, onProgress) {
   const { type, config } = preset;
   const snapshot = {
     id:         generateId(),
@@ -2411,7 +2437,10 @@ async function recordSnapshot(preset) {
   if (type === 'url-rank') {
     const parsed = parseItemUrl(config.itemUrl);
     if (parsed) {
-      for (const kw of (config.keywords || [])) {
+      const keywords = config.keywords || [];
+      for (let ki = 0; ki < keywords.length; ki++) {
+        const kw = keywords[ki];
+        if (onProgress) onProgress(`「${kw}」を検索中... (${ki + 1}/${keywords.length})`);
         const found  = await findItemRankByKeyword(parsed, kw, config.maxPages || 10, config.sort || 'standard');
         const it     = found?.item;
         const imgRaw = it?.mediumImageUrls?.[0];
@@ -2431,6 +2460,7 @@ async function recordSnapshot(preset) {
       }
     }
   } else if (type === 'ranking') {
+    if (onProgress) onProgress('ランキングデータを取得中...');
     // Fetch pages 1-3 of ranking
     const pages = await Promise.all([1, 2, 3].map(p => {
       const { newUrl, oldUrl } = rankingUrl(config.genreId || 0, config.period, p);
@@ -2478,6 +2508,7 @@ async function recordSnapshot(preset) {
     let frontier = genres.map(g => ({ genreId: g.genreId, path: g.path }));
     const targets = [];
     const maxDep = config.maxDepth || 2;
+    if (onProgress) onProgress('カテゴリ構造を収集中...');
     for (let d = 1; d <= maxDep; d++) {
       for (const item of frontier) targets.push(item);
       if (d >= maxDep) break;
@@ -2495,7 +2526,9 @@ async function recordSnapshot(preset) {
       }
       frontier = nextFrontier;
     }
-    for (const cat of targets) {
+    for (let ci = 0; ci < targets.length; ci++) {
+      const cat = targets[ci];
+      if (onProgress) onProgress(`スキャン中 ${ci + 1}/${targets.length} — ${cat.path.split(' › ').slice(-2).join(' › ')}`);
       for (let p = 1; p <= 3; p++) {
         const { newUrl, oldUrl } = rankingUrl(cat.genreId, config.period || 'realtime', p);
         let data;
@@ -2537,6 +2570,7 @@ async function recordSnapshot(preset) {
     const allItems  = [];
 
     for (let page = 1; page <= maxPg; page++) {
+      if (onProgress) onProgress(`${page}ページ目を取得中... (最大${maxPg}ページ)`);
       const { newUrl, oldUrl } = searchUrl(keyword, genreId, page, sort);
       let data;
       try { data = await rakutenApi(newUrl, oldUrl); } catch(e) { await sleep(2000); continue; }
