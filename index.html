@@ -745,6 +745,15 @@ tr.chart-row-dim td { opacity: 0.4; }
         <button class="period-btn active" type="button" data-pr-scan-period="realtime">リアルタイム</button>
         <button class="period-btn" type="button" data-pr-scan-period="daily">デイリー</button>
       </div>
+      <label class="form-label" style="margin-top:10px;">スキャンモード</label>
+      <div class="period-row" id="pr-scan-mode-row">
+        <button class="period-btn active" type="button" data-pr-scan-mode="own">自店舗モード</button>
+        <button class="period-btn" type="button" data-pr-scan-mode="target">指定店舗モード</button>
+      </div>
+      <div id="pr-scan-target-group" style="display:none;margin-top:8px;">
+        <label class="form-label">指定店舗URL <span style="font-weight:normal;color:#aaa;font-size:11px;">（1行1URL）</span></label>
+        <textarea class="form-input" id="pr-scan-target-shops" rows="2" style="font-size:12px;font-family:monospace;" placeholder="https://www.rakuten.co.jp/shopname/"></textarea>
+      </div>
     </div>
     <!-- shop codes -->
     <div class="form-group" id="pr-group-shops">
@@ -1866,6 +1875,49 @@ function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
+function parseShopUrls(raw) {
+  return [...new Set(
+    raw.split(/[\n,\s]+/)
+      .map(url => { const m = url.trim().match(/rakuten\.co\.jp\/([^/?#]+)/); return m ? m[1].toLowerCase() : null; })
+      .filter(Boolean)
+  )];
+}
+
+function presetDetailHTML(p) {
+  const c = p.config || {};
+  const rows = [];
+  if (p.type === 'scan') {
+    const genres = (c.genres || []).map(g => esc(g.path)).join('<br>');
+    rows.push(['カテゴリ', genres || '（未設定）']);
+    rows.push(['深度', c.maxDepth === 1 ? '選択カテゴリのみ' : c.maxDepth === 3 ? '+2段階' : '+1段階']);
+    rows.push(['期間', c.period === 'realtime' ? 'リアルタイム' : 'デイリー']);
+    const mode = (c.targetShopCodes && c.targetShopCodes.length) ? '指定店舗' : '自店舗';
+    rows.push(['モード', mode]);
+    if (c.targetShopCodes && c.targetShopCodes.length) {
+      rows.push(['指定店舗', c.targetShopCodes.map(esc).join(', ')]);
+    }
+  } else if (p.type === 'url-rank') {
+    rows.push(['商品URL', `<a href="${esc(c.itemUrl||'')}" target="_blank" rel="noopener" style="color:#bf0000;word-break:break-all;">${esc(c.itemUrl||'')}</a>`]);
+    rows.push(['ショップ', esc(c.shopCode||'')]);
+    rows.push(['管理番号', esc(c.managementId||'')]);
+    rows.push(['キーワード', (c.keywords||[]).map(esc).join(', ')]);
+  } else if (p.type === 'keyword') {
+    rows.push(['キーワード', esc(c.keyword||'')]);
+    if ((c.shopCodes||[]).length) rows.push(['ショップ', c.shopCodes.map(esc).join(', ')]);
+    rows.push(['並び順', esc(c.sort||'standard')]);
+  } else if (p.type === 'category') {
+    rows.push(['カテゴリ', esc(c.genreName||'')]);
+    if ((c.shopCodes||[]).length) rows.push(['ショップ', c.shopCodes.map(esc).join(', ')]);
+    rows.push(['並び順', esc(c.sort||'standard')]);
+  } else if (p.type === 'ranking') {
+    rows.push(['カテゴリ', esc(c.genreName||'全体')]);
+    rows.push(['期間', esc(c.period||'realtime')]);
+  }
+  return `<div style="font-size:11px;color:#555;background:#fafafa;border-top:1px solid #f0f0f0;margin-top:6px;padding:6px 4px;border-radius:0 0 4px 4px;">
+    ${rows.map(([k,v]) => `<div style="display:flex;gap:6px;margin-bottom:3px;"><span style="color:#aaa;flex-shrink:0;width:68px;">${k}</span><span style="flex:1;word-break:break-all;">${v}</span></div>`).join('')}
+  </div>`;
+}
+
 function loadPresets() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY_PRESETS) || '[]'); } catch { return []; }
 }
@@ -2087,6 +2139,15 @@ document.querySelectorAll('#pr-scan-period-row .period-btn').forEach(btn => {
   });
 });
 
+document.querySelectorAll('#pr-scan-mode-row .period-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#pr-scan-mode-row .period-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('pr-scan-target-group').style.display =
+      btn.dataset.prScanMode === 'target' ? '' : 'none';
+  });
+});
+
 document.getElementById('pr-pick-genre-btn').addEventListener('click', () => {
   if (!sideNav || sideNav.selected.genreId === 0) {
     alert('サイドナビでカテゴリを先に選択してください');
@@ -2118,6 +2179,9 @@ document.getElementById('tr-add-preset-btn').addEventListener('click', () => {
   const sbb = document.getElementById('pr-scan-browse-btn');
   if (sbb) sbb.textContent = '一覧から選択 ▾';
   document.querySelectorAll('#pr-scan-period-row .period-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
+  document.querySelectorAll('#pr-scan-mode-row .period-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
+  document.getElementById('pr-scan-target-group').style.display = 'none';
+  document.getElementById('pr-scan-target-shops').value = '';
   const gb = document.getElementById('pr-genre-browser');
   if (gb) { gb.style.display = 'none'; gb.innerHTML = ''; }
   const bb = document.getElementById('pr-browse-genre-btn');
@@ -2160,11 +2224,18 @@ document.getElementById('pr-save-btn').addEventListener('click', () => {
   if (type === 'scan') {
     let genres = [];
     try { genres = JSON.parse(document.getElementById('pr-scan-genres-data').value || '[]'); } catch {}
-    const activeBtn = document.querySelector('#pr-scan-period-row .period-btn.active');
+    const activeBtn     = document.querySelector('#pr-scan-period-row .period-btn.active');
+    const scanModeBtn   = document.querySelector('#pr-scan-mode-row .period-btn.active');
+    const scanMode      = scanModeBtn?.dataset.prScanMode || 'own';
+    const targetShopCodes = scanMode === 'target'
+      ? parseShopUrls(document.getElementById('pr-scan-target-shops').value)
+      : [];
     config = {
       genres,
       maxDepth: parseInt(document.getElementById('pr-scan-depth').value) || 2,
       period: activeBtn?.dataset.prScanPeriod || 'realtime',
+      shopCodes: [],
+      ...(targetShopCodes.length ? { targetShopCodes } : {}),
     };
   } else if (type === 'url-rank') {
     const rawUrl = document.getElementById('pr-urlrank-url').value.trim();
@@ -2254,8 +2325,10 @@ function renderPresetList() {
       </div>
       <div class="preset-actions" style="margin-top:4px;">
         <button class="btn-record" data-record-id="${esc(p.id)}">今すぐ記録</button>
+        <button class="btn-icon" data-detail-id="${esc(p.id)}" title="詳細">詳細</button>
         <button class="btn-icon" data-delete-id="${esc(p.id)}" title="削除">🗑</button>
       </div>
+      <div class="preset-detail-panel" id="detail-${esc(p.id)}" style="display:none;">${presetDetailHTML(p)}</div>
     </div>`;
   }).join('');
 
@@ -2288,6 +2361,18 @@ function renderPresetList() {
         btn.disabled    = false;
         btn.textContent = '今すぐ記録';
       }
+    });
+  });
+
+  // detail toggle button
+  el.querySelectorAll('[data-detail-id]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const panel = document.getElementById('detail-' + btn.dataset.detailId);
+      if (!panel) return;
+      const open = panel.style.display !== 'none';
+      panel.style.display = open ? 'none' : '';
+      btn.style.color = open ? '' : '#bf0000';
     });
   });
 
