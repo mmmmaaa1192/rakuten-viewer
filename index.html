@@ -2381,6 +2381,8 @@ function renderPresetList() {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       const pid = btn.dataset.deleteId;
+      const preset = loadPresets().find(p => p.id === pid);
+      if (!confirm(`「${preset ? preset.name : 'このプリセット'}」を削除しますか？\n記録済みのスナップショットもすべて削除されます。`)) return;
       const presets = loadPresets().filter(p => p.id !== pid);
       savePresets(presets);
       // also delete related snapshots
@@ -2839,6 +2841,8 @@ function renderTrackerMain() {
       if (isBatch) {
         const dt = btn.closest('tr.snap-sep').querySelector('td')?.firstChild?.textContent?.trim() || '';
         if (!confirm(`「${dt}」のデータをすべて削除しますか？`)) return;
+      } else {
+        if (!confirm('このスナップショットを削除しますか？')) return;
       }
       const snaps = loadSnapshots().filter(s => s.id !== sid);
       saveSnapshots(snaps);
