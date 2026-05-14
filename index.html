@@ -2383,7 +2383,9 @@ async function recordSnapshot(preset) {
     });
 
   } else if (type === 'scan') {
-    const ownShops = getOwnShops();
+    const ownShops = (config.targetShopCodes && config.targetShopCodes.length)
+      ? config.targetShopCodes
+      : getOwnShops();
     const ownSet = new Set(ownShops.map(s => s.toLowerCase()));
     const genres = config.genres || [];
     let frontier = genres.map(g => ({ genreId: g.genreId, path: g.path }));
@@ -3718,6 +3720,35 @@ window.openKwPreset = function(keyword, shopCode) {
     renderScanResults(hits, scanAborted, targets.length);
   });
 
+  // ---- Save current scan config as tracker preset ----
+  function addScanPreset() {
+    const name = prompt('推移チェッカーのプリセット名を入力してください');
+    if (!name || !name.trim()) return;
+    const genres = loadTargets();
+    if (!genres.length) { alert('カテゴリが設定されていません'); return; }
+    const config = {
+      genres,
+      maxDepth: parseInt(document.getElementById('scan-depth').value) || 2,
+      period: scanPeriod,
+      shopCodes: [],
+    };
+    if (scanMode === 'target') {
+      config.targetShopCodes = parseShopUrls(document.getElementById('scan-target-shops').value);
+    }
+    const preset = {
+      id: generateId(),
+      name: name.trim(),
+      type: 'scan',
+      config,
+      createdAt: new Date().toISOString(),
+    };
+    const presets = loadPresets();
+    presets.push(preset);
+    savePresets(presets);
+    renderPresetList();
+    alert(`「${preset.name}」を推移チェッカーに登録しました`);
+  }
+
   // ---- Render results grouped by category ----
   function renderScanResults(hits, aborted, total) {
     const el = document.getElementById('scan-results');
@@ -3754,6 +3785,7 @@ window.openKwPreset = function(keyword, shopCode) {
     let html = `<div class="card" style="margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
       <span style="font-size:15px;font-weight:bold;">${totalUniq}件のランクイン商品を発見</span>
       <span style="font-size:12px;color:#aaa;">${periodLabel} / ${byCat.size}カテゴリ / ${total}スキャン${aborted ? '（中断）' : ''}</span>
+      <button id="scan-register-preset-btn" class="btn-secondary" style="font-size:12px;padding:4px 12px;margin-left:auto;">推移チェッカーに登録</button>
     </div>`;
 
     for (const [path, items] of sortedCats) {
@@ -3772,6 +3804,7 @@ window.openKwPreset = function(keyword, shopCode) {
     }
 
     el.innerHTML = html;
+    document.getElementById('scan-register-preset-btn').addEventListener('click', addScanPreset);
   }
 })();
 </script>
