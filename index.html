@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.56</title>
+<title>楽天市場 リサーチツール v3.59</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -270,6 +270,10 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 .tracker-main { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 #tr-chart-area { flex-shrink: 0; padding: 20px 28px 12px; background: #fff; border-bottom: 1px solid #f0f0f0; }
 #tr-table-area { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 28px 24px; }
+#tr-progress { display: none; align-items: center; gap: 10px; padding: 8px 28px; background: #fff8e1; border-bottom: 1px solid #ffe082; font-size: 12px; color: #5d4037; }
+#tr-progress.visible { display: flex; }
+#tr-progress-spinner { width: 14px; height: 14px; border: 2px solid #ffca28; border-top-color: #f57f17; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+#tr-progress-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .preset-item { padding: 8px 10px; border: 1px solid #e0e0e0; border-radius: 5px; margin-bottom: 6px; cursor: pointer; transition: border-color 0.12s, background 0.12s; }
 .preset-item:hover { border-color: #bf0000; background: #fff9f9; }
 .preset-item.active { border-color: #bf0000; background: #fff0f0; }
@@ -325,6 +329,139 @@ tr.chart-row-dim td { opacity: 0.4; }
 .scan-target-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; background: #e8f0fe; border: 1px solid #c5d8f8; border-radius: 4px; padding: 3px 8px; color: #1a3e6e; }
 .scan-target-chip button { background: none; border: none; cursor: pointer; font-size: 13px; color: #888; padding: 0 0 0 2px; line-height: 1; }
 .scan-target-chip button:hover { color: #c00; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.chart-mode-group { display: flex; gap: 4px; }
+.chart-mode-btn { background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; font-size: 11px; padding: 3px 10px; cursor: pointer; color: #555; }
+.chart-mode-btn:hover { border-color: #bf0000; color: #bf0000; }
+.chart-mode-btn.active { background: #bf0000; border-color: #bf0000; color: #fff; font-weight: bold; }
+
+/* ==========================================================
+   MOBILE RESPONSIVE — ≤ 768px
+   PC ビューへの影響なし（すべて @media 内）
+   ========================================================== */
+@media (max-width: 768px) {
+
+  /* ---- Base ---- */
+  html { overflow: hidden; }
+
+  /* ---- Header ---- */
+  header { padding: 8px 12px; }
+  .header-title { font-size: 14px; }
+  .version-badge { display: none; }
+  .api-badge { display: none; }
+  .header-btn { font-size: 12px; padding: 5px 8px; }
+
+  /* ---- Tab nav: horizontal scroll ---- */
+  .tab-nav {
+    padding: 0;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    top: 40px; /* adjusted for smaller header */
+  }
+  .tab-nav::-webkit-scrollbar { display: none; }
+  .tab-nav-item {
+    padding: 10px 13px;
+    font-size: 12px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* ---- Category sidebar: fixed overlay ---- */
+  .side-menu {
+    position: fixed !important;
+    left: 0; top: 0; bottom: 0;
+    width: 280px !important;
+    z-index: 400;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    overflow-y: auto !important;
+    box-shadow: none;
+  }
+  .side-menu.collapsed {
+    width: 280px !important;
+    padding: unset !important;
+    overflow-y: auto !important;
+    transform: translateX(-100%) !important;
+  }
+  .side-menu:not(.collapsed) {
+    transform: translateX(0) !important;
+    box-shadow: 4px 0 20px rgba(0,0,0,0.22);
+  }
+  /* Backdrop for overlay sidebar */
+  #side-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 399;
+    display: none;
+  }
+  #side-backdrop.visible { display: block; }
+
+  /* ---- Tab pane ---- */
+  .tab-pane { padding: 12px 12px 20px; }
+
+  /* ---- Cards ---- */
+  .card { padding: 14px 14px; margin-bottom: 10px; }
+
+  /* ---- Buttons ---- */
+  .btn-primary { padding: 10px 18px; }
+  .period-btn { padding: 6px 12px; font-size: 12px; }
+  .input-row { flex-direction: column; }
+
+  /* ---- Item grid: 2-column minimum ---- */
+  .item-grid { grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap: 10px; }
+
+  /* ---- Result item detail: stack vertically ---- */
+  .result-item-detail { flex-direction: column; }
+
+  /* ---- Modal: wider on mobile ---- */
+  .modal-box { padding: 18px 16px; width: 96%; }
+  .modal-title { font-size: 14px; margin-bottom: 14px; }
+
+  /* ---- Tracker tab: vertical stack layout ---- */
+  #tab-tracker { overflow-y: auto; overflow-x: hidden; }
+  .tracker-layout { flex-direction: column; height: auto; }
+  .tracker-sidebar {
+    width: 100% !important;
+    border-right: none;
+    border-bottom: 2px solid #ebebeb;
+    overflow-y: visible;
+    padding: 12px 12px 8px;
+    flex-shrink: 0;
+  }
+  .tracker-sidebar-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .tracker-sidebar-actions > * {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 120px;
+    text-align: center;
+    font-size: 11px;
+    padding: 6px 6px;
+  }
+  .tracker-main { flex: none; overflow: visible; }
+  #tr-progress { padding: 8px 12px; }
+  #tr-chart-area { padding: 12px 12px 8px; }
+  #tr-table-area { flex: none; overflow-y: visible; padding: 8px 12px 24px; }
+  .chart-wrap { height: 210px; margin-bottom: 12px; }
+  .chart-mode-group { flex-wrap: wrap; }
+
+  /* ---- Snapshot table: horizontal scroll ---- */
+  #tr-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .snapshot-table { font-size: 11px; min-width: 480px; }
+  .snapshot-table th, .snapshot-table td { padding: 5px 6px; white-space: nowrap; }
+
+  /* ---- Scan tab ---- */
+  .scan-genre-tags-bar { gap: 3px; }
+  .scan-genre-tag { font-size: 10px; padding: 2px 6px; }
+
+  /* ---- Setup screen ---- */
+  .setup-card { padding: 28px 22px; }
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -392,7 +529,7 @@ tr.chart-row-dim td { opacity: 0.4; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.56</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.59</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -422,6 +559,7 @@ tr.chart-row-dim td { opacity: 0.4; }
         </div>
       </div>
     </aside>
+    <div id="side-backdrop"></div>
 
     <!-- ===== Main Content ===== -->
     <div class="main-content">
@@ -572,6 +710,10 @@ tr.chart-row-dim td { opacity: 0.4; }
           </div>
           <!-- Main: Chart (fixed) + Table (scroll) -->
           <div class="tracker-main">
+            <div id="tr-progress">
+              <div id="tr-progress-spinner"></div>
+              <div id="tr-progress-text">取得中...</div>
+            </div>
             <div id="tr-chart-area"></div>
             <div id="tr-table-area">
               <div class="tracker-empty">
@@ -958,9 +1100,15 @@ function showSetup() {
   document.getElementById('screen-app').style.display   = 'none';
 }
 
+function isMobile() { return window.innerWidth <= 768; }
+
 function showApp() {
   document.getElementById('screen-setup').style.display = 'none';
   document.getElementById('screen-app').style.display   = 'flex';
+  // On mobile, start with category sidebar collapsed
+  if (isMobile()) {
+    document.getElementById('side-menu').classList.add('collapsed');
+  }
   if (!sideNav) {
     sideNav = new GenreNav('side-genres', 'side-bc', ({ genreId, path }) => {
       document.getElementById('side-selected-path').textContent = path;
@@ -1364,8 +1512,16 @@ document.querySelectorAll('.tab-nav-item').forEach(item => {
 
 // ===== SIDEBAR TOGGLE =====
 document.getElementById('side-toggle-btn').addEventListener('click', () => {
-  const menu = document.getElementById('side-menu');
+  const menu     = document.getElementById('side-menu');
+  const backdrop = document.getElementById('side-backdrop');
   menu.classList.toggle('collapsed');
+  if (isMobile() && backdrop) {
+    backdrop.classList.toggle('visible', !menu.classList.contains('collapsed'));
+  }
+});
+document.getElementById('side-backdrop').addEventListener('click', () => {
+  document.getElementById('side-menu').classList.add('collapsed');
+  document.getElementById('side-backdrop').classList.remove('visible');
 });
 
 // ===== RANKING TAB =====
@@ -2282,12 +2438,14 @@ document.getElementById('pr-save-btn').addEventListener('click', () => {
     setTimeout(async () => {
       const btn = document.querySelector(`[data-record-id="${preset.id}"]`);
       if (btn) { btn.disabled = true; btn.textContent = '記録中...'; }
+      showTrackerProgress('取得を開始しています...');
       try {
-        await recordSnapshot(preset);
+        await recordSnapshot(preset, showTrackerProgress);
         if (trackerSelectedPresetId === preset.id) renderTrackerMain();
       } catch(err) {
         alert('自動記録失敗: ' + err.message);
       } finally {
+        hideTrackerProgress();
         if (btn) { btn.disabled = false; btn.textContent = '今すぐ記録'; }
       }
     }, 150);
@@ -2352,12 +2510,14 @@ function renderPresetList() {
       if (!preset) return;
       btn.disabled    = true;
       btn.textContent = '記録中...';
+      showTrackerProgress('取得を開始しています...');
       try {
-        await recordSnapshot(preset);
+        await recordSnapshot(preset, showTrackerProgress);
         if (trackerSelectedPresetId === pid) renderTrackerMain();
       } catch(err) {
         alert('記録失敗: ' + err.message);
       } finally {
+        hideTrackerProgress();
         btn.disabled    = false;
         btn.textContent = '今すぐ記録';
       }
@@ -2397,8 +2557,21 @@ function renderPresetList() {
   });
 }
 
+// ---- Progress bar helpers ----
+function showTrackerProgress(msg) {
+  const el = document.getElementById('tr-progress');
+  const txt = document.getElementById('tr-progress-text');
+  if (!el) return;
+  if (txt) txt.textContent = msg;
+  el.classList.add('visible');
+}
+function hideTrackerProgress() {
+  const el = document.getElementById('tr-progress');
+  if (el) el.classList.remove('visible');
+}
+
 // ---- Record snapshot ----
-async function recordSnapshot(preset) {
+async function recordSnapshot(preset, onProgress) {
   const { type, config } = preset;
   const snapshot = {
     id:         generateId(),
@@ -2411,7 +2584,10 @@ async function recordSnapshot(preset) {
   if (type === 'url-rank') {
     const parsed = parseItemUrl(config.itemUrl);
     if (parsed) {
-      for (const kw of (config.keywords || [])) {
+      const keywords = config.keywords || [];
+      for (let ki = 0; ki < keywords.length; ki++) {
+        const kw = keywords[ki];
+        if (onProgress) onProgress(`「${kw}」を検索中... (${ki + 1}/${keywords.length})`);
         const found  = await findItemRankByKeyword(parsed, kw, config.maxPages || 10, config.sort || 'standard');
         const it     = found?.item;
         const imgRaw = it?.mediumImageUrls?.[0];
@@ -2431,6 +2607,7 @@ async function recordSnapshot(preset) {
       }
     }
   } else if (type === 'ranking') {
+    if (onProgress) onProgress('ランキングデータを取得中...');
     // Fetch pages 1-3 of ranking
     const pages = await Promise.all([1, 2, 3].map(p => {
       const { newUrl, oldUrl } = rankingUrl(config.genreId || 0, config.period, p);
@@ -2478,6 +2655,7 @@ async function recordSnapshot(preset) {
     let frontier = genres.map(g => ({ genreId: g.genreId, path: g.path }));
     const targets = [];
     const maxDep = config.maxDepth || 2;
+    if (onProgress) onProgress('カテゴリ構造を収集中...');
     for (let d = 1; d <= maxDep; d++) {
       for (const item of frontier) targets.push(item);
       if (d >= maxDep) break;
@@ -2495,7 +2673,9 @@ async function recordSnapshot(preset) {
       }
       frontier = nextFrontier;
     }
-    for (const cat of targets) {
+    for (let ci = 0; ci < targets.length; ci++) {
+      const cat = targets[ci];
+      if (onProgress) onProgress(`スキャン中 ${ci + 1}/${targets.length} — ${cat.path.split(' › ').slice(-2).join(' › ')}`);
       for (let p = 1; p <= 3; p++) {
         const { newUrl, oldUrl } = rankingUrl(cat.genreId, config.period || 'realtime', p);
         let data;
@@ -2537,6 +2717,7 @@ async function recordSnapshot(preset) {
     const allItems  = [];
 
     for (let page = 1; page <= maxPg; page++) {
+      if (onProgress) onProgress(`${page}ページ目を取得中... (最大${maxPg}ページ)`);
       const { newUrl, oldUrl } = searchUrl(keyword, genreId, page, sort);
       let data;
       try { data = await rakutenApi(newUrl, oldUrl); } catch(e) { await sleep(2000); continue; }
@@ -2580,6 +2761,8 @@ async function recordSnapshot(preset) {
   saveSnapshots(snaps);
 }
 
+const trackerChartModes = {}; // { [presetId]: mode string }
+
 // ---- Render tracker main (chart + table) ----
 function renderTrackerMain() {
   const chartEl = document.getElementById('tr-chart-area');
@@ -2599,7 +2782,7 @@ function renderTrackerMain() {
     return;
   }
 
-  const preset   = loadPresets().find(p => p.id === trackerSelectedPresetId);
+  const preset = loadPresets().find(p => p.id === trackerSelectedPresetId);
   if (!preset) { trackerSelectedPresetId = null; chartEl.innerHTML = ''; tableEl.innerHTML = ''; return; }
 
   const allSnaps = loadSnapshots().filter(s => s.presetId === trackerSelectedPresetId)
@@ -2615,14 +2798,11 @@ function renderTrackerMain() {
     return;
   }
 
+  const type      = preset.type;
   const shopCodes = preset.config.shopCodes || [];
   const labels    = allSnaps.map(s => new Date(s.recordedAt).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }));
+  const COLORS    = ['#bf0000','#1a73e8','#188038','#f9a825','#9c27b0','#00bcd4','#e65100','#0288d1','#558b2f','#6d4c41','#ad1457','#00838f'];
 
-  let datasets = [];
-  let tableRows = '';
-  const COLORS = ['#bf0000','#1a73e8','#188038','#f9a825','#9c27b0','#00bcd4','#e65100','#0288d1','#558b2f','#6d4c41','#ad1457','#00838f'];
-
-  // Helper: get best known shopName for a shopCode from snapshots
   const resolveShopName = (sc) => {
     for (const s of allSnaps) {
       const name = s.shopResults?.[sc]?.shopName
@@ -2632,7 +2812,72 @@ function renderTrackerMain() {
     return sc;
   };
 
-  if (preset.type === 'url-rank') {
+  // ---- Chart mode setup ----
+  let availableModes, defaultMode;
+  if (type === 'scan') {
+    availableModes = [{ key: 'count', label: 'ランクイン件数' }, { key: 'item', label: '商品別推移' }];
+    defaultMode = 'count';
+  } else if (type === 'ranking') {
+    availableModes = [{ key: 'shop', label: '店舗別' }, { key: 'item', label: '商品別' }];
+    defaultMode = 'shop';
+  } else if (type === 'url-rank') {
+    availableModes = [{ key: 'keyword', label: 'キーワード別' }, { key: 'item', label: '商品別' }];
+    defaultMode = 'keyword';
+  } else {
+    availableModes = [{ key: 'shop', label: 'ショップ別' }, { key: 'item', label: '商品別' }];
+    defaultMode = 'shop';
+  }
+  const mode = trackerChartModes[preset.id] || defaultMode;
+
+  // ---- Build datasets ----
+  let datasets = [];
+  let isCountMode = false;
+
+  if (mode === 'item') {
+    // Collect unique items across all snapshots, keyed by itemUrl (fallback itemName)
+    const itemMap = new Map();
+    allSnaps.forEach(s => {
+      const items = type === 'url-rank'
+        ? Object.values(s.shopResults || {}).filter(r => r && r.itemUrl)
+        : (s.topItems || []);
+      items.forEach(it => {
+        const key = it.itemUrl || it.itemName;
+        if (!key) return;
+        const rank = it.rank ?? 9999;
+        const ex = itemMap.get(key);
+        if (!ex || rank < ex.bestRank) {
+          itemMap.set(key, { name: it.itemName || key, shopCode: it.shopCode || '', shopName: it.shopName || '', bestRank: rank });
+        }
+      });
+    });
+    const sortedItems = [...itemMap.entries()]
+      .sort((a, b) => a[1].bestRank - b[1].bestRank)
+      .slice(0, 15);
+    datasets = sortedItems.map(([key, info], idx) => ({
+      label: (info.name || key).slice(0, 30),
+      shopCode: info.shopCode,
+      itemKey: key,
+      data: allSnaps.map(s => {
+        const items = type === 'url-rank'
+          ? Object.values(s.shopResults || {}).filter(r => r && r.itemUrl)
+          : (s.topItems || []);
+        const it = items.find(i => (i.itemUrl || i.itemName) === key);
+        return it ? (it.rank ?? null) : null;
+      }),
+      borderColor: COLORS[idx % COLORS.length],
+      backgroundColor: COLORS[idx % COLORS.length] + '22',
+      tension: 0.3, spanGaps: true,
+    }));
+  } else if (mode === 'count') {
+    isCountMode = true;
+    datasets = [{
+      label: 'ランクイン件数',
+      data: allSnaps.map(s => (s.topItems || []).length),
+      borderColor: COLORS[0],
+      backgroundColor: COLORS[0] + '22',
+      tension: 0.3, spanGaps: true,
+    }];
+  } else if (mode === 'keyword') {
     const keywords = Array.isArray(preset.config.keywords) ? preset.config.keywords : [];
     datasets = keywords.map((kw, idx) => ({
       label: kw,
@@ -2645,6 +2890,38 @@ function renderTrackerMain() {
       backgroundColor: COLORS[idx % COLORS.length] + '22',
       tension: 0.3, spanGaps: true,
     }));
+  } else {
+    // 'shop' mode for ranking / keyword / category
+    if (shopCodes.length > 0) {
+      datasets = shopCodes.map((sc, idx) => ({
+        label: resolveShopName(sc),
+        shopCode: sc,
+        data: allSnaps.map(s => { const r = s.shopResults[sc]; return r ? r.rank : null; }),
+        borderColor: COLORS[idx % COLORS.length],
+        backgroundColor: COLORS[idx % COLORS.length] + '22',
+        tension: 0.3, spanGaps: true,
+      }));
+    } else {
+      const shopSet = new Set();
+      allSnaps.forEach(s => (s.topItems || []).forEach(it => shopSet.add(it.shopCode)));
+      datasets = [...shopSet].map((sc, idx) => ({
+        label: resolveShopName(sc),
+        shopCode: sc,
+        data: allSnaps.map(s => { const it = (s.topItems || []).find(t => t.shopCode === sc); return it ? it.rank : null; }),
+        borderColor: COLORS[idx % COLORS.length],
+        backgroundColor: COLORS[idx % COLORS.length] + '22',
+        tension: 0.3, spanGaps: true,
+      }));
+    }
+  }
+
+  // ---- Build table rows ----
+  let tableRows = '';
+  const ownShopsSet = new Set(getOwnShops().map(s => s.toLowerCase()));
+  const hasOwnShops = ownShopsSet.size > 0;
+
+  if (type === 'url-rank') {
+    const keywords = Array.isArray(preset.config.keywords) ? preset.config.keywords : [];
     for (let i = allSnaps.length - 1; i >= 0; i--) {
       const s  = allSnaps[i];
       const dt = new Date(s.recordedAt).toLocaleString('ja-JP');
@@ -2654,33 +2931,29 @@ function renderTrackerMain() {
         const r = sr[kw];
         const rankCell = (r && r.rank != null) ? `<td class="rank-cell">${r.rank}位</td>` : `<td style="color:#bbb;">圏外</td>`;
         const imgCell  = (r && r.imageUrl) ? `<img src="${esc(r.imageUrl)}" style="width:36px;height:36px;object-fit:contain;display:block;" loading="lazy" onerror="this.style.display='none'">` : '';
+        const shopInfo = (r && r.shopCode) ? `<br><span style="font-size:11px;color:#888;">${esc(r.shopCode)}${r.shopName ? ' ' + esc(r.shopName) : ''}</span>` : '';
         tableRows += `<tr data-chart-key="${esc(kw)}">
           <td>${esc(dt)}</td><td>${esc(kw)}</td>${rankCell}
           <td style="padding:4px 8px;">${imgCell}</td>
-          <td><a href="${esc(r&&r.itemUrl||'')}" target="_blank" rel="noopener" style="color:#333;">${esc(((r&&r.itemName)||'').slice(0,40))}</a></td>
+          <td><a href="${esc(r&&r.itemUrl||'')}" target="_blank" rel="noopener" style="color:#333;">${esc(((r&&r.itemName)||'').slice(0,40))}</a>${shopInfo}</td>
           <td>¥${Number(r&&r.itemPrice||0).toLocaleString()}</td>
           <td>${(r&&r.reviewAverage>0) ? '★'+Number(r.reviewAverage).toFixed(1)+'('+r.reviewCount+')' : '-'}</td>
           <td><button class="btn-icon" data-del-snap="${esc(s.id)}" title="削除">🗑</button></td>
         </tr>`;
       });
     }
-  } else if (preset.type === 'scan') {
-    datasets = [{
-      label: 'ランクイン件数',
-      data: allSnaps.map(s => (s.topItems || []).length),
-      borderColor: COLORS[0],
-      backgroundColor: COLORS[0] + '22',
-      tension: 0.3, spanGaps: true,
-    }];
+  } else if (type === 'scan') {
     for (let i = allSnaps.length - 1; i >= 0; i--) {
-      const s = allSnaps[i];
+      const s  = allSnaps[i];
       const dt = new Date(s.recordedAt).toLocaleString('ja-JP');
       tableRows += `<tr class="snap-sep"><td colspan="8">${esc(dt)}&ensp;<button class="btn-secondary" style="font-size:11px;padding:1px 8px;" data-del-snap="${esc(s.id)}">この日時をすべて削除</button></td></tr>`;
       (s.topItems || []).forEach(it => {
         const imgCell = it.imageUrl ? `<img src="${esc(it.imageUrl)}" style="width:36px;height:36px;object-fit:contain;display:block;" loading="lazy" onerror="this.style.display='none'">` : '';
-        tableRows += `<tr>
+        const shopCell = `${esc(it.shopCode||'')}${it.shopName ? `<br><span style="font-size:11px;color:#888;">${esc(it.shopName)}</span>` : ''}`;
+        tableRows += `<tr data-chart-key="${esc(it.shopCode||'')}">
           <td>${esc(dt)}</td>
-          <td style="font-size:11px;max-width:160px;word-break:break-all;">${esc(it.path || '')}</td>
+          <td>${shopCell}</td>
+          <td style="font-size:11px;max-width:140px;word-break:break-all;color:#888;">${esc(it.path || '')}</td>
           <td class="rank-cell">${it.rank}位</td>
           <td style="padding:4px 8px;">${imgCell}</td>
           <td><a href="${esc(it.itemUrl||'')}" target="_blank" rel="noopener" style="color:#333;">${esc((it.itemName||'').slice(0,40))}</a></td>
@@ -2690,117 +2963,91 @@ function renderTrackerMain() {
         </tr>`;
       });
     }
-  } else if (shopCodes.length > 0) {
-    // One line per shopCode
-    datasets = shopCodes.map((sc, idx) => ({
-      label: resolveShopName(sc),
-      shopCode: sc,
-      data: allSnaps.map(s => {
-        const r = s.shopResults[sc];
-        return r ? r.rank : null;
-      }),
-      borderColor: COLORS[idx % COLORS.length],
-      backgroundColor: COLORS[idx % COLORS.length] + '22',
-      tension: 0.3,
-      spanGaps: true,
-    }));
   } else {
-    // top 3 unique shops across all snapshots
-    const shopSet = new Set();
-    allSnaps.forEach(s => (s.topItems || []).forEach(it => shopSet.add(it.shopCode)));
-    const topShops = [...shopSet];
-    datasets = topShops.map((sc, idx) => ({
-      label: resolveShopName(sc),
-      shopCode: sc,
-      data: allSnaps.map(s => {
-        const it = (s.topItems || []).find(t => t.shopCode === sc);
-        return it ? it.rank : null;
-      }),
-      borderColor: COLORS[idx % COLORS.length],
-      backgroundColor: COLORS[idx % COLORS.length] + '22',
-      tension: 0.3,
-      spanGaps: true,
-    }));
-  }
-
-  // Table rows
-  const ownShopsSet = new Set(getOwnShops().map(s => s.toLowerCase()));
-  const hasOwnShops = ownShopsSet.size > 0;
-  if (preset.type !== 'url-rank' && preset.type !== 'scan') {
-  for (let i = allSnaps.length - 1; i >= 0; i--) {
-    const s = allSnaps[i];
-    const dt = new Date(s.recordedAt).toLocaleString('ja-JP');
-    const rows = [`<tr class="snap-sep"><td colspan="8">${esc(dt)}&ensp;<button class="btn-secondary" style="font-size:11px;padding:1px 8px;" data-del-snap="${esc(s.id)}">この日時をすべて削除</button></td></tr>`];
-
-    if (shopCodes.length > 0) {
-      shopCodes.forEach(sc => {
-        const isOwn = ownShopsSet.has(sc.toLowerCase()) ? '1' : '0';
-        const r = s.shopResults[sc] || null;
-        if (r) {
-          const imgCell = r.imageUrl
-            ? `<img src="${esc(r.imageUrl)}" style="width:36px;height:36px;object-fit:contain;display:block;" loading="lazy" onerror="this.style.display='none'">`
-            : '';
-          const scName = r.shopName ? `${esc(sc)}<br><span style="font-size:11px;color:#888;">${esc(r.shopName)}</span>` : esc(sc);
-          rows.push(`<tr data-own="${isOwn}" data-chart-key="${esc(sc)}">
+    for (let i = allSnaps.length - 1; i >= 0; i--) {
+      const s  = allSnaps[i];
+      const dt = new Date(s.recordedAt).toLocaleString('ja-JP');
+      const rows = [`<tr class="snap-sep"><td colspan="8">${esc(dt)}&ensp;<button class="btn-secondary" style="font-size:11px;padding:1px 8px;" data-del-snap="${esc(s.id)}">この日時をすべて削除</button></td></tr>`];
+      if (shopCodes.length > 0) {
+        shopCodes.forEach(sc => {
+          const isOwn = ownShopsSet.has(sc.toLowerCase()) ? '1' : '0';
+          const r = s.shopResults[sc] || null;
+          if (r) {
+            const imgCell = r.imageUrl ? `<img src="${esc(r.imageUrl)}" style="width:36px;height:36px;object-fit:contain;display:block;" loading="lazy" onerror="this.style.display='none'">` : '';
+            const scName = r.shopName ? `${esc(sc)}<br><span style="font-size:11px;color:#888;">${esc(r.shopName)}</span>` : esc(sc);
+            rows.push(`<tr data-own="${isOwn}" data-chart-key="${esc(sc)}">
+              <td>${esc(dt)}</td><td>${scName}</td>
+              <td class="rank-cell">${r.rank}位</td>
+              <td style="padding:4px 8px;">${imgCell}</td>
+              <td><a href="${esc(r.itemUrl)}" target="_blank" rel="noopener" style="color:#333;">${esc(r.itemName.slice(0,40))}</a></td>
+              <td>¥${Number(r.itemPrice).toLocaleString()}</td>
+              <td>${r.reviewAverage > 0 ? '★' + r.reviewAverage.toFixed(1) + '(' + r.reviewCount + ')' : '-'}</td>
+              <td><button class="btn-icon" data-del-snap="${esc(s.id)}" title="削除">🗑</button></td>
+            </tr>`);
+          } else {
+            rows.push(`<tr data-own="${isOwn}" data-chart-key="${esc(sc)}">
+              <td>${esc(dt)}</td><td>${esc(sc)}</td>
+              <td style="color:#bbb;">圏外</td><td></td><td>-</td><td>-</td><td>-</td>
+              <td><button class="btn-icon" data-del-snap="${esc(s.id)}" title="削除">🗑</button></td>
+            </tr>`);
+          }
+        });
+      } else {
+        (s.topItems || []).forEach(it => {
+          const isOwn = ownShopsSet.has(it.shopCode.toLowerCase()) ? '1' : '0';
+          const imgCell = it.imageUrl ? `<img src="${esc(it.imageUrl)}" style="width:36px;height:36px;object-fit:contain;display:block;" loading="lazy" onerror="this.style.display='none'">` : '';
+          rows.push(`<tr data-own="${isOwn}" data-chart-key="${esc(it.shopCode)}">
             <td>${esc(dt)}</td>
-            <td>${scName}</td>
-            <td class="rank-cell">${r.rank}位</td>
+            <td>${esc(it.shopCode)}${it.shopName ? `<br><span style="font-size:11px;color:#888;">${esc(it.shopName)}</span>` : ''}</td>
+            <td class="rank-cell">${it.rank}位</td>
             <td style="padding:4px 8px;">${imgCell}</td>
-            <td><a href="${esc(r.itemUrl)}" target="_blank" rel="noopener" style="color:#333;">${esc(r.itemName.slice(0,40))}</a></td>
-            <td>¥${Number(r.itemPrice).toLocaleString()}</td>
-            <td>${r.reviewAverage > 0 ? '★' + r.reviewAverage.toFixed(1) + '(' + r.reviewCount + ')' : '-'}</td>
+            <td><a href="${esc(it.itemUrl)}" target="_blank" rel="noopener" style="color:#333;">${esc(it.itemName.slice(0,40))}</a></td>
+            <td>¥${Number(it.itemPrice).toLocaleString()}</td>
+            <td>${it.reviewAverage > 0 ? '★' + it.reviewAverage.toFixed(1) + '(' + it.reviewCount + ')' : '-'}</td>
             <td><button class="btn-icon" data-del-snap="${esc(s.id)}" title="削除">🗑</button></td>
           </tr>`);
-        } else {
-          rows.push(`<tr data-own="${isOwn}" data-chart-key="${esc(sc)}">
-            <td>${esc(dt)}</td>
-            <td>${esc(sc)}</td>
-            <td style="color:#bbb;">圏外</td>
-            <td></td><td>-</td><td>-</td><td>-</td>
-            <td><button class="btn-icon" data-del-snap="${esc(s.id)}" title="削除">🗑</button></td>
-          </tr>`);
-        }
-      });
-    } else {
-      (s.topItems || []).forEach(it => {
-        const isOwn = ownShopsSet.has(it.shopCode.toLowerCase()) ? '1' : '0';
-        const imgCell = it.imageUrl
-          ? `<img src="${esc(it.imageUrl)}" style="width:36px;height:36px;object-fit:contain;display:block;" loading="lazy" onerror="this.style.display='none'">`
-          : '';
-        rows.push(`<tr data-own="${isOwn}" data-chart-key="${esc(it.shopCode)}">
-          <td>${esc(dt)}</td>
-          <td>${esc(it.shopCode)}${it.shopName ? `<br><span style="font-size:11px;color:#888;">${esc(it.shopName)}</span>` : ''}</td>
-          <td class="rank-cell">${it.rank}位</td>
-          <td style="padding:4px 8px;">${imgCell}</td>
-          <td><a href="${esc(it.itemUrl)}" target="_blank" rel="noopener" style="color:#333;">${esc(it.itemName.slice(0,40))}</a></td>
-          <td>¥${Number(it.itemPrice).toLocaleString()}</td>
-          <td>${it.reviewAverage > 0 ? '★' + it.reviewAverage.toFixed(1) + '(' + it.reviewCount + ')' : '-'}</td>
-          <td><button class="btn-icon" data-del-snap="${esc(s.id)}" title="削除">🗑</button></td>
-        </tr>`);
-      });
+        });
+      }
+      tableRows += rows.join('');
     }
-    tableRows += rows.join('');
   }
-  } // end if not url-rank/scan
 
-  const ownFilterBtn = hasOwnShops && preset.type !== 'scan'
-    ? `<button id="tr-own-filter-btn" class="btn-secondary" style="font-size:12px;padding:4px 10px;margin-left:10px;">自店舗のみ</button>`
+  // ---- Render HTML ----
+  const ownFilterBtn = hasOwnShops && type !== 'scan'
+    ? `<button id="tr-own-filter-btn" class="btn-secondary" style="font-size:12px;padding:4px 10px;">自店舗のみ</button>`
     : '';
+  const toggleHTML = availableModes.map(m =>
+    `<button class="chart-mode-btn${mode === m.key ? ' active' : ''}" data-chart-mode="${m.key}">${m.label}</button>`
+  ).join('');
+
+  // scan table has one extra column (カテゴリ) so colspan differs
+  const colSpan = type === 'scan' ? 9 : 8;
+  const th2 = type === 'url-rank' ? 'キーワード' : type === 'scan' ? 'ショップ' : 'ショップ';
+  const th3 = type === 'scan' ? '<th>カテゴリ</th>' : '';
 
   chartEl.innerHTML = `
     <div style="margin-bottom:10px;display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
       <span style="font-size:15px;font-weight:bold;">${esc(preset.name)}</span>
       <span style="font-size:12px;color:#aaa;margin-left:4px;">${allSnaps.length}件のスナップショット</span>
       ${ownFilterBtn}
+      <div class="chart-mode-group" style="margin-left:auto;">${toggleHTML}</div>
     </div>
     <div class="chart-wrap"><canvas id="tracker-chart"></canvas></div>`;
   tableEl.innerHTML = `
     <div id="tr-table-wrap" style="overflow-x:auto;">
       <table class="snapshot-table">
-        <thead><tr><th>日時</th><th>${preset.type === 'url-rank' ? 'キーワード' : preset.type === 'scan' ? 'カテゴリ' : 'ショップ'}</th><th>順位</th><th>画像</th><th>商品名</th><th>価格</th><th>評価</th><th></th></tr></thead>
+        <thead><tr><th>日時</th><th>${th2}</th>${th3}<th>順位</th><th>画像</th><th>商品名</th><th>価格</th><th>評価</th><th></th></tr></thead>
         <tbody>${tableRows}</tbody>
       </table>
     </div>`;
+
+  // Chart mode toggle
+  chartEl.querySelectorAll('[data-chart-mode]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      trackerChartModes[preset.id] = btn.dataset.chartMode;
+      renderTrackerMain();
+    });
+  });
 
   // Draw chart
   if (trackerChart) { trackerChart.destroy(); trackerChart = null; }
@@ -2814,8 +3061,8 @@ function renderTrackerMain() {
         maintainAspectRatio: false,
         scales: {
           y: {
-            reverse: preset.type !== 'scan',
-            title: { display: true, text: preset.type === 'scan' ? 'ランクイン件数' : '順位' },
+            reverse: !isCountMode,
+            title: { display: true, text: isCountMode ? 'ランクイン件数' : '順位' },
             ticks: { precision: 0 },
           },
         },
@@ -2823,7 +3070,7 @@ function renderTrackerMain() {
           legend: { position: 'top' },
           tooltip: {
             callbacks: {
-              label: ctx => preset.type === 'scan'
+              label: ctx => isCountMode
                 ? ctx.dataset.label + ': ' + (ctx.parsed.y ?? 0) + '件'
                 : ctx.dataset.label + ': ' + (ctx.parsed.y != null ? ctx.parsed.y + '位' : '圏外'),
             },
@@ -2857,13 +3104,9 @@ function renderTrackerMain() {
       if (e.target.closest('button, a')) return;
       if (!trackerChart) return;
       const key = row.dataset.chartKey;
-      if (chartFilterKey === key) {
-        chartFilterKey = null;
-      } else {
-        chartFilterKey = key;
-      }
+      chartFilterKey = (chartFilterKey === key) ? null : key;
       trackerChart.data.datasets.forEach((ds, i) => {
-        trackerChart.setDatasetVisibility(i, chartFilterKey === null || ds.shopCode === chartFilterKey || ds.label === chartFilterKey);
+        trackerChart.setDatasetVisibility(i, chartFilterKey === null || ds.shopCode === chartFilterKey || ds.label === chartFilterKey || ds.itemKey === chartFilterKey);
       });
       trackerChart.update();
       tableEl.querySelectorAll('tr[data-chart-key]').forEach(r => {
