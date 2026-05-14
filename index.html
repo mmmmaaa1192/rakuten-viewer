@@ -1371,9 +1371,9 @@ document.getElementById('side-toggle-btn').addEventListener('click', () => {
 // ===== RANKING TAB =====
 let rankPeriod = 'realtime';
 
-document.querySelectorAll('.period-btn').forEach(btn => {
+document.querySelectorAll('[data-period]').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('[data-period]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     rankPeriod = btn.dataset.period;
   });
