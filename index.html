@@ -3440,6 +3440,7 @@ window.openKwPreset = function(keyword, shopCode) {
 // ===== ALL CATEGORY SCAN =====
 (function() {
   let scanPeriod = 'realtime';
+  let scanMode   = 'own'; // 'own' | 'target'
   let scanAborted = false;
   // scanTargets: [{genreId, path}]  — persisted to localStorage
   const STORAGE_KEY_SCAN = 'rakuten_scan_targets_v2';
@@ -3451,6 +3452,14 @@ window.openKwPreset = function(keyword, shopCode) {
     localStorage.setItem(STORAGE_KEY_SCAN, JSON.stringify(arr));
   }
 
+  function parseShopUrls(raw) {
+    return [...new Set(
+      raw.split(/[\n,\s]+/)
+        .map(url => { const m = url.trim().match(/rakuten\.co\.jp\/([^/?#]+)/); return m ? m[1].toLowerCase() : null; })
+        .filter(Boolean)
+    )];
+  }
+
   // ---- Inject tab HTML ----
   (() => {
     const pane = document.createElement('div');
@@ -3458,7 +3467,19 @@ window.openKwPreset = function(keyword, shopCode) {
     pane.className = 'tab-pane';
     pane.innerHTML = `
       <div class="card">
-        <div class="card-title">全カテゴリ 自店舗ランクインスキャン</div>
+        <div class="card-title">全カテゴリ ランクインスキャン</div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label class="form-label">スキャンモード</label>
+          <div class="period-row">
+            <button class="period-btn active" id="scan-mode-own-btn">自店舗モード</button>
+            <button class="period-btn" id="scan-mode-target-btn">指定店舗モード</button>
+          </div>
+        </div>
+        <div id="scan-target-shops-group" class="form-group" style="display:none;">
+          <label class="form-label">指定店舗URL <span style="font-weight:normal;color:#aaa;font-size:11px;">（1行1URL・複数可）</span></label>
+          <textarea id="scan-target-shops" class="form-input" rows="3" style="font-size:12px;font-family:monospace;" placeholder="https://www.rakuten.co.jp/shopname/&#10;https://www.rakuten.co.jp/shopname2/"></textarea>
+          <div class="form-hint">楽天市場の店舗URLを入力するとショップコードを自動抽出します</div>
+        </div>
         <div class="form-group">
           <label class="form-label">スキャン対象カテゴリ</label>
           <div class="form-hint" style="margin-bottom:8px;">左のカテゴリツリーで対象カテゴリを選択し「現在のカテゴリを追加」で追加。複数追加可。</div>
@@ -3542,6 +3563,20 @@ window.openKwPreset = function(keyword, shopCode) {
     renderTargetChips();
   });
 
+  // Mode buttons
+  document.getElementById('scan-mode-own-btn').addEventListener('click', () => {
+    scanMode = 'own';
+    document.getElementById('scan-mode-own-btn').classList.add('active');
+    document.getElementById('scan-mode-target-btn').classList.remove('active');
+    document.getElementById('scan-target-shops-group').style.display = 'none';
+  });
+  document.getElementById('scan-mode-target-btn').addEventListener('click', () => {
+    scanMode = 'target';
+    document.getElementById('scan-mode-target-btn').classList.add('active');
+    document.getElementById('scan-mode-own-btn').classList.remove('active');
+    document.getElementById('scan-target-shops-group').style.display = '';
+  });
+
   // Period buttons
   document.getElementById('tab-scan').addEventListener('click', e => {
     const btn = e.target.closest('[data-scan-period]');
@@ -3607,8 +3642,14 @@ window.openKwPreset = function(keyword, shopCode) {
 
   // ---- Start scan ----
   document.getElementById('scan-start-btn').addEventListener('click', async () => {
-    const ownShops = getOwnShops();
-    if (!ownShops.length) { alert('設定で自社ショップコードを登録してください'); return; }
+    let targetShops;
+    if (scanMode === 'own') {
+      targetShops = getOwnShops();
+      if (!targetShops.length) { alert('設定で自社ショップコードを登録してください'); return; }
+    } else {
+      targetShops = parseShopUrls(document.getElementById('scan-target-shops').value);
+      if (!targetShops.length) { alert('指定店舗URLを入力してください'); return; }
+    }
 
     const selectedGenres = loadTargets();
     if (!selectedGenres.length) { alert('スキャンするカテゴリを追加してください'); return; }
@@ -3640,7 +3681,7 @@ window.openKwPreset = function(keyword, shopCode) {
     }
 
     // Phase 2: Scan rankings
-    const ownSet = new Set(ownShops.map(s => s.toLowerCase()));
+    const ownSet = new Set(targetShops.map(s => s.toLowerCase()));
     const hits = [];
 
     for (let i = 0; i < targets.length; i++) {
