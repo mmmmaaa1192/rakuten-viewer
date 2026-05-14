@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.59</title>
+<title>楽天市場 リサーチツール v3.61</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -329,6 +329,18 @@ tr.chart-row-dim td { opacity: 0.4; }
 .scan-target-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; background: #e8f0fe; border: 1px solid #c5d8f8; border-radius: 4px; padding: 3px 8px; color: #1a3e6e; }
 .scan-target-chip button { background: none; border: none; cursor: pointer; font-size: 13px; color: #888; padding: 0 0 0 2px; line-height: 1; }
 .scan-target-chip button:hover { color: #c00; }
+/* ===== INLINE GENRE PICKER ===== */
+.inline-genre-picker { border: 1px solid #e8e8e8; border-radius: 6px; overflow: hidden; margin-bottom: 14px; }
+.igp-toggle { display: block; width: 100%; text-align: left; background: #f8f8f8; border: none; padding: 8px 13px; font-size: 13px; color: #555; cursor: pointer; transition: background 0.12s, color 0.12s; }
+.igp-toggle:hover { background: #fff0f0; color: #bf0000; }
+.igp-toggle.open { background: #fff0f0; color: #bf0000; border-bottom: 1px solid #f0f0f0; }
+.igp-body { background: #fafafa; }
+.igp-bc { padding: 7px 12px 6px; font-size: 12px; background: #fff; border-bottom: 1px solid #f0f0f0; display: flex; flex-wrap: wrap; align-items: center; gap: 3px; min-height: 32px; }
+.igp-bc-link { color: #bf0000; cursor: pointer; }
+.igp-bc-link:hover { text-decoration: underline; }
+.igp-bc-sep { color: #ccc; }
+.igp-bc-current { font-weight: bold; color: #333; }
+.igp-list { max-height: 260px; overflow-y: auto; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .chart-mode-group { display: flex; gap: 4px; }
 .chart-mode-btn { background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; font-size: 11px; padding: 3px 10px; cursor: pointer; color: #555; }
@@ -529,7 +541,7 @@ tr.chart-row-dim td { opacity: 0.4; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.59</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.61</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -640,6 +652,7 @@ tr.chart-row-dim td { opacity: 0.4; }
             <span class="selected-genre-label">選択中：</span>
             <span class="selected-genre-unset" id="c-selected-path">カテゴリを選択してください</span>
           </div>
+          <div id="c-inline-picker" class="inline-genre-picker"></div>
           <div class="form-group">
             <label class="form-label">対象ショップコード <span style="font-weight:normal;color:#aaa;">（省略時はカテゴリ内全件表示／複数はカンマ or 改行区切り）</span></label>
             <textarea class="form-input" id="c-shop" rows="3"
@@ -893,8 +906,8 @@ tr.chart-row-dim td { opacity: 0.4; }
         <button class="period-btn" type="button" data-pr-scan-mode="target">指定店舗モード</button>
       </div>
       <div id="pr-scan-target-group" style="display:none;margin-top:8px;">
-        <label class="form-label">指定店舗URL <span style="font-weight:normal;color:#aaa;font-size:11px;">（1行1URL）</span></label>
-        <textarea class="form-input" id="pr-scan-target-shops" rows="2" style="font-size:12px;font-family:monospace;" placeholder="https://www.rakuten.co.jp/shopname/"></textarea>
+        <label class="form-label">指定店舗 <span style="font-weight:normal;color:#aaa;font-size:11px;">（URLまたはショップコード、改行orカンマ区切り）</span></label>
+        <textarea class="form-input" id="pr-scan-target-shops" rows="2" style="font-size:12px;font-family:monospace;" placeholder="https://www.rakuten.co.jp/shopname/&#10;shopcode1"></textarea>
       </div>
     </div>
     <!-- shop codes -->
@@ -2014,6 +2027,23 @@ document.getElementById('c-search-btn').addEventListener('click', () => {
   });
 });
 
+// ===== INLINE GENRE PICKER INIT: カテゴリ順位タブ =====
+mountInlineGenrePicker('c-inline-picker', {
+  mode: 'single',
+  onSelect(genreId, path) {
+    if (!sideNav) return;
+    sideNav.selected = { genreId, genreName: path.split(' › ').pop(), path };
+    const cEl = document.getElementById('c-selected-path');
+    cEl.textContent = path;
+    cEl.className = 'selected-genre-path';
+    // Also sync the sidebar display
+    document.getElementById('side-selected-path').textContent = path;
+    const rEl = document.getElementById('r-selected-path');
+    rEl.textContent = path;
+    rEl.className = 'selected-genre-path';
+  },
+});
+
 // ===== INIT =====
 (function init() {
   if (getAppId()) {
@@ -2033,8 +2063,13 @@ function generateId() {
 
 function parseShopUrls(raw) {
   return [...new Set(
-    raw.split(/[\n,\s]+/)
-      .map(url => { const m = url.trim().match(/rakuten\.co\.jp\/([^/?#]+)/); return m ? m[1].toLowerCase() : null; })
+    raw.split(/[\n,]+/)
+      .map(token => {
+        token = token.trim().toLowerCase();
+        if (!token) return null;
+        const m = token.match(/rakuten\.co\.jp\/([^/?#\s]+)/);
+        return m ? m[1] : token; // URL → extract code, plain text → use as-is
+      })
       .filter(Boolean)
   )];
 }
@@ -3565,6 +3600,99 @@ setTimeout(function(){
 })();
 
 // ===== GENRE FETCH HELPER (global) =====
+// ===== INLINE GENRE PICKER =====
+// mode: 'single' — selects one category and closes
+// mode: 'add'    — stays open, calls onSelect for each added category
+function mountInlineGenrePicker(containerId, { mode, onSelect }) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const baseLabel = mode === 'add' ? '＋ カテゴリ一覧から選択して追加' : '📂 カテゴリを一覧から選択';
+  container.innerHTML = `
+    <button class="igp-toggle" id="${containerId}-btn" type="button">${baseLabel} ▾</button>
+    <div class="igp-body" id="${containerId}-body" style="display:none;">
+      <div class="igp-bc" id="${containerId}-bc"><span class="igp-bc-current">全体</span></div>
+      <div class="igp-list" id="${containerId}-list"></div>
+    </div>`;
+
+  const toggleBtn = document.getElementById(`${containerId}-btn`);
+  const body      = document.getElementById(`${containerId}-body`);
+  const bcEl      = document.getElementById(`${containerId}-bc`);
+  const listEl    = document.getElementById(`${containerId}-list`);
+
+  let isOpen = false;
+  let initialized = false;
+  const stack = [{ genreId: 0, genreName: '全体', items: null }];
+
+  function updateToggleLabel() {
+    toggleBtn.textContent = baseLabel + (isOpen ? ' ▴' : ' ▾');
+  }
+
+  function renderBc() {
+    bcEl.innerHTML = stack.map((s, i) =>
+      i === stack.length - 1
+        ? `<span class="igp-bc-current">${esc(s.genreName)}</span>`
+        : `<span class="igp-bc-link" data-idx="${i}">${esc(s.genreName)}</span><span class="igp-bc-sep"> › </span>`
+    ).join('');
+    bcEl.querySelectorAll('.igp-bc-link').forEach(el => {
+      el.addEventListener('click', () => {
+        stack.splice(parseInt(el.dataset.idx) + 1);
+        renderLevel(stack[stack.length - 1]);
+      });
+    });
+  }
+
+  async function renderLevel(level) {
+    renderBc();
+    listEl.innerHTML = '<div style="padding:16px;text-align:center;color:#bbb;font-size:13px;">読み込み中...</div>';
+    if (!level.items) level.items = await fetchGenreChildren(level.genreId);
+    listEl.innerHTML = '';
+    if (!level.items.length) {
+      listEl.innerHTML = '<div style="padding:12px;text-align:center;color:#aaa;font-size:12px;">サブカテゴリなし</div>';
+      return;
+    }
+    const pathParts = stack.slice(1).map(s => s.genreName);
+    level.items.forEach(g => {
+      const fullPath = [...pathParts, g.genreName].join(' › ');
+      const row = document.createElement('div');
+      row.className = 'genre-browser-item';
+      row.innerHTML = `<span class="gb-toggle" title="掘り下げ">▶</span>
+        <span class="gb-name">${esc(g.genreName)}</span>
+        <button class="gb-select" type="button">${mode === 'add' ? '追加' : '選択'}</button>`;
+
+      const drillIn = async () => {
+        const next = { genreId: g.genreId, genreName: g.genreName, items: null };
+        stack.push(next);
+        await renderLevel(next);
+      };
+      row.querySelector('.gb-toggle').addEventListener('click', e => { e.stopPropagation(); drillIn(); });
+      row.addEventListener('click', e => { if (!e.target.classList.contains('gb-select')) drillIn(); });
+      row.querySelector('.gb-select').addEventListener('click', e => {
+        e.stopPropagation();
+        onSelect(g.genreId, fullPath);
+        if (mode === 'single') {
+          isOpen = false;
+          body.style.display = 'none';
+          toggleBtn.classList.remove('open');
+          updateToggleLabel();
+        }
+      });
+      listEl.appendChild(row);
+    });
+  }
+
+  toggleBtn.addEventListener('click', async () => {
+    isOpen = !isOpen;
+    body.style.display = isOpen ? 'block' : 'none';
+    toggleBtn.classList.toggle('open', isOpen);
+    updateToggleLabel();
+    if (isOpen && !initialized) {
+      initialized = true;
+      await renderLevel(stack[0]);
+    }
+  });
+}
+
 async function fetchGenreChildren(genreId) {
   const urls = genreUrl(genreId);
   let data;
@@ -3788,8 +3916,13 @@ window.openKwPreset = function(keyword, shopCode) {
 
   function parseShopUrls(raw) {
     return [...new Set(
-      raw.split(/[\n,\s]+/)
-        .map(url => { const m = url.trim().match(/rakuten\.co\.jp\/([^/?#]+)/); return m ? m[1].toLowerCase() : null; })
+      raw.split(/[\n,]+/)
+        .map(token => {
+          token = token.trim().toLowerCase();
+          if (!token) return null;
+          const m = token.match(/rakuten\.co\.jp\/([^/?#\s]+)/);
+          return m ? m[1] : token;
+        })
         .filter(Boolean)
     )];
   }
@@ -3810,15 +3943,15 @@ window.openKwPreset = function(keyword, shopCode) {
           </div>
         </div>
         <div id="scan-target-shops-group" class="form-group" style="display:none;">
-          <label class="form-label">指定店舗URL <span style="font-weight:normal;color:#aaa;font-size:11px;">（1行1URL・複数可）</span></label>
-          <textarea id="scan-target-shops" class="form-input" rows="3" style="font-size:12px;font-family:monospace;" placeholder="https://www.rakuten.co.jp/shopname/&#10;https://www.rakuten.co.jp/shopname2/"></textarea>
-          <div class="form-hint">楽天市場の店舗URLを入力するとショップコードを自動抽出します</div>
+          <label class="form-label">指定店舗 <span style="font-weight:normal;color:#aaa;font-size:11px;">（URLまたはショップコード、複数可）</span></label>
+          <textarea id="scan-target-shops" class="form-input" rows="3" style="font-size:12px;font-family:monospace;" placeholder="https://www.rakuten.co.jp/shopname/&#10;shopcode1&#10;shopcode2"></textarea>
+          <div class="form-hint">店舗URLでもショップコード直接入力でもOK（改行またはカンマ区切り）</div>
         </div>
         <div class="form-group">
           <label class="form-label">スキャン対象カテゴリ</label>
-          <div class="form-hint" style="margin-bottom:8px;">左のカテゴリツリーで対象カテゴリを選択し「現在のカテゴリを追加」で追加。複数追加可。</div>
-          <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
-            <button id="scan-add-btn" class="btn-primary" style="font-size:12px;padding:5px 14px;">＋ 現在のカテゴリを追加</button>
+          <div id="scan-inline-picker" class="inline-genre-picker"></div>
+          <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center;">
+            <button id="scan-add-btn" class="btn-secondary" style="font-size:12px;padding:5px 12px;">＋ サイドバーの選択を追加</button>
             <button id="scan-clear-btn" class="btn-secondary" style="font-size:12px;padding:5px 10px;">すべて削除</button>
           </div>
           <div id="scan-target-area" class="scan-target-area">
@@ -3895,6 +4028,18 @@ window.openKwPreset = function(keyword, shopCode) {
   document.getElementById('scan-clear-btn').addEventListener('click', () => {
     saveTargets([]);
     renderTargetChips();
+  });
+
+  // ---- Inline genre picker for scan tab ----
+  mountInlineGenrePicker('scan-inline-picker', {
+    mode: 'add',
+    onSelect(genreId, path) {
+      const arr = loadTargets();
+      if (arr.some(t => t.genreId === genreId)) return; // already added (silently skip)
+      arr.push({ genreId, path });
+      saveTargets(arr);
+      renderTargetChips();
+    },
   });
 
   // Mode buttons
@@ -3982,7 +4127,7 @@ window.openKwPreset = function(keyword, shopCode) {
       if (!targetShops.length) { alert('設定で自社ショップコードを登録してください'); return; }
     } else {
       targetShops = parseShopUrls(document.getElementById('scan-target-shops').value);
-      if (!targetShops.length) { alert('指定店舗URLを入力してください'); return; }
+      if (!targetShops.length) { alert('指定店舗を入力してください（URLまたはショップコード）'); return; }
     }
 
     const selectedGenres = loadTargets();
