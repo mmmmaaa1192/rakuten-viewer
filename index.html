@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.61</title>
+<title>楽天市場 リサーチツール v3.62</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -541,7 +541,7 @@ tr.chart-row-dim td { opacity: 0.4; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.61</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.62</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -2850,10 +2850,10 @@ function renderTrackerMain() {
   // ---- Chart mode setup ----
   let availableModes, defaultMode;
   if (type === 'scan') {
-    availableModes = [{ key: 'count', label: 'ランクイン件数' }, { key: 'item', label: '商品別推移' }];
+    availableModes = [{ key: 'count', label: 'ランクイン件数' }, { key: 'shop-count', label: '店舗別件数' }, { key: 'item', label: '商品別推移' }];
     defaultMode = 'count';
   } else if (type === 'ranking') {
-    availableModes = [{ key: 'shop', label: '店舗別' }, { key: 'item', label: '商品別' }];
+    availableModes = [{ key: 'shop', label: '店舗別順位' }, { key: 'shop-count', label: '店舗別件数' }, { key: 'item', label: '商品別' }];
     defaultMode = 'shop';
   } else if (type === 'url-rank') {
     availableModes = [{ key: 'keyword', label: 'キーワード別' }, { key: 'item', label: '商品別' }];
@@ -2912,6 +2912,23 @@ function renderTrackerMain() {
       backgroundColor: COLORS[0] + '22',
       tension: 0.3, spanGaps: true,
     }];
+  } else if (mode === 'shop-count') {
+    isCountMode = true;
+    const shopSet = new Set();
+    allSnaps.forEach(s => (s.topItems || []).forEach(it => { if (it.shopCode) shopSet.add(it.shopCode); }));
+    // Sort shops by total count descending, take top 15
+    const shopTotals = [...shopSet].map(sc => ({
+      sc,
+      total: allSnaps.reduce((sum, s) => sum + (s.topItems || []).filter(it => it.shopCode === sc).length, 0),
+    })).sort((a, b) => b.total - a.total).slice(0, 15);
+    datasets = shopTotals.map(({ sc }, idx) => ({
+      label: resolveShopName(sc),
+      shopCode: sc,
+      data: allSnaps.map(s => (s.topItems || []).filter(it => it.shopCode === sc).length),
+      borderColor: COLORS[idx % COLORS.length],
+      backgroundColor: COLORS[idx % COLORS.length] + '22',
+      tension: 0.3, spanGaps: true,
+    }));
   } else if (mode === 'keyword') {
     const keywords = Array.isArray(preset.config.keywords) ? preset.config.keywords : [];
     datasets = keywords.map((kw, idx) => ({
