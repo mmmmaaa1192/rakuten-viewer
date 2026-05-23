@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.62</title>
+<title>楽天市場 リサーチツール v3.63</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -541,7 +541,7 @@ tr.chart-row-dim td { opacity: 0.4; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.62</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.63</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -2796,7 +2796,8 @@ async function recordSnapshot(preset, onProgress) {
   saveSnapshots(snaps);
 }
 
-const trackerChartModes = {}; // { [presetId]: mode string }
+const trackerChartModes   = {}; // { [presetId]: mode string }
+const trackerPeriodFilters = {}; // { [presetId]: 'all'|'3m'|'30d'|'7d'|'today' }
 
 // ---- Render tracker main (chart + table) ----
 function renderTrackerMain() {
@@ -2833,11 +2834,32 @@ function renderTrackerMain() {
     return;
   }
 
+  // ---- Period filter ----
+  const PERIOD_DEFS = [
+    { key: 'all',   label: '全期間' },
+    { key: '3m',    label: '3か月' },
+    { key: '30d',   label: '30日' },
+    { key: '7d',    label: '週間' },
+    { key: 'today', label: '当日' },
+  ];
+  const periodKey = trackerPeriodFilters[preset.id] || 'all';
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const snaps = (() => {
+    if (periodKey === 'all')   return allSnaps;
+    if (periodKey === '3m')    return allSnaps.filter(s => new Date(s.recordedAt) >= new Date(now - 90 * 86400000));
+    if (periodKey === '30d')   return allSnaps.filter(s => new Date(s.recordedAt) >= new Date(now - 30 * 86400000));
+    if (periodKey === '7d')    return allSnaps.filter(s => new Date(s.recordedAt) >= new Date(now -  7 * 86400000));
+    if (periodKey === 'today') return allSnaps.filter(s => new Date(s.recordedAt) >= todayStart);
+    return allSnaps;
+  })();
+
   const type      = preset.type;
   const shopCodes = preset.config.shopCodes || [];
-  const labels    = allSnaps.map(s => new Date(s.recordedAt).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }));
+  const labels    = snaps.map(s => new Date(s.recordedAt).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }));
   const COLORS    = ['#bf0000','#1a73e8','#188038','#f9a825','#9c27b0','#00bcd4','#e65100','#0288d1','#558b2f','#6d4c41','#ad1457','#00838f'];
 
+  // resolveShopName uses allSnaps to find names from any historical data
   const resolveShopName = (sc) => {
     for (const s of allSnaps) {
       const name = s.shopResults?.[sc]?.shopName
@@ -2869,9 +2891,8 @@ function renderTrackerMain() {
   let isCountMode = false;
 
   if (mode === 'item') {
-    // Collect unique items across all snapshots, keyed by itemUrl (fallback itemName)
     const itemMap = new Map();
-    allSnaps.forEach(s => {
+    snaps.forEach(s => {
       const items = type === 'url-rank'
         ? Object.values(s.shopResults || {}).filter(r => r && r.itemUrl)
         : (s.topItems || []);
@@ -2892,7 +2913,7 @@ function renderTrackerMain() {
       label: (info.name || key).slice(0, 30),
       shopCode: info.shopCode,
       itemKey: key,
-      data: allSnaps.map(s => {
+      data: snaps.map(s => {
         const items = type === 'url-rank'
           ? Object.values(s.shopResults || {}).filter(r => r && r.itemUrl)
           : (s.topItems || []);
@@ -2907,7 +2928,7 @@ function renderTrackerMain() {
     isCountMode = true;
     datasets = [{
       label: 'ランクイン件数',
-      data: allSnaps.map(s => (s.topItems || []).length),
+      data: snaps.map(s => (s.topItems || []).length),
       borderColor: COLORS[0],
       backgroundColor: COLORS[0] + '22',
       tension: 0.3, spanGaps: true,
@@ -2915,16 +2936,15 @@ function renderTrackerMain() {
   } else if (mode === 'shop-count') {
     isCountMode = true;
     const shopSet = new Set();
-    allSnaps.forEach(s => (s.topItems || []).forEach(it => { if (it.shopCode) shopSet.add(it.shopCode); }));
-    // Sort shops by total count descending, take top 15
+    snaps.forEach(s => (s.topItems || []).forEach(it => { if (it.shopCode) shopSet.add(it.shopCode); }));
     const shopTotals = [...shopSet].map(sc => ({
       sc,
-      total: allSnaps.reduce((sum, s) => sum + (s.topItems || []).filter(it => it.shopCode === sc).length, 0),
+      total: snaps.reduce((sum, s) => sum + (s.topItems || []).filter(it => it.shopCode === sc).length, 0),
     })).sort((a, b) => b.total - a.total).slice(0, 15);
     datasets = shopTotals.map(({ sc }, idx) => ({
       label: resolveShopName(sc),
       shopCode: sc,
-      data: allSnaps.map(s => (s.topItems || []).filter(it => it.shopCode === sc).length),
+      data: snaps.map(s => (s.topItems || []).filter(it => it.shopCode === sc).length),
       borderColor: COLORS[idx % COLORS.length],
       backgroundColor: COLORS[idx % COLORS.length] + '22',
       tension: 0.3, spanGaps: true,
@@ -2934,7 +2954,7 @@ function renderTrackerMain() {
     datasets = keywords.map((kw, idx) => ({
       label: kw,
       shopCode: kw,
-      data: allSnaps.map(s => {
+      data: snaps.map(s => {
         const r = s.shopResults && s.shopResults[kw];
         return (r && r.rank != null) ? r.rank : null;
       }),
@@ -2948,18 +2968,18 @@ function renderTrackerMain() {
       datasets = shopCodes.map((sc, idx) => ({
         label: resolveShopName(sc),
         shopCode: sc,
-        data: allSnaps.map(s => { const r = s.shopResults[sc]; return r ? r.rank : null; }),
+        data: snaps.map(s => { const r = s.shopResults[sc]; return r ? r.rank : null; }),
         borderColor: COLORS[idx % COLORS.length],
         backgroundColor: COLORS[idx % COLORS.length] + '22',
         tension: 0.3, spanGaps: true,
       }));
     } else {
       const shopSet = new Set();
-      allSnaps.forEach(s => (s.topItems || []).forEach(it => shopSet.add(it.shopCode)));
+      snaps.forEach(s => (s.topItems || []).forEach(it => shopSet.add(it.shopCode)));
       datasets = [...shopSet].map((sc, idx) => ({
         label: resolveShopName(sc),
         shopCode: sc,
-        data: allSnaps.map(s => { const it = (s.topItems || []).find(t => t.shopCode === sc); return it ? it.rank : null; }),
+        data: snaps.map(s => { const it = (s.topItems || []).find(t => t.shopCode === sc); return it ? it.rank : null; }),
         borderColor: COLORS[idx % COLORS.length],
         backgroundColor: COLORS[idx % COLORS.length] + '22',
         tension: 0.3, spanGaps: true,
@@ -2974,8 +2994,8 @@ function renderTrackerMain() {
 
   if (type === 'url-rank') {
     const keywords = Array.isArray(preset.config.keywords) ? preset.config.keywords : [];
-    for (let i = allSnaps.length - 1; i >= 0; i--) {
-      const s  = allSnaps[i];
+    for (let i = snaps.length - 1; i >= 0; i--) {
+      const s  = snaps[i];
       const dt = new Date(s.recordedAt).toLocaleString('ja-JP');
       const sr = s.shopResults || {};
       tableRows += `<tr class="snap-sep"><td colspan="8">${esc(dt)}&ensp;<button class="btn-secondary" style="font-size:11px;padding:1px 8px;" data-del-snap="${esc(s.id)}">この日時をすべて削除</button></td></tr>`;
@@ -2995,8 +3015,8 @@ function renderTrackerMain() {
       });
     }
   } else if (type === 'scan') {
-    for (let i = allSnaps.length - 1; i >= 0; i--) {
-      const s  = allSnaps[i];
+    for (let i = snaps.length - 1; i >= 0; i--) {
+      const s  = snaps[i];
       const dt = new Date(s.recordedAt).toLocaleString('ja-JP');
       tableRows += `<tr class="snap-sep"><td colspan="8">${esc(dt)}&ensp;<button class="btn-secondary" style="font-size:11px;padding:1px 8px;" data-del-snap="${esc(s.id)}">この日時をすべて削除</button></td></tr>`;
       (s.topItems || []).forEach(it => {
@@ -3016,8 +3036,8 @@ function renderTrackerMain() {
       });
     }
   } else {
-    for (let i = allSnaps.length - 1; i >= 0; i--) {
-      const s  = allSnaps[i];
+    for (let i = snaps.length - 1; i >= 0; i--) {
+      const s  = snaps[i];
       const dt = new Date(s.recordedAt).toLocaleString('ja-JP');
       const rows = [`<tr class="snap-sep"><td colspan="8">${esc(dt)}&ensp;<button class="btn-secondary" style="font-size:11px;padding:1px 8px;" data-del-snap="${esc(s.id)}">この日時をすべて削除</button></td></tr>`];
       if (shopCodes.length > 0) {
@@ -3071,6 +3091,12 @@ function renderTrackerMain() {
   const toggleHTML = availableModes.map(m =>
     `<button class="chart-mode-btn${mode === m.key ? ' active' : ''}" data-chart-mode="${m.key}">${m.label}</button>`
   ).join('');
+  const periodHTML = PERIOD_DEFS.map(p =>
+    `<button class="chart-mode-btn${periodKey === p.key ? ' active' : ''}" data-period-key="${p.key}">${p.label}</button>`
+  ).join('');
+  const snapCountLabel = periodKey !== 'all'
+    ? `${snaps.length}件 / 全${allSnaps.length}件`
+    : `${allSnaps.length}件のスナップショット`;
 
   // scan table has one extra column (カテゴリ) so colspan differs
   const colSpan = type === 'scan' ? 9 : 8;
@@ -3078,11 +3104,15 @@ function renderTrackerMain() {
   const th3 = type === 'scan' ? '<th>カテゴリ</th>' : '';
 
   chartEl.innerHTML = `
-    <div style="margin-bottom:10px;display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
+    <div style="margin-bottom:6px;display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
       <span style="font-size:15px;font-weight:bold;">${esc(preset.name)}</span>
-      <span style="font-size:12px;color:#aaa;margin-left:4px;">${allSnaps.length}件のスナップショット</span>
+      <span style="font-size:12px;color:#aaa;margin-left:4px;">${snapCountLabel}</span>
       ${ownFilterBtn}
       <div class="chart-mode-group" style="margin-left:auto;">${toggleHTML}</div>
+    </div>
+    <div style="margin-bottom:8px;display:flex;align-items:center;gap:4px;">
+      <span style="font-size:11px;color:#888;margin-right:2px;">期間:</span>
+      <div class="chart-mode-group">${periodHTML}</div>
     </div>
     <div class="chart-wrap"><canvas id="tracker-chart"></canvas></div>`;
   tableEl.innerHTML = `
@@ -3097,6 +3127,14 @@ function renderTrackerMain() {
   chartEl.querySelectorAll('[data-chart-mode]').forEach(btn => {
     btn.addEventListener('click', () => {
       trackerChartModes[preset.id] = btn.dataset.chartMode;
+      renderTrackerMain();
+    });
+  });
+
+  // Period filter toggle
+  chartEl.querySelectorAll('[data-period-key]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      trackerPeriodFilters[preset.id] = btn.dataset.periodKey;
       renderTrackerMain();
     });
   });
