@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.63</title>
+<title>楽天市場 リサーチツール v3.64</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -541,7 +541,7 @@ tr.chart-row-dim td { opacity: 0.4; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.63</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.64</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -3142,6 +3142,22 @@ function renderTrackerMain() {
   // Draw chart
   if (trackerChart) { trackerChart.destroy(); trackerChart = null; }
   const ctx = document.getElementById('tracker-chart');
+
+  let chartFilterKey = null;
+  const applyChartFilter = (key) => {
+    chartFilterKey = (chartFilterKey === key) ? null : key;
+    if (trackerChart) {
+      trackerChart.data.datasets.forEach((ds, i) => {
+        trackerChart.setDatasetVisibility(i, chartFilterKey === null || ds.shopCode === chartFilterKey || ds.label === chartFilterKey || ds.itemKey === chartFilterKey);
+      });
+      trackerChart.update();
+    }
+    tableEl.querySelectorAll('tr[data-chart-key]').forEach(r => {
+      r.classList.toggle('chart-row-active', chartFilterKey !== null && r.dataset.chartKey === chartFilterKey);
+      r.classList.toggle('chart-row-dim',    chartFilterKey !== null && r.dataset.chartKey !== chartFilterKey);
+    });
+  };
+
   if (ctx && datasets.length > 0 && typeof Chart !== 'undefined') {
     trackerChart = new Chart(ctx, {
       type: 'line',
@@ -3157,7 +3173,14 @@ function renderTrackerMain() {
           },
         },
         plugins: {
-          legend: { position: 'top' },
+          legend: {
+            position: 'top',
+            onClick: (e, legendItem) => {
+              const ds = datasets[legendItem.datasetIndex];
+              const key = ds && (ds.shopCode || ds.itemKey || ds.label) || null;
+              if (key) applyChartFilter(key);
+            },
+          },
           tooltip: {
             callbacks: {
               label: ctx => isCountMode
@@ -3187,22 +3210,11 @@ function renderTrackerMain() {
     });
   });
 
-  // Chart filter by row click
-  let chartFilterKey = null;
+  // Chart filter by row click (or legend click)
   tableEl.querySelectorAll('tr[data-chart-key]').forEach(row => {
     row.addEventListener('click', e => {
       if (e.target.closest('button, a')) return;
-      if (!trackerChart) return;
-      const key = row.dataset.chartKey;
-      chartFilterKey = (chartFilterKey === key) ? null : key;
-      trackerChart.data.datasets.forEach((ds, i) => {
-        trackerChart.setDatasetVisibility(i, chartFilterKey === null || ds.shopCode === chartFilterKey || ds.label === chartFilterKey || ds.itemKey === chartFilterKey);
-      });
-      trackerChart.update();
-      tableEl.querySelectorAll('tr[data-chart-key]').forEach(r => {
-        r.classList.toggle('chart-row-active', chartFilterKey !== null && r.dataset.chartKey === chartFilterKey);
-        r.classList.toggle('chart-row-dim',    chartFilterKey !== null && r.dataset.chartKey !== chartFilterKey);
-      });
+      applyChartFilter(row.dataset.chartKey);
     });
   });
 
