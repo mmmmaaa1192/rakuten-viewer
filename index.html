@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.64</title>
+<title>楽天市場 リサーチツール v3.65</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -541,7 +541,7 @@ tr.chart-row-dim td { opacity: 0.4; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.64</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge">v3.65</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -3165,6 +3165,12 @@ function renderTrackerMain() {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        onClick: (e, elements) => {
+          if (!elements.length) return;
+          const ds = datasets[elements[0].datasetIndex];
+          const key = ds && (ds.shopCode || ds.itemKey || ds.label) || null;
+          if (key) applyChartFilter(key);
+        },
         scales: {
           y: {
             reverse: !isCountMode,
