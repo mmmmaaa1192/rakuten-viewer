@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.67</title>
+<title>楽天市場 リサーチツール v3.68</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -544,7 +544,7 @@ tr.chart-row-dim td { opacity: 0.4; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge" id="version-badge-btn" style="cursor:pointer;text-decoration:underline dotted;" title="更新履歴">v3.67</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge" id="version-badge-btn" style="cursor:pointer;text-decoration:underline dotted;" title="更新履歴">v3.68</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -1192,6 +1192,7 @@ document.getElementById('modal-settings').addEventListener('click', e => {
 
 // ===== CHANGELOG MODAL =====
 const CHANGELOG = [
+  { v: 'v3.68', desc: '推移チェッカー: 商品別グラフをデフォルト表示に変更' },
   { v: 'v3.67', desc: '急上昇フィルターとグラフの連動' },
   { v: 'v3.66', desc: '急上昇フィルター・更新履歴モーダル追加' },
   { v: 'v3.64', desc: 'グラフ凡例クリックでテーブルフィルタリング連動' },
@@ -2936,16 +2937,16 @@ function renderTrackerMain() {
   let availableModes, defaultMode;
   if (type === 'scan') {
     availableModes = [{ key: 'count', label: 'ランクイン件数' }, { key: 'shop-count', label: '店舗別件数' }, { key: 'item', label: '商品別推移' }];
-    defaultMode = 'count';
+    defaultMode = 'item';
   } else if (type === 'ranking') {
     availableModes = [{ key: 'shop', label: '店舗別順位' }, { key: 'shop-count', label: '店舗別件数' }, { key: 'item', label: '商品別' }];
-    defaultMode = 'shop';
+    defaultMode = 'item';
   } else if (type === 'url-rank') {
     availableModes = [{ key: 'keyword', label: 'キーワード別' }, { key: 'item', label: '商品別' }];
-    defaultMode = 'keyword';
+    defaultMode = 'item';
   } else {
     availableModes = [{ key: 'shop', label: 'ショップ別' }, { key: 'item', label: '商品別' }];
-    defaultMode = 'shop';
+    defaultMode = 'item';
   }
   const mode = trackerChartModes[preset.id] || defaultMode;
 
