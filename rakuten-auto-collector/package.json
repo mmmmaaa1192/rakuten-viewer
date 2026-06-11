@@ -1,0 +1,14 @@
+{
+  "name": "rakuten-auto-collector",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "collect": "node src/collect-cli.js",
+    "test": "node --test"
+  }
+}
