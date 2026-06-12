@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "generatedAt": null,
+  "generatedAt": "2026-06-12T22:46:31.470Z",
   "source": {
     "api": "Rakuten Ichiba Item Search API 2026-04-01",
-    "mode": "not-configured"
+    "mode": "no-enabled-monitors"
   },
   "summary": {
     "monitorCount": 0,
