@@ -1099,7 +1099,7 @@ function genreUrl(genreId) {
   const accKey = encodeURIComponent(getAccKey());
   const keyParam = accKey ? `&accessKey=${accKey}` : '';
   return {
-    newUrl:  `${NEW_BASE}/ichibagt/api/IchibaGenre/Search/20260401?applicationId=${appId}${keyParam}&genreId=${genreId}&format=json`,
+    newUrl:  `${NEW_BASE}/ichibagt/api/IchibaGenre/Search/20260401?applicationId=${appId}${keyParam}&genreId=${genreId}&format=json&formatVersion=2`,
     oldUrl:  `${NEW_BASE}/ichibagt/api/IchibaGenre/Search/20170711?applicationId=${appId}${keyParam}&genreId=${genreId}&format=json`,
     oldUrl2: `${NEW_BASE}/ichibagt/api/IchibaGenre/Search/20140222?applicationId=${appId}${keyParam}&genreId=${genreId}&format=json`,
   };
@@ -1304,12 +1304,28 @@ function rankApiErrorHtml(data, period) {
   return apiErrorHtml(data);
 }
 
+function textValue(value) {
+  if (typeof value === 'string' || typeof value === 'number') return String(value).trim();
+  if (!value || typeof value !== 'object') return '';
+  return textValue(value.jaName || value.ja || value.japanese || value.name || value.value);
+}
+
+function genreDisplayName(node) {
+  const genreId = String(node?.genreId || '').trim();
+  const candidates = [
+    textValue(node?.jaName),
+    textValue(node?.name),
+    textValue(node?.genreName),
+  ];
+  return candidates.find(name => name && name !== genreId) || genreId;
+}
+
 function normalizeGenreNode(raw) {
   const node = raw?.child || raw?.genre || raw;
   if (!node || !node.genreId) return null;
   return {
     ...node,
-    genreName: node.genreName || node.jaName || node.name || String(node.genreId),
+    genreName: genreDisplayName(node),
     genreLevel: node.genreLevel ?? node.level,
   };
 }
@@ -3957,14 +3973,9 @@ function mountInlineGenrePicker(containerId, { mode, onSelect }) {
 }
 
 async function fetchGenreChildren(genreId) {
-  const urls = genreUrl(genreId);
-  let data;
-  try { data = await rakutenApi(urls.newUrl, urls.oldUrl); } catch(e) { return []; }
-  if (data.error) return [];
-  const info = data.genreInformation
-    ? (Array.isArray(data.genreInformation) ? data.genreInformation[0] : data.genreInformation)
-    : data;
-  return (info?.children || []).map(c => c.child || c).filter(c => c.genreId);
+  const data = await fetchGenreData(genreId);
+  if (!data) return [];
+  return extractGenreChildren(data);
 }
 
 // ===== URL RANK CHECKER HELPERS (global — also used by recordSnapshot) =====
