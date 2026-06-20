@@ -502,12 +502,12 @@ tr.chart-row-dim td { opacity: 0.4; }
     </div>
 
     <label class="setup-label" for="setup-acckey" style="margin-top:4px;">
-      アクセスキー（accessKey）<span class="badge-optional">任意</span>
+      アクセスキー（accessKey）<span class="badge-required">必須</span>
     </label>
     <input class="setup-input" type="text" id="setup-acckey"
       placeholder="例: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" spellcheck="false" autocomplete="off">
     <div class="setup-hint">
-      アプリを「Webアプリケーション」タイプで登録した場合のみ必要です。通常は空欄のままで動作します。
+      現在の楽天WebサービスAPIでは必須です。アプリIDと同じ画面で確認できます。
     </div>
 
     <label class="setup-label" for="setup-affid" style="margin-top:4px;">
@@ -966,9 +966,9 @@ tr.chart-row-dim td { opacity: 0.4; }
       <input class="form-input" type="text" id="settings-appid" spellcheck="false" autocomplete="off">
     </div>
     <div class="form-group">
-      <label class="form-label">アクセスキー（accessKey）<span class="badge-optional">任意</span></label>
+      <label class="form-label">アクセスキー（accessKey）<span class="badge-required">必須</span></label>
       <input class="form-input" type="text" id="settings-acckey" spellcheck="false" autocomplete="off">
-      <div class="form-hint">Webアプリケーション登録時のみ必要。通常は空欄でOK。</div>
+      <div class="form-hint">現在の楽天WebサービスAPIでは必須です。アプリIDと同じ画面で確認できます。</div>
     </div>
     <div class="form-group">
       <label class="form-label">アフィリエイトID（affiliateId）<span class="badge-optional">任意</span></label>
@@ -1004,14 +1004,14 @@ function getOwnShops() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY_OWN) || '[]'); } catch { return []; }
 }
 function saveOwnShops(raw) {
-  const shops = raw.split(/[\n,、]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
+  const shops = raw.split(/[\s,、]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
   localStorage.setItem(STORAGE_KEY_OWN, JSON.stringify(shops));
 }
 function ownShopsToText() { return getOwnShops().join('\n'); }
 
 function saveCredentials(appId, accKey, affId) {
   localStorage.setItem(STORAGE_KEY_APP, appId.trim());
-  accKey.trim() ? localStorage.setItem(STORAGE_KEY_ACC, accKey.trim()) : localStorage.removeItem(STORAGE_KEY_ACC);
+  localStorage.setItem(STORAGE_KEY_ACC, accKey.trim());
   affId.trim()  ? localStorage.setItem(STORAGE_KEY_AFF, affId.trim())  : localStorage.removeItem(STORAGE_KEY_AFF);
 }
 
@@ -1063,12 +1063,24 @@ async function rakutenApi(newUrl, oldUrl) {
       const res = await fetch(newUrl);
       if (res.ok) {
         const data = await res.json();
-        updateApiBadge('new');
-        return data;
+        if (!data.error) {
+          updateApiBadge('new');
+          return data;
+        }
       }
       // 新APIがエラーを返した場合は旧JSONP APIにフォールバック
     } catch (_) {
       // CORS blocked or network error → fall through to JSONP
+    }
+
+    try {
+      const data = await jsonp(newUrl);
+      if (!data.error || !oldUrl) {
+        updateApiBadge('new');
+        return data;
+      }
+    } catch (_) {
+      // fall through to old JSONP endpoint
     }
   }
 
@@ -1091,6 +1103,28 @@ function genreUrl(genreId) {
     oldUrl:  `${NEW_BASE}/ichibagt/api/IchibaGenre/Search/20170711?applicationId=${appId}${keyParam}&genreId=${genreId}&format=json`,
     oldUrl2: `${NEW_BASE}/ichibagt/api/IchibaGenre/Search/20140222?applicationId=${appId}${keyParam}&genreId=${genreId}&format=json`,
   };
+}
+
+async function fetchGenreData(genreId) {
+  const urls = genreUrl(genreId);
+  const candidates = apiMode === 'old'
+    ? [urls.oldUrl, urls.oldUrl2]
+    : [urls.newUrl, urls.oldUrl, urls.oldUrl2];
+
+  for (let i = 0; i < candidates.length; i++) {
+    const url = candidates[i];
+    if (!url) continue;
+    try {
+      const data = i === 0 && apiMode !== 'old'
+        ? await rakutenApi(url, null)
+        : await jsonp(url);
+      if (!data.error) {
+        updateApiBadge(i === 0 && apiMode !== 'old' ? 'new' : 'old');
+        return data;
+      }
+    } catch (_) {}
+  }
+  return null;
 }
 
 function rankingUrl(genreId, period, page) {
@@ -1157,6 +1191,7 @@ document.getElementById('setup-save-btn').addEventListener('click', () => {
   const own    = document.getElementById('setup-own-shops').value;
   const errEl  = document.getElementById('setup-error');
   if (!appId) { errEl.textContent = 'アプリIDを入力してください'; return; }
+  if (!accKey) { errEl.textContent = 'アクセスキーを入力してください'; return; }
   errEl.textContent = '';
   saveCredentials(appId, accKey, affId);
   saveOwnShops(own);
@@ -1183,6 +1218,7 @@ document.getElementById('settings-save-btn').addEventListener('click', () => {
   const affId  = document.getElementById('settings-affid').value.trim();
   const own    = document.getElementById('settings-own-shops').value;
   if (!appId) { alert('アプリIDは必須です'); return; }
+  if (!accKey) { alert('アクセスキーは必須です'); return; }
   saveCredentials(appId, accKey, affId);
   saveOwnShops(own);
   document.getElementById('modal-settings').style.display = 'none';
@@ -1444,17 +1480,9 @@ class GenreNav {
   }
 
   async _fetchChildren(genreId) {
-    const urls = genreUrl(genreId);
-    let data;
-    try { data = await rakutenApi(urls.newUrl, urls.oldUrl); } catch(e) { return null; }
-    if (data.error) {
-      try { data = await jsonp(urls.oldUrl2); } catch(_) {}
-    }
-    if (data.error) return null;
-    const info = data.genreInformation
-      ? (Array.isArray(data.genreInformation) ? data.genreInformation[0] : data.genreInformation)
-      : data;
-    return (info?.children || []).map(c => c.child || c).filter(c => c.genreId);
+    const data = await fetchGenreData(genreId);
+    if (!data) return null;
+    return extractGenreChildren(data);
   }
 
   async _initRoot() {
@@ -2131,9 +2159,13 @@ mountInlineGenrePicker('c-inline-picker', {
 
 // ===== INIT =====
 (function init() {
-  if (getAppId()) {
+  if (getAppId() && getAccKey()) {
     showApp();
   } else {
+    document.getElementById('setup-appid').value = getAppId();
+    document.getElementById('setup-acckey').value = getAccKey();
+    document.getElementById('setup-affid').value = getAffId();
+    document.getElementById('setup-own-shops').value = ownShopsToText();
     showSetup();
   }
 })();
@@ -4311,10 +4343,8 @@ window.openKwPreset = function(keyword, shopCode) {
 
   // ---- Fetch children (genre API) ----
   async function fetchChildrenRaw(genreId) {
-    const urls = genreUrl(genreId);
-    let data;
-    try { data = await rakutenApi(urls.newUrl, urls.oldUrl); } catch(e) { return []; }
-    if (data.error) return [];
+    const data = await fetchGenreData(genreId);
+    if (!data) return [];
     return extractGenreChildren(data);
   }
 
