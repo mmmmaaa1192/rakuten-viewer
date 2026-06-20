@@ -1085,10 +1085,11 @@ const OLD_BASE  = 'https://app.rakuten.co.jp/services/api';
 function genreUrl(genreId) {
   const appId  = encodeURIComponent(getAppId());
   const accKey = encodeURIComponent(getAccKey());
+  const keyParam = accKey ? `&accessKey=${accKey}` : '';
   return {
-    newUrl:  `${NEW_BASE}/ichibagt/api/IchibaGenre/Search/20170711?applicationId=${appId}&accessKey=${accKey}&genreId=${genreId}&format=json`,
-    oldUrl:  `${OLD_BASE}/IchibaGenre/Search/20140222?applicationId=${appId}&genreId=${genreId}&format=json`,
-    oldUrl2: `${OLD_BASE}/IchibaGenre/Search/20120723?applicationId=${appId}&genreId=${genreId}&format=json`,
+    newUrl:  `${NEW_BASE}/ichibagt/api/IchibaGenre/Search/20260401?applicationId=${appId}${keyParam}&genreId=${genreId}&format=json`,
+    oldUrl:  `${NEW_BASE}/ichibagt/api/IchibaGenre/Search/20170711?applicationId=${appId}${keyParam}&genreId=${genreId}&format=json`,
+    oldUrl2: `${NEW_BASE}/ichibagt/api/IchibaGenre/Search/20140222?applicationId=${appId}${keyParam}&genreId=${genreId}&format=json`,
   };
 }
 
@@ -1265,6 +1266,25 @@ function apiErrorHtml(data) {
 
 function rankApiErrorHtml(data, period) {
   return apiErrorHtml(data);
+}
+
+function normalizeGenreNode(raw) {
+  const node = raw?.child || raw?.genre || raw;
+  if (!node || !node.genreId) return null;
+  return {
+    ...node,
+    genreName: node.genreName || node.jaName || node.name || String(node.genreId),
+    genreLevel: node.genreLevel ?? node.level,
+  };
+}
+
+function extractGenreChildren(data) {
+  const info = data?.genreInformation
+    ? (Array.isArray(data.genreInformation) ? data.genreInformation[0] : data.genreInformation)
+    : data;
+  return (info?.children || [])
+    .map(normalizeGenreNode)
+    .filter(Boolean);
 }
 
 // ===== GENRE NAVIGATOR (tree toggle style) =====
@@ -4295,10 +4315,7 @@ window.openKwPreset = function(keyword, shopCode) {
     let data;
     try { data = await rakutenApi(urls.newUrl, urls.oldUrl); } catch(e) { return []; }
     if (data.error) return [];
-    const info = data.genreInformation
-      ? (Array.isArray(data.genreInformation) ? data.genreInformation[0] : data.genreInformation)
-      : data;
-    return (info?.children || []).map(c => c.child || c).filter(c => c.genreId);
+    return extractGenreChildren(data);
   }
 
   // ---- BFS collect all targets up to maxDepth ----
