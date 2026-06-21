@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.70</title>
+<title>楽天市場 リサーチツール v3.71</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -545,7 +545,7 @@ tr.chart-row-dim td { opacity: 0.4; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge" id="version-badge-btn" style="cursor:pointer;text-decoration:underline dotted;" title="更新履歴">v3.70</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge" id="version-badge-btn" style="cursor:pointer;text-decoration:underline dotted;" title="更新履歴">v3.71</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -567,7 +567,7 @@ tr.chart-row-dim td { opacity: 0.4; }
     <!-- ===== Sidebar ===== -->
     <aside id="side-menu" class="side-menu">
       <div class="side-menu-inner">
-        <div class="side-menu-title">カテゴリ選択 <span class="version-inline">v3.70</span></div>
+        <div class="side-menu-title">カテゴリ選択 <span class="version-inline">v3.71</span></div>
         <div class="genre-grid" id="side-genres"><div class="loading-msg">読み込み中...</div></div>
         <div class="selected-genre-box" style="margin-top:12px;">
           <span class="selected-genre-label">選択中：</span>
@@ -651,7 +651,7 @@ tr.chart-row-dim td { opacity: 0.4; }
       <!-- ===== Tab: Category Rank ===== -->
       <div id="tab-category" class="tab-pane">
         <div class="card">
-          <div class="card-title">カテゴリ順位チェック <span class="version-inline">v3.70</span></div>
+          <div class="card-title">カテゴリ順位チェック <span class="version-inline">v3.71</span></div>
           <div class="selected-genre-box">
             <span class="selected-genre-label">選択中：</span>
             <span class="selected-genre-unset" id="c-selected-path">カテゴリを選択してください</span>
@@ -1230,6 +1230,7 @@ document.getElementById('modal-settings').addEventListener('click', e => {
 
 // ===== CHANGELOG MODAL =====
 const CHANGELOG = [
+  { v: 'v3.71', desc: 'カテゴリAPI表示修正: APIレスポンス内のjaName/genreNameを再帰的に抽出' },
   { v: 'v3.70', desc: 'カテゴリAPI表示修正: APIレスポンスのみでカテゴリ名を正規化・カテゴリ画面にもバージョン表示' },
   { v: 'v3.69', desc: '推移チェッカー: 商品別ボタンを一番左（デフォルト位置）に移動' },
   { v: 'v3.68', desc: '推移チェッカー: 商品別グラフをデフォルト表示に変更' },
@@ -1319,36 +1320,64 @@ function textValue(value) {
   return textValue(value.jaName || value.ja || value.japanese || value.name || value.value);
 }
 
-function plainGenreNode(raw) {
-  if (typeof raw === 'string' || typeof raw === 'number') return { genreId: raw };
-  if (Array.isArray(raw)) {
-    return raw.reduce((acc, item) => Object.assign(acc, plainGenreNode(item)), {});
-  }
-  if (!raw || typeof raw !== 'object') return null;
-  if (raw.child !== undefined) return { ...raw, ...plainGenreNode(raw.child) };
-  if (raw.genre !== undefined) return { ...raw, ...plainGenreNode(raw.genre) };
-  return raw;
-}
+function collectGenreFields(raw) {
+  const fields = { genreId: '', genreName: '', genreLevel: '' };
 
-function genreDisplayName(node) {
-  const genreId = textValue(node?.genreId);
-  const candidates = [
-    textValue(node?.jaName),
-    textValue(node?.name),
-    textValue(node?.genreName),
-  ];
-  return candidates.find(name => name && name !== genreId) || `名称未取得（${genreId}）`;
+  function assignByKey(key, value) {
+    const k = String(key || '').toLowerCase().replace(/[_-]/g, '');
+    const text = textValue(value);
+    if (!text) return false;
+    if ((k === 'genreid' || k === 'id') && !fields.genreId) {
+      fields.genreId = text;
+      return true;
+    }
+    if ((k === 'janame' || k === 'genrename' || k === 'name' || k === 'japanese') && !fields.genreName) {
+      fields.genreName = text;
+      return true;
+    }
+    if ((k === 'genrelevel' || k === 'level') && !fields.genreLevel) {
+      fields.genreLevel = text;
+      return true;
+    }
+    return false;
+  }
+
+  function visit(value, key = '') {
+    if (value === null || value === undefined) return;
+    if (key && assignByKey(key, value)) return;
+
+    if (typeof value === 'string' || typeof value === 'number') {
+      const text = String(value).trim();
+      if (!key && /^\d+$/.test(text) && !fields.genreId) fields.genreId = text;
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      value.forEach(item => visit(item, key));
+      return;
+    }
+
+    if (typeof value !== 'object') return;
+
+    ['child', 'genre'].forEach(priorityKey => {
+      if (Object.prototype.hasOwnProperty.call(value, priorityKey)) visit(value[priorityKey], priorityKey);
+    });
+    Object.entries(value).forEach(([k, v]) => {
+      if (k !== 'child' && k !== 'genre') visit(v, k);
+    });
+  }
+
+  visit(raw);
+  return fields;
 }
 
 function normalizeGenreNode(raw) {
-  const node = plainGenreNode(raw);
-  const genreId = textValue(node?.genreId);
-  if (!node || !genreId) return null;
+  const fields = collectGenreFields(raw);
+  if (!fields.genreId) return null;
   return {
-    ...node,
-    genreId,
-    genreName: genreDisplayName(node),
-    genreLevel: textValue(node.genreLevel ?? node.level),
+    genreId: fields.genreId,
+    genreName: fields.genreName || `名称未取得（${fields.genreId}）`,
+    genreLevel: fields.genreLevel,
   };
 }
 
@@ -1365,7 +1394,7 @@ function apiArray(value) {
 
 function extractGenreChildren(data) {
   const info = unwrapGenreInformation(data);
-  return apiArray(info?.children || info?.child)
+  return apiArray(info?.children || info?.child || info?.childrenGenres || info?.childGenres)
     .map(normalizeGenreNode)
     .filter(Boolean);
 }
