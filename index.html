@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.71</title>
+<title>楽天市場 リサーチツール v3.72</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -545,7 +545,7 @@ tr.chart-row-dim td { opacity: 0.4; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge" id="version-badge-btn" style="cursor:pointer;text-decoration:underline dotted;" title="更新履歴">v3.71</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge" id="version-badge-btn" style="cursor:pointer;text-decoration:underline dotted;" title="更新履歴">v3.72</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -567,7 +567,7 @@ tr.chart-row-dim td { opacity: 0.4; }
     <!-- ===== Sidebar ===== -->
     <aside id="side-menu" class="side-menu">
       <div class="side-menu-inner">
-        <div class="side-menu-title">カテゴリ選択 <span class="version-inline">v3.71</span></div>
+        <div class="side-menu-title">カテゴリ選択 <span class="version-inline">v3.72</span></div>
         <div class="genre-grid" id="side-genres"><div class="loading-msg">読み込み中...</div></div>
         <div class="selected-genre-box" style="margin-top:12px;">
           <span class="selected-genre-label">選択中：</span>
@@ -651,7 +651,7 @@ tr.chart-row-dim td { opacity: 0.4; }
       <!-- ===== Tab: Category Rank ===== -->
       <div id="tab-category" class="tab-pane">
         <div class="card">
-          <div class="card-title">カテゴリ順位チェック <span class="version-inline">v3.71</span></div>
+          <div class="card-title">カテゴリ順位チェック <span class="version-inline">v3.72</span></div>
           <div class="selected-genre-box">
             <span class="selected-genre-label">選択中：</span>
             <span class="selected-genre-unset" id="c-selected-path">カテゴリを選択してください</span>
@@ -1230,6 +1230,7 @@ document.getElementById('modal-settings').addEventListener('click', e => {
 
 // ===== CHANGELOG MODAL =====
 const CHANGELOG = [
+  { v: 'v3.72', desc: 'カテゴリAPI表示修正: IDだけのカテゴリは同APIで名称を再取得' },
   { v: 'v3.71', desc: 'カテゴリAPI表示修正: APIレスポンス内のjaName/genreNameを再帰的に抽出' },
   { v: 'v3.70', desc: 'カテゴリAPI表示修正: APIレスポンスのみでカテゴリ名を正規化・カテゴリ画面にもバージョン表示' },
   { v: 'v3.69', desc: '推移チェッカー: 商品別ボタンを一番左（デフォルト位置）に移動' },
@@ -1376,7 +1377,7 @@ function normalizeGenreNode(raw) {
   if (!fields.genreId) return null;
   return {
     genreId: fields.genreId,
-    genreName: fields.genreName || `名称未取得（${fields.genreId}）`,
+    genreName: fields.genreName,
     genreLevel: fields.genreLevel,
   };
 }
@@ -1392,11 +1393,99 @@ function apiArray(value) {
   return [value];
 }
 
+function mergeGenreFields(target, source) {
+  if (!source) return target;
+  if (source.genreId && !target.genreId) target.genreId = source.genreId;
+  if (source.genreName && !target.genreName) target.genreName = source.genreName;
+  if (source.genreLevel && !target.genreLevel) target.genreLevel = source.genreLevel;
+  return target;
+}
+
+function fieldRecordName(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return '';
+  const keys = Object.keys(raw);
+  return keys.length === 1 ? keys[0].toLowerCase().replace(/[_-]/g, '') : '';
+}
+
+function groupSplitGenreRecords(items) {
+  const groups = [];
+  let current = { genreId: '', genreName: '', genreLevel: '' };
+
+  items.forEach(item => {
+    const fields = collectGenreFields(item);
+    if (!fields.genreId && !fields.genreName && !fields.genreLevel) return;
+
+    const keyName = fieldRecordName(item);
+    if (fields.genreId && current.genreId && (current.genreName || keyName === 'genreid' || keyName === 'id')) {
+      groups.push({ ...current });
+      current = { genreId: '', genreName: '', genreLevel: '' };
+    }
+    mergeGenreFields(current, fields);
+  });
+
+  if (current.genreId || current.genreName || current.genreLevel) groups.push(current);
+  return groups
+    .filter(g => g.genreId)
+    .map(g => ({ genreId: g.genreId, genreName: g.genreName, genreLevel: g.genreLevel }));
+}
+
 function extractGenreChildren(data) {
   const info = unwrapGenreInformation(data);
-  return apiArray(info?.children || info?.child || info?.childrenGenres || info?.childGenres)
+  const items = apiArray(info?.children || info?.child || info?.childrenGenres || info?.childGenres);
+  const direct = items
     .map(normalizeGenreNode)
     .filter(Boolean);
+
+  if (direct.some(g => !g.genreName) && items.length > 1) {
+    const grouped = groupSplitGenreRecords(items);
+    const groupedNamed = grouped.filter(g => g.genreName).length;
+    const directNamed = direct.filter(g => g.genreName).length;
+    if (grouped.length && groupedNamed >= directNamed) return grouped;
+  }
+
+  return direct;
+}
+
+function extractCurrentGenre(data, expectedGenreId) {
+  const info = unwrapGenreInformation(data);
+  const candidates = [
+    info?.genre,
+    info?.current,
+    info?.currentGenre,
+    info?.currentGenreInformation,
+    data?.genre,
+    data?.current,
+  ];
+  for (const candidate of candidates) {
+    const node = normalizeGenreNode(candidate);
+    if (node?.genreName && (!expectedGenreId || !node.genreId || node.genreId === String(expectedGenreId))) {
+      return node;
+    }
+  }
+  const whole = normalizeGenreNode(info);
+  return whole?.genreName ? whole : null;
+}
+
+const genreNameByIdCache = new Map();
+
+async function fetchGenreNameById(genreId) {
+  const key = String(genreId || '').trim();
+  if (!key) return '';
+  if (genreNameByIdCache.has(key)) return genreNameByIdCache.get(key);
+
+  const data = await fetchGenreData(key);
+  const current = data ? extractCurrentGenre(data, key) : null;
+  const name = current?.genreName || '';
+  genreNameByIdCache.set(key, name);
+  return name;
+}
+
+async function ensureGenreNames(genres) {
+  const missing = genres.filter(g => g.genreId && !g.genreName);
+  await Promise.all(missing.map(async g => {
+    g.genreName = await fetchGenreNameById(g.genreId);
+  }));
+  return genres.filter(g => g.genreName);
 }
 
 // ===== GENRE NAVIGATOR (tree toggle style) =====
@@ -1558,7 +1647,7 @@ class GenreNav {
   async _fetchChildren(genreId) {
     const data = await fetchGenreData(genreId);
     if (!data) return null;
-    return extractGenreChildren(data);
+    return ensureGenreNames(extractGenreChildren(data));
   }
 
   async _initRoot() {
@@ -4035,7 +4124,7 @@ function mountInlineGenrePicker(containerId, { mode, onSelect }) {
 async function fetchGenreChildren(genreId) {
   const data = await fetchGenreData(genreId);
   if (!data) return [];
-  return extractGenreChildren(data);
+  return ensureGenreNames(extractGenreChildren(data));
 }
 
 // ===== URL RANK CHECKER HELPERS (global — also used by recordSnapshot) =====
@@ -4416,7 +4505,7 @@ window.openKwPreset = function(keyword, shopCode) {
   async function fetchChildrenRaw(genreId) {
     const data = await fetchGenreData(genreId);
     if (!data) return [];
-    return extractGenreChildren(data);
+    return ensureGenreNames(extractGenreChildren(data));
   }
 
   // ---- BFS collect all targets up to maxDepth ----
