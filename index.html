@@ -1248,10 +1248,6 @@ document.getElementById('settings-save-btn').addEventListener('click', () => {
   saveOwnShops(own);
   document.getElementById('modal-settings').style.display = 'none';
 });
-document.getElementById('modal-settings').addEventListener('click', e => {
-  if (e.target === e.currentTarget) e.currentTarget.style.display = 'none';
-});
-
 // ===== CHANGELOG MODAL =====
 const CHANGELOG = [
   { v: 'v3.70', desc: 'ジャンルAPIを2026-04-01版に更新し、APIのjaNameをカテゴリ名として表示' },
