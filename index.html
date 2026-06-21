@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.70</title>
+<title>楽天市場 リサーチツール v3.71</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -227,6 +227,36 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 .result-item-shop { font-size: 12px; color: #888; }
 .result-notfound { font-size: 16px; color: #bbb; margin-bottom: 8px; }
 .result-notfound-sub { font-size: 13px; color: #aaa; line-height: 1.6; }
+
+/* ===== UNIT COST FINDER ===== */
+.unit-cost-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.unit-cost-help { font-size: 12px; color: #777; line-height: 1.8; margin-top: 6px; }
+.unit-cost-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.unit-cost-summary { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(260px, 0.85fr); gap: 14px; align-items: stretch; margin-bottom: 14px; }
+.unit-cost-winner {
+  border: 2px solid #bf0000; border-radius: 8px; background: #fff8f8;
+  padding: 16px; display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 14px;
+}
+.unit-cost-thumb { width: 96px; height: 96px; object-fit: contain; background: white; border: 1px solid #eee; border-radius: 6px; }
+.unit-cost-thumb-placeholder { width: 96px; height: 96px; display: grid; place-items: center; color: #ccc; background: white; border: 1px solid #eee; border-radius: 6px; font-size: 32px; }
+.unit-cost-name { font-size: 14px; line-height: 1.55; font-weight: bold; color: #333; text-decoration: none; }
+.unit-cost-name:hover { color: #bf0000; }
+.unit-cost-main-price { font-size: 28px; line-height: 1; color: #bf0000; font-weight: bold; margin: 8px 0 6px; }
+.unit-cost-sub { font-size: 12px; color: #666; line-height: 1.7; }
+.unit-cost-badges { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.unit-cost-badge { font-size: 11px; color: #555; background: white; border: 1px solid #eee; border-radius: 999px; padding: 2px 8px; }
+.unit-cost-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.unit-cost-stat { background: white; border: 1px solid #e8e8e8; border-radius: 8px; padding: 12px; }
+.unit-cost-stat-label { font-size: 11px; color: #888; margin-bottom: 5px; }
+.unit-cost-stat-value { font-size: 20px; font-weight: bold; color: #333; }
+.unit-cost-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.unit-cost-table-wrap { overflow-x: auto; }
+.unit-cost-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 960px; }
+.unit-cost-table th { background: #f5f5f5; color: #555; text-align: left; padding: 8px; border-bottom: 2px solid #e5e5e5; white-space: nowrap; }
+.unit-cost-table td { padding: 8px; border-bottom: 1px solid #eee; vertical-align: top; }
+.unit-cost-table tr:first-child td { background: #fff8f8; }
+.unit-cost-rank { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: #bf0000; color: white; font-weight: bold; }
+.unit-cost-note { color: #999; font-size: 12px; line-height: 1.7; margin-top: 10px; }
 
 /* ===== STATUS MESSAGES ===== */
 .loading-msg { text-align: center; padding: 32px; color: #bbb; font-size: 14px; }
@@ -474,6 +504,16 @@ tr.chart-row-dim td { opacity: 0.4; }
   .scan-genre-tags-bar { gap: 3px; }
   .scan-genre-tag { font-size: 10px; padding: 2px 6px; }
 
+  /* ---- Unit cost finder ---- */
+  .unit-cost-options,
+  .unit-cost-summary,
+  .unit-cost-stats { grid-template-columns: 1fr; }
+  .unit-cost-winner { grid-template-columns: 72px minmax(0, 1fr); padding: 12px; }
+  .unit-cost-thumb,
+  .unit-cost-thumb-placeholder { width: 72px; height: 72px; }
+  .unit-cost-main-price { font-size: 23px; }
+  .unit-cost-table { min-width: 760px; }
+
   /* ---- Setup screen ---- */
   .setup-card { padding: 28px 22px; }
 }
@@ -544,7 +584,7 @@ tr.chart-row-dim td { opacity: 0.4; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge" id="version-badge-btn" style="cursor:pointer;text-decoration:underline dotted;" title="更新履歴">v3.70</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge" id="version-badge-btn" style="cursor:pointer;text-decoration:underline dotted;" title="更新履歴">v3.71</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -559,6 +599,7 @@ tr.chart-row-dim td { opacity: 0.4; }
     <div class="tab-nav-item tab-blue" data-tab="keyword">キーワード順位</div>
     <div class="tab-nav-item tab-blue" data-tab="category">カテゴリ順位</div>
     <div class="tab-nav-item tab-blue" data-tab="url-rank">商品URL順位</div>
+    <div class="tab-nav-item tab-purple" data-tab="unit-cost">単価最安</div>
     <div class="tab-nav-item tab-purple" data-tab="related">関連商品</div>
   </div>
 
@@ -566,7 +607,7 @@ tr.chart-row-dim td { opacity: 0.4; }
     <!-- ===== Sidebar ===== -->
     <aside id="side-menu" class="side-menu">
       <div class="side-menu-inner">
-        <div class="side-menu-title">カテゴリ選択 <span class="version-badge" style="color:#999;">v3.70</span></div>
+        <div class="side-menu-title">カテゴリ選択 <span class="version-badge" style="color:#999;">v3.71</span></div>
         <div class="genre-grid" id="side-genres"><div class="loading-msg">読み込み中...</div></div>
         <div class="selected-genre-box" style="margin-top:12px;">
           <span class="selected-genre-label">選択中：</span>
@@ -696,6 +737,67 @@ tr.chart-row-dim td { opacity: 0.4; }
           </div>
         </div>
         <div id="c-result"></div>
+      </div>
+
+      <!-- ===== Tab: Unit Cost Finder ===== -->
+      <div id="tab-unit-cost" class="tab-pane">
+        <div class="unit-cost-layout">
+          <div class="card">
+            <div class="card-title">単価最安ページ Finder</div>
+            <div class="selected-genre-box">
+              <span class="selected-genre-label">選択中：</span>
+              <span class="selected-genre-unset" id="uc-selected-path">カテゴリを選択してください</span>
+            </div>
+            <div id="uc-inline-picker" class="inline-genre-picker"></div>
+            <div class="form-group">
+              <label class="form-label">絞り込みキーワード <span style="font-weight:normal;color:#aaa;">（任意）</span></label>
+              <input class="form-input" type="text" id="uc-keyword" placeholder="例: 天然水 / プロテイン / 乳酸菌">
+              <div class="unit-cost-help">未入力なら選択ジャンル内から探します。商品名に容量表記がある商品だけを換算対象にします。</div>
+            </div>
+            <div class="unit-cost-options">
+              <div class="form-group">
+                <label class="form-label">換算対象</label>
+                <select class="form-input" id="uc-target-kind">
+                  <option value="auto">自動（容量・重量・個数）</option>
+                  <option value="volume">液体・容量（1L）</option>
+                  <option value="weight">重量（100g）</option>
+                  <option value="count">個数・粒・包（1単位）</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">並び順</label>
+                <select class="form-input" id="uc-sort">
+                  <option value="+itemPrice">価格順（安い順）</option>
+                  <option value="standard">標準（楽天標準ソート）</option>
+                  <option value="-reviewCount">レビュー件数順（多い順）</option>
+                  <option value="-reviewAverage">レビュー平均順（高い順）</option>
+                  <option value="-affiliateRate">アフィリエイト料率順（高い順）</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">最大検索件数: <span id="uc-pages-label">300件（10ページ）</span></label>
+                <input type="range" id="uc-pages" min="1" max="100" value="10">
+              </div>
+              <div class="form-group">
+                <label class="form-label">取得間隔</label>
+                <select class="form-input" id="uc-delay">
+                  <option value="800">標準</option>
+                  <option value="1200">ゆっくり</option>
+                  <option value="300">速め</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn-primary" id="uc-search-btn">最安を探す</button>
+          </div>
+          <div class="card" id="uc-progress-card" style="display:none;">
+            <div class="progress-bar"><div class="progress-fill" id="uc-fill"></div></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+              <div class="progress-status" id="uc-status">検索中...</div>
+              <button class="btn-stop" id="uc-stop-btn" style="display:none;">■ 停止</button>
+            </div>
+          </div>
+          <div id="uc-result"></div>
+        </div>
       </div>
 
       <!-- ===== Tab: Tracker ===== -->
@@ -1204,6 +1306,11 @@ function showApp() {
       const cEl = document.getElementById('c-selected-path');
       cEl.textContent = genreId !== 0 ? path : 'カテゴリを選択してください';
       cEl.className = genreId !== 0 ? 'selected-genre-path' : 'selected-genre-unset';
+      const ucEl = document.getElementById('uc-selected-path');
+      if (ucEl) {
+        ucEl.textContent = genreId !== 0 ? path : 'カテゴリを選択してください';
+        ucEl.className = genreId !== 0 ? 'selected-genre-path' : 'selected-genre-unset';
+      }
     });
   }
 }
@@ -1250,6 +1357,7 @@ document.getElementById('settings-save-btn').addEventListener('click', () => {
 });
 // ===== CHANGELOG MODAL =====
 const CHANGELOG = [
+  { v: 'v3.71', desc: '単価最安タブを追加し、ジャンル内の商品を容量・重量・個数あたり価格で比較' },
   { v: 'v3.70', desc: 'ジャンルAPIを2026-04-01版に更新し、APIのjaNameをカテゴリ名として表示' },
   { v: 'v3.69', desc: '推移チェッカー: 商品別ボタンを一番左（デフォルト位置）に移動' },
   { v: 'v3.68', desc: '推移チェッカー: 商品別グラフをデフォルト表示に変更' },
@@ -1931,6 +2039,7 @@ function setupSlider(sliderId, labelId) {
 }
 setupSlider('kw-pages', 'kw-pages-label');
 setupSlider('c-pages',  'c-pages-label');
+setupSlider('uc-pages', 'uc-pages-label');
 
 // ===== OWN SHOP TOGGLE =====
 function toggleOwnFilter(btn, gridId) {
@@ -2158,8 +2267,484 @@ mountInlineGenrePicker('c-inline-picker', {
     const rEl = document.getElementById('r-selected-path');
     rEl.textContent = path;
     rEl.className = 'selected-genre-path';
+    const ucEl = document.getElementById('uc-selected-path');
+    if (ucEl) {
+      ucEl.textContent = path;
+      ucEl.className = 'selected-genre-path';
+    }
   },
 });
+
+// ===== INLINE GENRE PICKER INIT: 単価最安タブ =====
+mountInlineGenrePicker('uc-inline-picker', {
+  mode: 'single',
+  onSelect(genreId, path) {
+    if (!sideNav) return;
+    sideNav.selected = { genreId, genreName: path.split(' › ').pop(), path };
+    const ucEl = document.getElementById('uc-selected-path');
+    ucEl.textContent = path;
+    ucEl.className = 'selected-genre-path';
+    document.getElementById('side-selected-path').textContent = path;
+    const rEl = document.getElementById('r-selected-path');
+    rEl.textContent = path;
+    rEl.className = 'selected-genre-path';
+    const cEl = document.getElementById('c-selected-path');
+    cEl.textContent = path;
+    cEl.className = 'selected-genre-path';
+  },
+});
+
+// ===== UNIT COST FINDER =====
+const UC_AMOUNT_UNITS = {
+  ml: { label: 'ml', type: 'volume', factor: 0.001, compareSize: 1, compareLabel: '1L' },
+  l: { label: 'L', type: 'volume', factor: 1, compareSize: 1, compareLabel: '1L' },
+  mg: { label: 'mg', type: 'weight', factor: 0.001, compareSize: 100, compareLabel: '100g' },
+  g: { label: 'g', type: 'weight', factor: 1, compareSize: 100, compareLabel: '100g' },
+  kg: { label: 'kg', type: 'weight', factor: 1000, compareSize: 100, compareLabel: '100g' },
+  ko: { label: '個', type: 'count', factor: 1, compareSize: 1 },
+  hon: { label: '本', type: 'count', factor: 1, compareSize: 1 },
+  mai: { label: '枚', type: 'count', factor: 1, compareSize: 1 },
+  fukuro: { label: '袋', type: 'count', factor: 1, compareSize: 1 },
+  hou: { label: '包', type: 'count', factor: 1, compareSize: 1 },
+  tsubu: { label: '粒', type: 'count', factor: 1, compareSize: 1 },
+  jou: { label: '錠', type: 'count', factor: 1, compareSize: 1 },
+  shoku: { label: '食', type: 'count', factor: 1, compareSize: 1 },
+  kai: { label: '回', type: 'count', factor: 1, compareSize: 1 },
+  kumi: { label: '組', type: 'count', factor: 1, compareSize: 1 },
+  roll: { label: 'ロール', type: 'count', factor: 1, compareSize: 1 },
+  kan: { label: '缶', type: 'count', factor: 1, compareSize: 1 },
+  satsu: { label: '冊', type: 'count', factor: 1, compareSize: 1 }
+};
+const UC_QUANTITY_UNITS = {
+  hon: '本', ko: '個', mai: '枚', fukuro: '袋', hako: '箱', case: 'ケース',
+  set: 'セット', pack: 'パック', kan: '缶', hou: '包', tsubu: '粒',
+  jou: '錠', shoku: '食', kai: '回', kumi: '組', roll: 'ロール', satsu: '冊'
+};
+const UC_RAW_AMOUNT_UNIT_MAP = new Map([
+  ['ml', 'ml'], ['ミリリットル', 'ml'], ['cc', 'ml'],
+  ['l', 'l'], ['リットル', 'l'],
+  ['mg', 'mg'], ['ミリグラム', 'mg'],
+  ['g', 'g'], ['グラム', 'g'],
+  ['kg', 'kg'], ['キログラム', 'kg'],
+  ['個', 'ko'], ['本', 'hon'], ['枚', 'mai'], ['袋', 'fukuro'], ['包', 'hou'],
+  ['粒', 'tsubu'], ['錠', 'jou'], ['食', 'shoku'], ['回', 'kai'], ['組', 'kumi'],
+  ['ロール', 'roll'], ['缶', 'kan'], ['冊', 'satsu']
+]);
+const UC_RAW_QUANTITY_UNIT_MAP = new Map([
+  ['本', 'hon'], ['個', 'ko'], ['枚', 'mai'], ['袋', 'fukuro'], ['箱', 'hako'],
+  ['ケース', 'case'], ['case', 'case'], ['セット', 'set'], ['パック', 'pack'],
+  ['pack', 'pack'], ['缶', 'kan'], ['包', 'hou'], ['粒', 'tsubu'], ['錠', 'jou'],
+  ['食', 'shoku'], ['回', 'kai'], ['組', 'kumi'], ['ロール', 'roll'], ['冊', 'satsu']
+]);
+const UC_CONTAINER_UNITS = new Set(['hako', 'case', 'set', 'pack']);
+const UC_PREFERRED_QUANTITY_UNITS = {
+  volume: ['hon', 'kan', 'ko', 'pack', 'fukuro'],
+  weight: ['fukuro', 'ko', 'pack', 'hako'],
+  count: ['fukuro', 'hako', 'case', 'set', 'pack', 'ko']
+};
+let ucController = null;
+
+function ucNumber(value) {
+  const number = Number(String(value ?? '').replace(/,/g, '').trim());
+  return Number.isFinite(number) ? number : 0;
+}
+
+function ucFmt(value, digits = 0) {
+  if (!Number.isFinite(value)) return '--';
+  return Number(value).toLocaleString('ja-JP', { maximumFractionDigits: digits });
+}
+
+function ucYen(value) {
+  if (!Number.isFinite(value)) return '--円';
+  return ucFmt(value, Math.abs(value) < 100 ? 1 : 0) + '円';
+}
+
+function ucUnit(unit) {
+  return UC_AMOUNT_UNITS[unit] || UC_AMOUNT_UNITS.ml;
+}
+
+function ucQuantityLabel(unit) {
+  return UC_QUANTITY_UNITS[unit] || '個';
+}
+
+function ucCompareLabel(unit) {
+  const def = ucUnit(unit);
+  return def.type === 'count' ? '1' + def.label : def.compareLabel;
+}
+
+function ucDefaultQuantityUnit(amountUnit) {
+  const type = ucUnit(amountUnit).type;
+  if (type === 'volume') return 'hon';
+  if (type === 'weight') return 'fukuro';
+  return 'fukuro';
+}
+
+function ucFormatInputAmount(value, unit) {
+  const def = ucUnit(unit);
+  return ucFmt(value, value < 10 && !Number.isInteger(value) ? 2 : 3) + def.label;
+}
+
+function ucFormatTotalAmount(baseAmount, unit) {
+  const def = ucUnit(unit);
+  if (!Number.isFinite(baseAmount) || baseAmount <= 0) return '--';
+  if (def.type === 'volume') {
+    if (baseAmount >= 1) return ucFmt(baseAmount, baseAmount < 10 ? 2 : 1) + 'L';
+    return ucFmt(baseAmount * 1000, 0) + 'ml';
+  }
+  if (def.type === 'weight') {
+    if (baseAmount >= 1000) return ucFmt(baseAmount / 1000, baseAmount < 10000 ? 2 : 1) + 'kg';
+    if (baseAmount < 1) return ucFmt(baseAmount * 1000, 0) + 'mg';
+    return ucFmt(baseAmount, baseAmount < 10 ? 2 : 1) + 'g';
+  }
+  return ucFmt(baseAmount, baseAmount < 10 ? 2 : 0) + def.label;
+}
+
+function ucNormalizeTitle(value) {
+  return String(value || '')
+    .normalize('NFKC')
+    .replace(/[×✕✖＊*]/g, 'x')
+    .replace(/[，、]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+}
+
+function ucRangesOverlap(aStart, aEnd, bStart, bEnd) {
+  return aStart < bEnd && bStart < aEnd;
+}
+
+function ucChooseAmountCandidate(candidates) {
+  if (!candidates.length) return null;
+  return candidates.find(candidate => {
+    const type = ucUnit(candidate.unit).type;
+    return type === 'volume' || type === 'weight';
+  }) || candidates[0];
+}
+
+function ucFindQuantityCandidates(text, amount) {
+  const countPattern = /(\d+(?:[\.,]\d+)?)\s*(本|個|枚|袋|箱|ケース|case|セット|パック|pack|缶|包|粒|錠|食|回|組|ロール|冊)(?:\s*入(?:り)?)?/g;
+  const multiplierPattern = /x\s*(\d+(?:[\.,]\d+)?)(?:\s*(本|個|枚|袋|箱|ケース|case|セット|パック|pack|缶|包|粒|錠|食|回|組|ロール|冊))?/g;
+  const candidates = [];
+  const keys = new Set();
+
+  function addCandidate(numberText, rawUnit, start, rawText) {
+    const valueNumber = ucNumber(numberText);
+    if (!Number.isFinite(valueNumber) || valueNumber <= 0) return;
+    const unit = rawUnit ? UC_RAW_QUANTITY_UNIT_MAP.get(rawUnit) : null;
+    const end = start + rawText.length;
+    if (ucRangesOverlap(start, end, amount.start, amount.end)) return;
+    if (candidates.some(candidate =>
+      candidate.value === valueNumber &&
+      candidate.unit === unit &&
+      ucRangesOverlap(start, end, candidate.start, candidate.end)
+    )) return;
+    const key = `${start}-${valueNumber}-${unit || 'none'}`;
+    if (keys.has(key)) return;
+    keys.add(key);
+    candidates.push({ value: valueNumber, unit, start, end, raw: rawText });
+  }
+
+  let match;
+  while ((match = countPattern.exec(text)) !== null) addCandidate(match[1], match[2], match.index, match[0]);
+  while ((match = multiplierPattern.exec(text)) !== null) addCandidate(match[1], match[2] || null, match.index, match[0]);
+  return candidates.sort((a, b) => a.start - b.start);
+}
+
+function ucChooseQuantityCandidate(candidates, amount) {
+  if (!candidates.length) return null;
+  const type = ucUnit(amount.unit).type;
+  const preferred = UC_PREFERRED_QUANTITY_UNITS[type] || [];
+  const ordered = [
+    ...candidates.filter(candidate => candidate.start >= amount.end),
+    ...candidates.filter(candidate => candidate.end <= amount.start).reverse()
+  ];
+  return ordered.find(candidate => !candidate.unit || preferred.includes(candidate.unit)) || ordered[0] || candidates[0];
+}
+
+function ucChooseBundleCandidate(candidates, quantity) {
+  if (!quantity) return null;
+  const later = candidates.filter(candidate => candidate !== quantity && candidate.start > quantity.start);
+  return later.find(candidate => !candidate.unit || UC_CONTAINER_UNITS.has(candidate.unit)) || later[0] || null;
+}
+
+function ucParseProductTitle(value) {
+  const text = ucNormalizeTitle(value);
+  const amountPattern = /(\d+(?:[\.,]\d+)?)\s*(kg|キログラム|mg|ミリグラム|ml|ミリリットル|cc|l|リットル|g|グラム|個|本|枚|袋|包|粒|錠|食|回|組|ロール|缶|冊)/g;
+  const candidates = [];
+  let match;
+
+  while ((match = amountPattern.exec(text)) !== null) {
+    const unit = UC_RAW_AMOUNT_UNIT_MAP.get(match[2]);
+    const valueNumber = ucNumber(match[1]);
+    if (!unit || !Number.isFinite(valueNumber) || valueNumber <= 0) continue;
+    candidates.push({
+      value: valueNumber,
+      unit,
+      start: match.index,
+      end: match.index + match[0].length,
+      raw: match[0]
+    });
+  }
+
+  const amount = ucChooseAmountCandidate(candidates);
+  if (!amount) return null;
+  const counts = ucFindQuantityCandidates(text, amount);
+  const quantity = ucChooseQuantityCandidate(counts, amount);
+  const bundle = ucChooseBundleCandidate(counts, quantity);
+  return { amount, quantity, bundle };
+}
+
+function ucItemImage(it) {
+  const raw = it.mediumImageUrls?.[0] || it.smallImageUrls?.[0];
+  return (raw && typeof raw === 'object' ? raw.imageUrl : raw) || '';
+}
+
+function ucAnalyzeItem(it, rank, targetKind) {
+  const itemName = it.itemName || '';
+  const price = Number(it.itemPrice || 0);
+  const parsed = ucParseProductTitle(itemName);
+  if (!parsed || !parsed.amount || price <= 0) return null;
+
+  const amountDef = ucUnit(parsed.amount.unit);
+  if (targetKind !== 'auto' && amountDef.type !== targetKind) return null;
+
+  const quantityValue = parsed.quantity?.value || 1;
+  const quantityUnit = parsed.quantity?.unit || ucDefaultQuantityUnit(parsed.amount.unit);
+  const bundleValue = parsed.bundle?.value || 1;
+  const bundleUnit = parsed.bundle?.unit || 'set';
+  const totalUnits = quantityValue * bundleValue;
+  const baseAmountPerUnit = parsed.amount.value * amountDef.factor;
+  const totalBaseAmount = baseAmountPerUnit * totalUnits;
+  if (totalUnits <= 0 || totalBaseAmount <= 0) return null;
+
+  return {
+    rank,
+    item: it,
+    title: itemName,
+    url: it.affiliateUrl || it.itemUrl || '',
+    image: ucItemImage(it),
+    shopName: it.shopName || '',
+    shopCode: it.shopCode || (it.itemCode || '').split(':')[0] || '',
+    price,
+    reviewAverage: Number(it.reviewAverage || 0),
+    reviewCount: Number(it.reviewCount || 0),
+    postageFlag: it.postageFlag,
+    amountValue: parsed.amount.value,
+    amountUnit: parsed.amount.unit,
+    quantityValue,
+    quantityUnit,
+    bundleValue,
+    bundleUnit,
+    totalUnits,
+    totalBaseAmount,
+    compareLabel: ucCompareLabel(parsed.amount.unit),
+    perUnit: price / totalUnits,
+    perAmount: price / (totalBaseAmount / amountDef.compareSize),
+    amountType: amountDef.type
+  };
+}
+
+function ucContentText(row) {
+  const qty = ucFmt(row.quantityValue, row.quantityValue < 10 ? 2 : 0) + ucQuantityLabel(row.quantityUnit);
+  const bundle = row.bundleValue === 1 ? '' : ' × ' + ucFmt(row.bundleValue, row.bundleValue < 10 ? 2 : 0) + ucQuantityLabel(row.bundleUnit);
+  return `${ucFormatInputAmount(row.amountValue, row.amountUnit)} × ${qty}${bundle}`;
+}
+
+function ucCopyMemo(row) {
+  const qtyLabel = ucQuantityLabel(row.quantityUnit);
+  return [
+    row.title,
+    `価格: ${ucYen(row.price)}`,
+    `内容: ${ucContentText(row)} = ${ucFmt(row.totalUnits, row.totalUnits < 10 ? 2 : 0)}${qtyLabel}・${ucFormatTotalAmount(row.totalBaseAmount, row.amountUnit)}`,
+    `コスパ: 1${qtyLabel}あたり ${ucYen(row.perUnit)} / ${row.compareLabel}あたり ${ucYen(row.perAmount)}`,
+    row.url
+  ].filter(Boolean).join('\n');
+}
+
+function ucRenderResults(rows, meta) {
+  const resultEl = document.getElementById('uc-result');
+  if (!rows.length) {
+    resultEl.innerHTML = `<div class="card" style="text-align:center;color:#999;padding:28px;">
+      容量を読み取れる商品が見つかりませんでした。キーワードや換算対象を変えて再検索してください。
+      <div class="unit-cost-note">検索件数: ${meta.searched.toLocaleString()}件 / 容量未検出・対象外: ${meta.skipped.toLocaleString()}件</div>
+    </div>`;
+    return;
+  }
+
+  const best = rows[0];
+  const qtyLabel = ucQuantityLabel(best.quantityUnit);
+  const review = best.reviewAverage > 0
+    ? `★${best.reviewAverage.toFixed(1)}${best.reviewCount ? ` (${best.reviewCount.toLocaleString()}件)` : ''}`
+    : 'レビュー情報なし';
+  const postage = String(best.postageFlag) === '0' ? '送料無料' : String(best.postageFlag) === '1' ? '送料別' : '送料未確認';
+  const tableRows = rows.slice(0, 100).map((row, index) => {
+    const rowQty = ucQuantityLabel(row.quantityUnit);
+    const rowReview = row.reviewAverage > 0
+      ? `★${row.reviewAverage.toFixed(1)}${row.reviewCount ? ` (${row.reviewCount.toLocaleString()}件)` : ''}`
+      : '';
+    return `<tr>
+      <td><span class="unit-cost-rank">${index + 1}</span></td>
+      <td>
+        <a href="${esc(row.url)}" target="_blank" rel="noopener" class="unit-cost-name">${esc(row.title)}</a>
+        <div class="unit-cost-sub">${esc(row.shopName || row.shopCode || '')}${rowReview ? ' / ' + esc(rowReview) : ''}</div>
+      </td>
+      <td>${esc(ucContentText(row))}<br><span class="unit-cost-sub">${esc(ucFormatTotalAmount(row.totalBaseAmount, row.amountUnit))}</span></td>
+      <td>${esc(ucYen(row.price))}</td>
+      <td><strong>${esc(ucYen(row.perAmount))}</strong><br><span class="unit-cost-sub">${esc(row.compareLabel)}あたり</span></td>
+      <td>${esc(ucYen(row.perUnit))}<br><span class="unit-cost-sub">1${esc(rowQty)}あたり</span></td>
+      <td><a class="btn-secondary" style="font-size:11px;padding:3px 8px;text-decoration:none;" href="${esc(row.url)}" target="_blank" rel="noopener">開く</a></td>
+    </tr>`;
+  }).join('');
+
+  resultEl.innerHTML = `<div class="card">
+    <div class="result-header">
+      <div class="result-header-title">${esc(meta.genreName)} の単価最安候補</div>
+      <div class="result-header-meta">${meta.searched.toLocaleString()}件検索 / ${rows.length.toLocaleString()}件換算 / ${new Date().toLocaleString('ja-JP')}${meta.aborted ? '（中断）' : ''}</div>
+    </div>
+    <div class="unit-cost-summary">
+      <div class="unit-cost-winner">
+        ${best.image
+          ? `<img class="unit-cost-thumb" src="${esc(best.image)}" alt="" loading="lazy">`
+          : '<div class="unit-cost-thumb-placeholder">📦</div>'}
+        <div>
+          <a href="${esc(best.url)}" target="_blank" rel="noopener" class="unit-cost-name">${esc(best.title)}</a>
+          <div class="unit-cost-main-price">${esc(ucYen(best.perAmount))}</div>
+          <div class="unit-cost-sub">${esc(best.compareLabel)}あたり / 1${esc(qtyLabel)}あたり ${esc(ucYen(best.perUnit))}</div>
+          <div class="unit-cost-badges">
+            <span class="unit-cost-badge">${esc(ucYen(best.price))}</span>
+            <span class="unit-cost-badge">${esc(ucFormatTotalAmount(best.totalBaseAmount, best.amountUnit))}</span>
+            <span class="unit-cost-badge">${esc(postage)}</span>
+            <span class="unit-cost-badge">${esc(review)}</span>
+          </div>
+          <div class="unit-cost-actions">
+            <a class="btn-primary" style="font-size:12px;padding:7px 14px;text-decoration:none;" href="${esc(best.url)}" target="_blank" rel="noopener">楽天ページを開く</a>
+            <button class="btn-secondary" style="font-size:12px;padding:6px 12px;" data-uc-copy="${esc(best.url)}">メモをコピー</button>
+          </div>
+        </div>
+      </div>
+      <div class="unit-cost-stats">
+        <div class="unit-cost-stat">
+          <div class="unit-cost-stat-label">検索ジャンル</div>
+          <div class="unit-cost-stat-value" style="font-size:15px;line-height:1.45;">${esc(meta.genreName)}</div>
+        </div>
+        <div class="unit-cost-stat">
+          <div class="unit-cost-stat-label">換算商品</div>
+          <div class="unit-cost-stat-value">${rows.length.toLocaleString()}件</div>
+        </div>
+        <div class="unit-cost-stat">
+          <div class="unit-cost-stat-label">容量未検出・対象外</div>
+          <div class="unit-cost-stat-value">${meta.skipped.toLocaleString()}件</div>
+        </div>
+        <div class="unit-cost-stat">
+          <div class="unit-cost-stat-label">計算基準</div>
+          <div class="unit-cost-stat-value" style="font-size:15px;">商品価格ベース</div>
+        </div>
+      </div>
+    </div>
+    <div class="unit-cost-table-wrap">
+      <table class="unit-cost-table">
+        <thead>
+          <tr>
+            <th>順位</th><th>商品</th><th>内容量</th><th>価格</th><th>容量あたり</th><th>販売単位</th><th>ページ</th>
+          </tr>
+        </thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>
+    <div class="unit-cost-note">検索APIの商品価格から計算しています。送料、クーポン、ポイント、商品ページ側の表記ゆれは最終確認してください。</div>
+  </div>`;
+
+  resultEl.querySelectorAll('[data-uc-copy]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await navigator.clipboard.writeText(ucCopyMemo(best));
+      const old = btn.textContent;
+      btn.textContent = 'コピーしました';
+      setTimeout(() => { btn.textContent = old; }, 1600);
+    });
+  });
+}
+
+async function runUnitCostSearch() {
+  if (!sideNav || sideNav.selected.genreId === 0) {
+    alert('カテゴリを選択してください。');
+    return;
+  }
+  const btn = document.getElementById('uc-search-btn');
+  const stopBtn = document.getElementById('uc-stop-btn');
+  const progress = document.getElementById('uc-progress-card');
+  const fill = document.getElementById('uc-fill');
+  const status = document.getElementById('uc-status');
+  const resultEl = document.getElementById('uc-result');
+  const keyword = document.getElementById('uc-keyword').value.trim();
+  const targetKind = document.getElementById('uc-target-kind').value;
+  const sort = document.getElementById('uc-sort').value;
+  const maxPages = parseInt(document.getElementById('uc-pages').value);
+  const delay = parseInt(document.getElementById('uc-delay').value) || 800;
+  const { genreId, genreName } = sideNav.selected;
+  const rows = [];
+  const seen = new Set();
+  let searched = 0;
+  let skipped = 0;
+
+  ucController = { aborted: false };
+  btn.disabled = true;
+  stopBtn.style.display = 'inline-block';
+  stopBtn.onclick = () => { ucController.aborted = true; };
+  progress.style.display = 'block';
+  resultEl.innerHTML = '';
+
+  try {
+    for (let page = 1; page <= maxPages && !ucController.aborted; page++) {
+      fill.style.width = Math.round(page / maxPages * 100) + '%';
+      status.textContent = `${page} / ${maxPages} ページ検索中（${searched.toLocaleString()}件確認、${rows.length.toLocaleString()}件換算）`;
+      const { newUrl, oldUrl } = searchUrl(keyword, genreId, page, sort);
+      let data;
+      try {
+        data = await rakutenApi(newUrl, oldUrl);
+      } catch(e) {
+        status.textContent = `${page}ページ取得失敗: ${e.message}`;
+        await sleep(1600);
+        continue;
+      }
+      if (data.error) {
+        resultEl.innerHTML = `<div class="card">${apiErrorHtml(data)}</div>`;
+        return;
+      }
+      const items = data.Items || [];
+      if (!items.length) break;
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i].Item || items[i];
+        if (!it || typeof it !== 'object') continue;
+        searched++;
+        const key = it.itemCode || it.itemUrl || it.itemName;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const rank = (page - 1) * 30 + i + 1;
+        const row = ucAnalyzeItem(it, rank, targetKind);
+        if (row) rows.push(row);
+        else skipped++;
+      }
+      if (items.length < 30) break;
+      if (!ucController.aborted) await sleep(delay);
+    }
+    rows.sort((a, b) => a.perAmount - b.perAmount || a.price - b.price);
+    fill.style.width = '100%';
+    ucRenderResults(rows, {
+      searched,
+      skipped,
+      genreName: sideNav.selected.path || genreName,
+      aborted: ucController.aborted
+    });
+  } catch(e) {
+    resultEl.innerHTML = `<div class="card"><div class="error-box">エラー: ${esc(e.message)}</div></div>`;
+  } finally {
+    progress.style.display = 'none';
+    stopBtn.style.display = 'none';
+    btn.disabled = false;
+    ucController = null;
+  }
+}
+
+document.getElementById('uc-search-btn').addEventListener('click', runUnitCostSearch);
 
 // ===== INIT =====
 (function init() {
