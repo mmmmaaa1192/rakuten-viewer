@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.69</title>
+<title>楽天市場 リサーチツール v3.70</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -502,12 +502,12 @@ tr.chart-row-dim td { opacity: 0.4; }
     </div>
 
     <label class="setup-label" for="setup-acckey" style="margin-top:4px;">
-      アクセスキー（accessKey）<span class="badge-optional">任意</span>
+      アクセスキー（accessKey）<span class="badge-required">必須</span>
     </label>
     <input class="setup-input" type="text" id="setup-acckey"
       placeholder="例: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" spellcheck="false" autocomplete="off">
     <div class="setup-hint">
-      アプリを「Webアプリケーション」タイプで登録した場合のみ必要です。通常は空欄のままで動作します。
+      ジャンルAPI（2026-04-01）で必須です。楽天ウェブサービスのアプリ詳細で確認してください。
     </div>
 
     <label class="setup-label" for="setup-affid" style="margin-top:4px;">
@@ -544,7 +544,7 @@ tr.chart-row-dim td { opacity: 0.4; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge" id="version-badge-btn" style="cursor:pointer;text-decoration:underline dotted;" title="更新履歴">v3.69</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge" id="version-badge-btn" style="cursor:pointer;text-decoration:underline dotted;" title="更新履歴">v3.70</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -566,7 +566,7 @@ tr.chart-row-dim td { opacity: 0.4; }
     <!-- ===== Sidebar ===== -->
     <aside id="side-menu" class="side-menu">
       <div class="side-menu-inner">
-        <div class="side-menu-title">カテゴリ選択</div>
+        <div class="side-menu-title">カテゴリ選択 <span class="version-badge" style="color:#999;">v3.70</span></div>
         <div class="genre-grid" id="side-genres"><div class="loading-msg">読み込み中...</div></div>
         <div class="selected-genre-box" style="margin-top:12px;">
           <span class="selected-genre-label">選択中：</span>
@@ -966,9 +966,9 @@ tr.chart-row-dim td { opacity: 0.4; }
       <input class="form-input" type="text" id="settings-appid" spellcheck="false" autocomplete="off">
     </div>
     <div class="form-group">
-      <label class="form-label">アクセスキー（accessKey）<span class="badge-optional">任意</span></label>
+      <label class="form-label">アクセスキー（accessKey）<span class="badge-required">必須</span></label>
       <input class="form-input" type="text" id="settings-acckey" spellcheck="false" autocomplete="off">
-      <div class="form-hint">Webアプリケーション登録時のみ必要。通常は空欄でOK。</div>
+      <div class="form-hint">ジャンルAPI（2026-04-01）で必須です。楽天ウェブサービスのアプリ詳細で確認してください。</div>
     </div>
     <div class="form-group">
       <label class="form-label">アフィリエイトID（affiliateId）<span class="badge-optional">任意</span></label>
@@ -1085,11 +1085,71 @@ const OLD_BASE  = 'https://app.rakuten.co.jp/services/api';
 function genreUrl(genreId) {
   const appId  = encodeURIComponent(getAppId());
   const accKey = encodeURIComponent(getAccKey());
-  return {
-    newUrl:  `${NEW_BASE}/ichibagt/api/IchibaGenre/Search/20170711?applicationId=${appId}&accessKey=${accKey}&genreId=${genreId}&format=json`,
-    oldUrl:  `${OLD_BASE}/IchibaGenre/Search/20140222?applicationId=${appId}&genreId=${genreId}&format=json`,
-    oldUrl2: `${OLD_BASE}/IchibaGenre/Search/20120723?applicationId=${appId}&genreId=${genreId}&format=json`,
-  };
+  const id = encodeURIComponent(String(genreId ?? 0));
+  const url = `${NEW_BASE}/ichibagt/api/IchibaGenre/Search/20260401?applicationId=${appId}&accessKey=${accKey}&genreId=${id}&format=json&formatVersion=2`;
+  return { newUrl: url };
+}
+
+async function genreApi(genreId) {
+  const { newUrl } = genreUrl(genreId);
+  if (!newUrl) throw new Error('APIに接続できません');
+
+  if (apiMode !== 'old') {
+    try {
+      const res = await fetch(newUrl);
+      if (res.ok) {
+        const data = await res.json();
+        updateApiBadge('new');
+        return data;
+      }
+    } catch (_) {
+      // CORS blocked or network error: retry the same Genre API by JSONP.
+    }
+  }
+
+  const data = await jsonp(newUrl);
+  updateApiBadge('new');
+  return data;
+}
+
+function firstText(...values) {
+  for (const value of values) {
+    if (value == null) continue;
+    if (Array.isArray(value)) {
+      const nested = firstText(...value);
+      if (nested) return nested;
+      continue;
+    }
+    if (typeof value === 'object') {
+      const nested = firstText(value.jaName, value.genreName, value.name, value.value);
+      if (nested) return nested;
+      continue;
+    }
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return '';
+}
+
+function normalizeGenreNode(raw) {
+  const node = raw?.child || raw?.genre || raw;
+  if (!node || typeof node !== 'object') return null;
+  const genreId = firstText(node.genreId);
+  const genreName = firstText(node.jaName, node.genreName, node.name);
+  if (!genreId || !genreName) return null;
+  return { ...node, genreId, genreName, level: node.level ?? node.genreLevel };
+}
+
+function genreInfoFromResponse(data) {
+  const info = data?.genreInformation ?? data;
+  if (Array.isArray(info)) return info[0]?.genreInformation || info[0]?.genre || info[0] || {};
+  return info || {};
+}
+
+function extractGenreChildren(data) {
+  if (!data || data.error) return [];
+  const info = genreInfoFromResponse(data);
+  return (info.children || []).map(normalizeGenreNode).filter(Boolean);
 }
 
 function rankingUrl(genreId, period, page) {
@@ -1156,6 +1216,7 @@ document.getElementById('setup-save-btn').addEventListener('click', () => {
   const own    = document.getElementById('setup-own-shops').value;
   const errEl  = document.getElementById('setup-error');
   if (!appId) { errEl.textContent = 'アプリIDを入力してください'; return; }
+  if (!accKey) { errEl.textContent = 'アクセスキーを入力してください'; return; }
   errEl.textContent = '';
   saveCredentials(appId, accKey, affId);
   saveOwnShops(own);
@@ -1182,6 +1243,7 @@ document.getElementById('settings-save-btn').addEventListener('click', () => {
   const affId  = document.getElementById('settings-affid').value.trim();
   const own    = document.getElementById('settings-own-shops').value;
   if (!appId) { alert('アプリIDは必須です'); return; }
+  if (!accKey) { alert('アクセスキーを入力してください'); return; }
   saveCredentials(appId, accKey, affId);
   saveOwnShops(own);
   document.getElementById('modal-settings').style.display = 'none';
@@ -1192,6 +1254,7 @@ document.getElementById('modal-settings').addEventListener('click', e => {
 
 // ===== CHANGELOG MODAL =====
 const CHANGELOG = [
+  { v: 'v3.70', desc: 'ジャンルAPIを2026-04-01版に更新し、APIのjaNameをカテゴリ名として表示' },
   { v: 'v3.69', desc: '推移チェッカー: 商品別ボタンを一番左（デフォルト位置）に移動' },
   { v: 'v3.68', desc: '推移チェッカー: 商品別グラフをデフォルト表示に変更' },
   { v: 'v3.67', desc: '急上昇フィルターとグラフの連動' },
@@ -1424,17 +1487,10 @@ class GenreNav {
   }
 
   async _fetchChildren(genreId) {
-    const urls = genreUrl(genreId);
     let data;
-    try { data = await rakutenApi(urls.newUrl, urls.oldUrl); } catch(e) { return null; }
-    if (data.error) {
-      try { data = await jsonp(urls.oldUrl2); } catch(_) {}
-    }
+    try { data = await genreApi(genreId); } catch(e) { return null; }
     if (data.error) return null;
-    const info = data.genreInformation
-      ? (Array.isArray(data.genreInformation) ? data.genreInformation[0] : data.genreInformation)
-      : data;
-    return (info?.children || []).map(c => c.child || c).filter(c => c.genreId);
+    return extractGenreChildren(data);
   }
 
   async _initRoot() {
@@ -3905,14 +3961,10 @@ function mountInlineGenrePicker(containerId, { mode, onSelect }) {
 }
 
 async function fetchGenreChildren(genreId) {
-  const urls = genreUrl(genreId);
   let data;
-  try { data = await rakutenApi(urls.newUrl, urls.oldUrl); } catch(e) { return []; }
+  try { data = await genreApi(genreId); } catch(e) { return []; }
   if (data.error) return [];
-  const info = data.genreInformation
-    ? (Array.isArray(data.genreInformation) ? data.genreInformation[0] : data.genreInformation)
-    : data;
-  return (info?.children || []).map(c => c.child || c).filter(c => c.genreId);
+  return extractGenreChildren(data);
 }
 
 // ===== URL RANK CHECKER HELPERS (global — also used by recordSnapshot) =====
@@ -4291,14 +4343,10 @@ window.openKwPreset = function(keyword, shopCode) {
 
   // ---- Fetch children (genre API) ----
   async function fetchChildrenRaw(genreId) {
-    const urls = genreUrl(genreId);
     let data;
-    try { data = await rakutenApi(urls.newUrl, urls.oldUrl); } catch(e) { return []; }
+    try { data = await genreApi(genreId); } catch(e) { return []; }
     if (data.error) return [];
-    const info = data.genreInformation
-      ? (Array.isArray(data.genreInformation) ? data.genreInformation[0] : data.genreInformation)
-      : data;
-    return (info?.children || []).map(c => c.child || c).filter(c => c.genreId);
+    return extractGenreChildren(data);
   }
 
   // ---- BFS collect all targets up to maxDepth ----
