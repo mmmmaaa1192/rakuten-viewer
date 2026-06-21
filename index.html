@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.72</title>
+<title>楽天市場 リサーチツール v3.69</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -50,7 +50,6 @@ header {
 .api-badge { font-size: 11px; padding: 3px 8px; border-radius: 10px; background: rgba(255,255,255,0.15); }
 .api-badge.new { background: rgba(100,255,150,0.25); }
 .version-badge { font-size: 11px; color: rgba(255,255,255,0.5); letter-spacing: 0.3px; }
-.version-inline { font-size: 11px; color: #999; font-weight: normal; margin-left: 6px; }
 .api-badge.old { background: rgba(255,200,100,0.3); }
 
 /* ===== TABS ===== */
@@ -503,12 +502,12 @@ tr.chart-row-dim td { opacity: 0.4; }
     </div>
 
     <label class="setup-label" for="setup-acckey" style="margin-top:4px;">
-      アクセスキー（accessKey）<span class="badge-required">必須</span>
+      アクセスキー（accessKey）<span class="badge-optional">任意</span>
     </label>
     <input class="setup-input" type="text" id="setup-acckey"
       placeholder="例: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" spellcheck="false" autocomplete="off">
     <div class="setup-hint">
-      現在の楽天WebサービスAPIでは必須です。アプリIDと同じ画面で確認できます。
+      アプリを「Webアプリケーション」タイプで登録した場合のみ必要です。通常は空欄のままで動作します。
     </div>
 
     <label class="setup-label" for="setup-affid" style="margin-top:4px;">
@@ -545,7 +544,7 @@ tr.chart-row-dim td { opacity: 0.4; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge" id="version-badge-btn" style="cursor:pointer;text-decoration:underline dotted;" title="更新履歴">v3.72</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge" id="version-badge-btn" style="cursor:pointer;text-decoration:underline dotted;" title="更新履歴">v3.69</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -567,7 +566,7 @@ tr.chart-row-dim td { opacity: 0.4; }
     <!-- ===== Sidebar ===== -->
     <aside id="side-menu" class="side-menu">
       <div class="side-menu-inner">
-        <div class="side-menu-title">カテゴリ選択 <span class="version-inline">v3.72</span></div>
+        <div class="side-menu-title">カテゴリ選択</div>
         <div class="genre-grid" id="side-genres"><div class="loading-msg">読み込み中...</div></div>
         <div class="selected-genre-box" style="margin-top:12px;">
           <span class="selected-genre-label">選択中：</span>
@@ -651,7 +650,7 @@ tr.chart-row-dim td { opacity: 0.4; }
       <!-- ===== Tab: Category Rank ===== -->
       <div id="tab-category" class="tab-pane">
         <div class="card">
-          <div class="card-title">カテゴリ順位チェック <span class="version-inline">v3.72</span></div>
+          <div class="card-title">カテゴリ順位チェック</div>
           <div class="selected-genre-box">
             <span class="selected-genre-label">選択中：</span>
             <span class="selected-genre-unset" id="c-selected-path">カテゴリを選択してください</span>
@@ -967,9 +966,9 @@ tr.chart-row-dim td { opacity: 0.4; }
       <input class="form-input" type="text" id="settings-appid" spellcheck="false" autocomplete="off">
     </div>
     <div class="form-group">
-      <label class="form-label">アクセスキー（accessKey）<span class="badge-required">必須</span></label>
+      <label class="form-label">アクセスキー（accessKey）<span class="badge-optional">任意</span></label>
       <input class="form-input" type="text" id="settings-acckey" spellcheck="false" autocomplete="off">
-      <div class="form-hint">現在の楽天WebサービスAPIでは必須です。アプリIDと同じ画面で確認できます。</div>
+      <div class="form-hint">Webアプリケーション登録時のみ必要。通常は空欄でOK。</div>
     </div>
     <div class="form-group">
       <label class="form-label">アフィリエイトID（affiliateId）<span class="badge-optional">任意</span></label>
@@ -1005,14 +1004,14 @@ function getOwnShops() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY_OWN) || '[]'); } catch { return []; }
 }
 function saveOwnShops(raw) {
-  const shops = raw.split(/[\s,、]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
+  const shops = raw.split(/[\n,、]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
   localStorage.setItem(STORAGE_KEY_OWN, JSON.stringify(shops));
 }
 function ownShopsToText() { return getOwnShops().join('\n'); }
 
 function saveCredentials(appId, accKey, affId) {
   localStorage.setItem(STORAGE_KEY_APP, appId.trim());
-  localStorage.setItem(STORAGE_KEY_ACC, accKey.trim());
+  accKey.trim() ? localStorage.setItem(STORAGE_KEY_ACC, accKey.trim()) : localStorage.removeItem(STORAGE_KEY_ACC);
   affId.trim()  ? localStorage.setItem(STORAGE_KEY_AFF, affId.trim())  : localStorage.removeItem(STORAGE_KEY_AFF);
 }
 
@@ -1064,24 +1063,12 @@ async function rakutenApi(newUrl, oldUrl) {
       const res = await fetch(newUrl);
       if (res.ok) {
         const data = await res.json();
-        if (!data.error) {
-          updateApiBadge('new');
-          return data;
-        }
+        updateApiBadge('new');
+        return data;
       }
       // 新APIがエラーを返した場合は旧JSONP APIにフォールバック
     } catch (_) {
       // CORS blocked or network error → fall through to JSONP
-    }
-
-    try {
-      const data = await jsonp(newUrl);
-      if (!data.error || !oldUrl) {
-        updateApiBadge('new');
-        return data;
-      }
-    } catch (_) {
-      // fall through to old JSONP endpoint
     }
   }
 
@@ -1098,34 +1085,11 @@ const OLD_BASE  = 'https://app.rakuten.co.jp/services/api';
 function genreUrl(genreId) {
   const appId  = encodeURIComponent(getAppId());
   const accKey = encodeURIComponent(getAccKey());
-  const keyParam = accKey ? `&accessKey=${accKey}` : '';
   return {
-    newUrl:  `${NEW_BASE}/ichibagt/api/IchibaGenre/Search/20260401?applicationId=${appId}${keyParam}&genreId=${genreId}&format=json&formatVersion=2`,
-    oldUrl:  `${NEW_BASE}/ichibagt/api/IchibaGenre/Search/20170711?applicationId=${appId}${keyParam}&genreId=${genreId}&format=json&formatVersion=2`,
-    oldUrl2: `${NEW_BASE}/ichibagt/api/IchibaGenre/Search/20140222?applicationId=${appId}${keyParam}&genreId=${genreId}&format=json`,
+    newUrl:  `${NEW_BASE}/ichibagt/api/IchibaGenre/Search/20170711?applicationId=${appId}&accessKey=${accKey}&genreId=${genreId}&format=json`,
+    oldUrl:  `${OLD_BASE}/IchibaGenre/Search/20140222?applicationId=${appId}&genreId=${genreId}&format=json`,
+    oldUrl2: `${OLD_BASE}/IchibaGenre/Search/20120723?applicationId=${appId}&genreId=${genreId}&format=json`,
   };
-}
-
-async function fetchGenreData(genreId) {
-  const urls = genreUrl(genreId);
-  const candidates = apiMode === 'old'
-    ? [urls.oldUrl, urls.oldUrl2]
-    : [urls.newUrl, urls.oldUrl, urls.oldUrl2];
-
-  for (let i = 0; i < candidates.length; i++) {
-    const url = candidates[i];
-    if (!url) continue;
-    try {
-      const data = i === 0 && apiMode !== 'old'
-        ? await rakutenApi(url, null)
-        : await jsonp(url);
-      if (!data.error) {
-        updateApiBadge(i === 0 && apiMode !== 'old' ? 'new' : 'old');
-        return data;
-      }
-    } catch (_) {}
-  }
-  return null;
 }
 
 function rankingUrl(genreId, period, page) {
@@ -1192,7 +1156,6 @@ document.getElementById('setup-save-btn').addEventListener('click', () => {
   const own    = document.getElementById('setup-own-shops').value;
   const errEl  = document.getElementById('setup-error');
   if (!appId) { errEl.textContent = 'アプリIDを入力してください'; return; }
-  if (!accKey) { errEl.textContent = 'アクセスキーを入力してください'; return; }
   errEl.textContent = '';
   saveCredentials(appId, accKey, affId);
   saveOwnShops(own);
@@ -1219,7 +1182,6 @@ document.getElementById('settings-save-btn').addEventListener('click', () => {
   const affId  = document.getElementById('settings-affid').value.trim();
   const own    = document.getElementById('settings-own-shops').value;
   if (!appId) { alert('アプリIDは必須です'); return; }
-  if (!accKey) { alert('アクセスキーは必須です'); return; }
   saveCredentials(appId, accKey, affId);
   saveOwnShops(own);
   document.getElementById('modal-settings').style.display = 'none';
@@ -1230,9 +1192,6 @@ document.getElementById('modal-settings').addEventListener('click', e => {
 
 // ===== CHANGELOG MODAL =====
 const CHANGELOG = [
-  { v: 'v3.72', desc: 'カテゴリAPI表示修正: IDだけのカテゴリは同APIで名称を再取得' },
-  { v: 'v3.71', desc: 'カテゴリAPI表示修正: APIレスポンス内のjaName/genreNameを再帰的に抽出' },
-  { v: 'v3.70', desc: 'カテゴリAPI表示修正: APIレスポンスのみでカテゴリ名を正規化・カテゴリ画面にもバージョン表示' },
   { v: 'v3.69', desc: '推移チェッカー: 商品別ボタンを一番左（デフォルト位置）に移動' },
   { v: 'v3.68', desc: '推移チェッカー: 商品別グラフをデフォルト表示に変更' },
   { v: 'v3.67', desc: '急上昇フィルターとグラフの連動' },
@@ -1306,186 +1265,6 @@ function apiErrorHtml(data) {
 
 function rankApiErrorHtml(data, period) {
   return apiErrorHtml(data);
-}
-
-function textValue(value) {
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const text = textValue(item);
-      if (text) return text;
-    }
-    return '';
-  }
-  if (typeof value === 'string' || typeof value === 'number') return String(value).trim();
-  if (!value || typeof value !== 'object') return '';
-  return textValue(value.jaName || value.ja || value.japanese || value.name || value.value);
-}
-
-function collectGenreFields(raw) {
-  const fields = { genreId: '', genreName: '', genreLevel: '' };
-
-  function assignByKey(key, value) {
-    const k = String(key || '').toLowerCase().replace(/[_-]/g, '');
-    const text = textValue(value);
-    if (!text) return false;
-    if ((k === 'genreid' || k === 'id') && !fields.genreId) {
-      fields.genreId = text;
-      return true;
-    }
-    if ((k === 'janame' || k === 'genrename' || k === 'name' || k === 'japanese') && !fields.genreName) {
-      fields.genreName = text;
-      return true;
-    }
-    if ((k === 'genrelevel' || k === 'level') && !fields.genreLevel) {
-      fields.genreLevel = text;
-      return true;
-    }
-    return false;
-  }
-
-  function visit(value, key = '') {
-    if (value === null || value === undefined) return;
-    if (key && assignByKey(key, value)) return;
-
-    if (typeof value === 'string' || typeof value === 'number') {
-      const text = String(value).trim();
-      if (!key && /^\d+$/.test(text) && !fields.genreId) fields.genreId = text;
-      return;
-    }
-
-    if (Array.isArray(value)) {
-      value.forEach(item => visit(item, key));
-      return;
-    }
-
-    if (typeof value !== 'object') return;
-
-    ['child', 'genre'].forEach(priorityKey => {
-      if (Object.prototype.hasOwnProperty.call(value, priorityKey)) visit(value[priorityKey], priorityKey);
-    });
-    Object.entries(value).forEach(([k, v]) => {
-      if (k !== 'child' && k !== 'genre') visit(v, k);
-    });
-  }
-
-  visit(raw);
-  return fields;
-}
-
-function normalizeGenreNode(raw) {
-  const fields = collectGenreFields(raw);
-  if (!fields.genreId) return null;
-  return {
-    genreId: fields.genreId,
-    genreName: fields.genreName,
-    genreLevel: fields.genreLevel,
-  };
-}
-
-function unwrapGenreInformation(data) {
-  const info = data?.genreInformation ?? data;
-  return Array.isArray(info) ? info[0] : info;
-}
-
-function apiArray(value) {
-  if (!value) return [];
-  if (Array.isArray(value)) return value;
-  return [value];
-}
-
-function mergeGenreFields(target, source) {
-  if (!source) return target;
-  if (source.genreId && !target.genreId) target.genreId = source.genreId;
-  if (source.genreName && !target.genreName) target.genreName = source.genreName;
-  if (source.genreLevel && !target.genreLevel) target.genreLevel = source.genreLevel;
-  return target;
-}
-
-function fieldRecordName(raw) {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return '';
-  const keys = Object.keys(raw);
-  return keys.length === 1 ? keys[0].toLowerCase().replace(/[_-]/g, '') : '';
-}
-
-function groupSplitGenreRecords(items) {
-  const groups = [];
-  let current = { genreId: '', genreName: '', genreLevel: '' };
-
-  items.forEach(item => {
-    const fields = collectGenreFields(item);
-    if (!fields.genreId && !fields.genreName && !fields.genreLevel) return;
-
-    const keyName = fieldRecordName(item);
-    if (fields.genreId && current.genreId && (current.genreName || keyName === 'genreid' || keyName === 'id')) {
-      groups.push({ ...current });
-      current = { genreId: '', genreName: '', genreLevel: '' };
-    }
-    mergeGenreFields(current, fields);
-  });
-
-  if (current.genreId || current.genreName || current.genreLevel) groups.push(current);
-  return groups
-    .filter(g => g.genreId)
-    .map(g => ({ genreId: g.genreId, genreName: g.genreName, genreLevel: g.genreLevel }));
-}
-
-function extractGenreChildren(data) {
-  const info = unwrapGenreInformation(data);
-  const items = apiArray(info?.children || info?.child || info?.childrenGenres || info?.childGenres);
-  const direct = items
-    .map(normalizeGenreNode)
-    .filter(Boolean);
-
-  if (direct.some(g => !g.genreName) && items.length > 1) {
-    const grouped = groupSplitGenreRecords(items);
-    const groupedNamed = grouped.filter(g => g.genreName).length;
-    const directNamed = direct.filter(g => g.genreName).length;
-    if (grouped.length && groupedNamed >= directNamed) return grouped;
-  }
-
-  return direct;
-}
-
-function extractCurrentGenre(data, expectedGenreId) {
-  const info = unwrapGenreInformation(data);
-  const candidates = [
-    info?.genre,
-    info?.current,
-    info?.currentGenre,
-    info?.currentGenreInformation,
-    data?.genre,
-    data?.current,
-  ];
-  for (const candidate of candidates) {
-    const node = normalizeGenreNode(candidate);
-    if (node?.genreName && (!expectedGenreId || !node.genreId || node.genreId === String(expectedGenreId))) {
-      return node;
-    }
-  }
-  const whole = normalizeGenreNode(info);
-  return whole?.genreName ? whole : null;
-}
-
-const genreNameByIdCache = new Map();
-
-async function fetchGenreNameById(genreId) {
-  const key = String(genreId || '').trim();
-  if (!key) return '';
-  if (genreNameByIdCache.has(key)) return genreNameByIdCache.get(key);
-
-  const data = await fetchGenreData(key);
-  const current = data ? extractCurrentGenre(data, key) : null;
-  const name = current?.genreName || '';
-  genreNameByIdCache.set(key, name);
-  return name;
-}
-
-async function ensureGenreNames(genres) {
-  const missing = genres.filter(g => g.genreId && !g.genreName);
-  await Promise.all(missing.map(async g => {
-    g.genreName = await fetchGenreNameById(g.genreId);
-  }));
-  return genres.filter(g => g.genreName);
 }
 
 // ===== GENRE NAVIGATOR (tree toggle style) =====
@@ -1645,9 +1424,17 @@ class GenreNav {
   }
 
   async _fetchChildren(genreId) {
-    const data = await fetchGenreData(genreId);
-    if (!data) return null;
-    return ensureGenreNames(extractGenreChildren(data));
+    const urls = genreUrl(genreId);
+    let data;
+    try { data = await rakutenApi(urls.newUrl, urls.oldUrl); } catch(e) { return null; }
+    if (data.error) {
+      try { data = await jsonp(urls.oldUrl2); } catch(_) {}
+    }
+    if (data.error) return null;
+    const info = data.genreInformation
+      ? (Array.isArray(data.genreInformation) ? data.genreInformation[0] : data.genreInformation)
+      : data;
+    return (info?.children || []).map(c => c.child || c).filter(c => c.genreId);
   }
 
   async _initRoot() {
@@ -2324,13 +2111,9 @@ mountInlineGenrePicker('c-inline-picker', {
 
 // ===== INIT =====
 (function init() {
-  if (getAppId() && getAccKey()) {
+  if (getAppId()) {
     showApp();
   } else {
-    document.getElementById('setup-appid').value = getAppId();
-    document.getElementById('setup-acckey').value = getAccKey();
-    document.getElementById('setup-affid').value = getAffId();
-    document.getElementById('setup-own-shops').value = ownShopsToText();
     showSetup();
   }
 })();
@@ -4122,9 +3905,14 @@ function mountInlineGenrePicker(containerId, { mode, onSelect }) {
 }
 
 async function fetchGenreChildren(genreId) {
-  const data = await fetchGenreData(genreId);
-  if (!data) return [];
-  return ensureGenreNames(extractGenreChildren(data));
+  const urls = genreUrl(genreId);
+  let data;
+  try { data = await rakutenApi(urls.newUrl, urls.oldUrl); } catch(e) { return []; }
+  if (data.error) return [];
+  const info = data.genreInformation
+    ? (Array.isArray(data.genreInformation) ? data.genreInformation[0] : data.genreInformation)
+    : data;
+  return (info?.children || []).map(c => c.child || c).filter(c => c.genreId);
 }
 
 // ===== URL RANK CHECKER HELPERS (global — also used by recordSnapshot) =====
@@ -4503,9 +4291,14 @@ window.openKwPreset = function(keyword, shopCode) {
 
   // ---- Fetch children (genre API) ----
   async function fetchChildrenRaw(genreId) {
-    const data = await fetchGenreData(genreId);
-    if (!data) return [];
-    return ensureGenreNames(extractGenreChildren(data));
+    const urls = genreUrl(genreId);
+    let data;
+    try { data = await rakutenApi(urls.newUrl, urls.oldUrl); } catch(e) { return []; }
+    if (data.error) return [];
+    const info = data.genreInformation
+      ? (Array.isArray(data.genreInformation) ? data.genreInformation[0] : data.genreInformation)
+      : data;
+    return (info?.children || []).map(c => c.child || c).filter(c => c.genreId);
   }
 
   // ---- BFS collect all targets up to maxDepth ----
