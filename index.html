@@ -1255,7 +1255,7 @@ function firstText(...values) {
       continue;
     }
     if (typeof value === 'object') {
-      const nested = firstText(value.jaName, value.genreName, value.name, value.value);
+      const nested = firstText(value.nameJa, value.NameJa, value.jaName, value.JaName, value.genreName, value.name, value.value);
       if (nested) return nested;
       continue;
     }
@@ -1273,7 +1273,7 @@ function normalizeGenreNode(raw) {
     || raw;
   if (!node || typeof node !== 'object') return null;
   const genreId = firstText(node.genreId, node.GenreId, node.genreID, node.id);
-  const genreName = firstText(node.jaName, node.JaName, node.genreName, node.GenreName, node.name, node.Name);
+  const genreName = firstText(node.nameJa, node.NameJa, node.jaName, node.JaName, node.genreName, node.GenreName, node.name, node.Name);
   if (!genreId || !genreName) return null;
   return { ...node, genreId, genreName, level: node.level ?? node.genreLevel ?? node.Level };
 }
@@ -1301,7 +1301,12 @@ function findGenreChildrenArray(value, depth = 0) {
 
 function extractGenreChildren(data) {
   if (!data || data.error) return [];
-  return (findGenreChildrenArray(data) || []).map(normalizeGenreNode).filter(Boolean);
+  const rawChildren = findGenreChildrenArray(data) || [];
+  const children = rawChildren.map(normalizeGenreNode).filter(Boolean);
+  if (rawChildren.length && !children.length) {
+    setGenreApiError('カテゴリ一覧は取得できましたが、ジャンルIDまたはジャンル名を読み取れませんでした');
+  }
+  return children;
 }
 
 function rankingUrl(genreId, period, page) {
