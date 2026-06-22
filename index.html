@@ -1130,6 +1130,7 @@ function affParam() {
 // 'old'  = app.rakuten.co.jp     (JSONP, applicationId only, always works in browser)
 // 'auto' = try new first, fall back to old
 let apiMode = 'auto';
+let lastGenreApiError = '';
 
 function updateApiBadge(mode) {
   const el = document.getElementById('api-badge');
@@ -1137,6 +1138,18 @@ function updateApiBadge(mode) {
   if (mode === 'new') { el.textContent = '新API'; el.className = 'api-badge new'; }
   else if (mode === 'old') { el.textContent = '旧API(JSONP)'; el.className = 'api-badge old'; }
   else { el.textContent = ''; el.className = 'api-badge'; }
+}
+
+function describeApiError(data, fallback = '') {
+  if (!data) return fallback || 'APIレスポンスが空です';
+  if (typeof data === 'string') return data || fallback;
+  const code = data.error || data.code || fallback;
+  const desc = data.error_description || data.message || data.description || '';
+  return [code, desc].filter(Boolean).join(' - ') || fallback || 'APIエラー';
+}
+
+function setGenreApiError(message) {
+  lastGenreApiError = String(message || '').trim();
 }
 
 // ===== JSONP =====
@@ -1198,23 +1211,39 @@ function genreUrl(genreId) {
 async function genreApi(genreId) {
   const { newUrl } = genreUrl(genreId);
   if (!newUrl) throw new Error('APIに接続できません');
+  let fetchError = '';
 
   if (apiMode !== 'old') {
     try {
       const res = await fetch(newUrl);
       if (res.ok) {
         const data = await res.json();
+        setGenreApiError('');
         updateApiBadge('new');
         return data;
       }
-    } catch (_) {
+      try {
+        fetchError = describeApiError(await res.json(), `HTTP ${res.status}`);
+      } catch (_) {
+        fetchError = `HTTP ${res.status}`;
+      }
+    } catch (e) {
+      fetchError = e?.message ? `fetch失敗: ${e.message}` : 'fetch失敗';
       // CORS blocked or network error: retry the same Genre API by JSONP.
     }
   }
 
-  const data = await jsonp(newUrl);
-  updateApiBadge('new');
-  return data;
+  try {
+    const data = await jsonp(newUrl);
+    if (data?.error) setGenreApiError(describeApiError(data));
+    else setGenreApiError('');
+    updateApiBadge('new');
+    return data;
+  } catch (e) {
+    const jsonpError = e?.message ? `JSONP失敗: ${e.message}` : 'JSONP失敗';
+    setGenreApiError(fetchError ? `${fetchError} / ${jsonpError}` : jsonpError);
+    throw e;
+  }
 }
 
 function firstText(...values) {
@@ -1237,24 +1266,42 @@ function firstText(...values) {
 }
 
 function normalizeGenreNode(raw) {
-  const node = raw?.child || raw?.genre || raw;
+  const node = raw?.child || raw?.Child
+    || raw?.childGenre || raw?.ChildGenre
+    || raw?.genre || raw?.Genre
+    || raw?.genreInformation || raw?.GenreInformation
+    || raw;
   if (!node || typeof node !== 'object') return null;
-  const genreId = firstText(node.genreId);
-  const genreName = firstText(node.jaName, node.genreName, node.name);
+  const genreId = firstText(node.genreId, node.GenreId, node.genreID, node.id);
+  const genreName = firstText(node.jaName, node.JaName, node.genreName, node.GenreName, node.name, node.Name);
   if (!genreId || !genreName) return null;
-  return { ...node, genreId, genreName, level: node.level ?? node.genreLevel };
+  return { ...node, genreId, genreName, level: node.level ?? node.genreLevel ?? node.Level };
 }
 
-function genreInfoFromResponse(data) {
-  const info = data?.genreInformation ?? data;
-  if (Array.isArray(info)) return info[0]?.genreInformation || info[0]?.genre || info[0] || {};
-  return info || {};
+function findGenreChildrenArray(value, depth = 0) {
+  if (!value || depth > 6) return null;
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const found = findGenreChildrenArray(entry, depth + 1);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (typeof value !== 'object') return null;
+  if (Array.isArray(value.children)) return value.children;
+  if (Array.isArray(value.childGenres)) return value.childGenres;
+  if (Array.isArray(value.Children)) return value.Children;
+
+  for (const key of ['genreInformation', 'GenreInformation', 'genre', 'current', 'data', 'result']) {
+    const found = findGenreChildrenArray(value[key], depth + 1);
+    if (found) return found;
+  }
+  return null;
 }
 
 function extractGenreChildren(data) {
   if (!data || data.error) return [];
-  const info = genreInfoFromResponse(data);
-  return (info.children || []).map(normalizeGenreNode).filter(Boolean);
+  return (findGenreChildrenArray(data) || []).map(normalizeGenreNode).filter(Boolean);
 }
 
 function rankingUrl(genreId, period, page) {
@@ -1595,16 +1642,24 @@ class GenreNav {
 
   async _fetchChildren(genreId) {
     let data;
-    try { data = await genreApi(genreId); } catch(e) { return null; }
-    if (data.error) return null;
+    try {
+      data = await genreApi(genreId);
+    } catch(e) {
+      if (!lastGenreApiError) setGenreApiError(e?.message || 'カテゴリAPI取得に失敗しました');
+      return null;
+    }
+    if (data.error) {
+      setGenreApiError(describeApiError(data));
+      return null;
+    }
     return extractGenreChildren(data);
   }
 
   async _initRoot() {
     this.container.innerHTML = '<div class="loading-msg">読み込み中...</div>';
     const children = await this._fetchChildren(0);
-    if (children === null) {
-      this._renderManualInput(this.container);
+    if (children === null || !children.length) {
+      this._renderManualInput(this.container, lastGenreApiError || 'ルートジャンルの children が空でした');
       this._renderPinSection();
       return;
     }
@@ -1699,11 +1754,12 @@ class GenreNav {
     return wrap;
   }
 
-  _renderManualInput(container) {
+  _renderManualInput(container, reason = '') {
     container.innerHTML = `
       <div class="error-box">
         <strong>カテゴリAPIが利用できません</strong><br>
-        設定画面で<strong>アクセスキー</strong>を入力するか、楽天アプリを「Webアプリケーション」タイプに変更してください。<br><br>
+        ${reason ? `<div style="margin:8px 0;padding:8px;background:#fff;border:1px solid #ffd6d6;border-radius:4px;color:#9e0000;font-size:12px;line-height:1.6;">${esc(reason)}</div>` : ''}
+        APIレスポンスを取得できないか、カテゴリ一覧の children を読み取れませんでした。設定を確認しても直らない場合は、下のジャンルID直接入力で続行できます。<br><br>
         <strong>ジャンルIDを直接入力して使用できます：</strong><br>
         <small style="color:#aaa;">楽天市場のカテゴリページURL末尾の数字がジャンルIDです</small>
         <div style="display:flex;gap:6px;margin-top:8px;">
@@ -4526,7 +4582,7 @@ function mountInlineGenrePicker(containerId, { mode, onSelect }) {
     if (!level.items.length) {
       const empty = document.createElement('div');
       empty.style.cssText = 'padding:12px;text-align:center;color:#aaa;font-size:12px;';
-      empty.textContent = level.genreId ? 'サブカテゴリなし' : 'カテゴリを取得できませんでした';
+      empty.textContent = level.genreId ? 'サブカテゴリなし' : `カテゴリを取得できませんでした${lastGenreApiError ? '：' + lastGenreApiError : ''}`;
       listEl.appendChild(empty);
       if (!level.genreId) {
         const manual = document.createElement('div');
@@ -4584,8 +4640,16 @@ function mountInlineGenrePicker(containerId, { mode, onSelect }) {
 
 async function fetchGenreChildren(genreId) {
   let data;
-  try { data = await genreApi(genreId); } catch(e) { return []; }
-  if (data.error) return [];
+  try {
+    data = await genreApi(genreId);
+  } catch(e) {
+    if (!lastGenreApiError) setGenreApiError(e?.message || 'カテゴリAPI取得に失敗しました');
+    return [];
+  }
+  if (data.error) {
+    setGenreApiError(describeApiError(data));
+    return [];
+  }
   return extractGenreChildren(data);
 }
 
@@ -4966,8 +5030,16 @@ window.openKwPreset = function(keyword, shopCode) {
   // ---- Fetch children (genre API) ----
   async function fetchChildrenRaw(genreId) {
     let data;
-    try { data = await genreApi(genreId); } catch(e) { return []; }
-    if (data.error) return [];
+    try {
+      data = await genreApi(genreId);
+    } catch(e) {
+      if (!lastGenreApiError) setGenreApiError(e?.message || 'カテゴリAPI取得に失敗しました');
+      return [];
+    }
+    if (data.error) {
+      setGenreApiError(describeApiError(data));
+      return [];
+    }
     return extractGenreChildren(data);
   }
 
