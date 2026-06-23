@@ -102,6 +102,9 @@ export async function searchMonitor(monitor, credentials, options = {}) {
   const timeoutMs = options.timeoutMs ?? 15000;
   const requestDelayMs = options.requestDelayMs ?? 800;
   const wantedItemCode = targetItemCode(monitor);
+  let matchedResult = null;
+  const rankedItems = [];
+  let searchedPages = 0;
 
   for (let page = 1; page <= monitor.maxPages; page += 1) {
     const payload = await fetchJson(buildSearchUrl(monitor, credentials, page), credentials, {
@@ -110,6 +113,7 @@ export async function searchMonitor(monitor, credentials, options = {}) {
       timeoutMs
     });
     const items = normalizeItems(payload);
+    searchedPages = page;
 
     for (let index = 0; index < items.length; index += 1) {
       const item = items[index];
@@ -117,13 +121,20 @@ export async function searchMonitor(monitor, credentials, options = {}) {
       const itemCode = String(item.itemCode || "").toLowerCase();
       const shopMatches = shopCode === monitor.shopCode.toLowerCase();
       const itemMatches = !wantedItemCode || itemCode === wantedItemCode;
-      if (shopMatches && itemMatches) {
-        return {
-          status: "ok",
-          rank: (page - 1) * 30 + index + 1,
-          item: publicItem(item),
-          searchedPages: page
-        };
+      if (shopMatches) {
+        const rank = (page - 1) * 30 + index + 1;
+        rankedItems.push({
+          rank,
+          item: publicItem(item)
+        });
+        if (itemMatches && !matchedResult) {
+          matchedResult = {
+            status: "ok",
+            rank,
+            item: publicItem(item),
+            searchedPages: page
+          };
+        }
       }
     }
 
@@ -132,10 +143,21 @@ export async function searchMonitor(monitor, credentials, options = {}) {
     if (requestDelayMs > 0) await sleep(requestDelayMs);
   }
 
+  if (matchedResult) {
+    return {
+      ...matchedResult,
+      searchedPages,
+      shopRankedCount: rankedItems.length,
+      rankedItems
+    };
+  }
+
   return {
     status: "not_found",
     rank: null,
     item: null,
-    searchedPages: monitor.maxPages
+    searchedPages,
+    shopRankedCount: rankedItems.length,
+    rankedItems
   };
 }

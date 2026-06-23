@@ -69,6 +69,16 @@
     return `<span class="rank">${monitor.currentRank}位</span>${delta}`;
   }
 
+  function shopRankedHtml(monitor) {
+    if (!Number.isFinite(monitor.shopRankedCount)) return '<span class="muted">未取得</span>';
+    const details = (monitor.rankedItems || [])
+      .slice(0, 8)
+      .map((entry) => `${entry.rank}位 ${entry.item?.itemName || entry.item?.itemCode || ''}`)
+      .join('\n');
+    const title = details || '指定店舗の商品は見つかりませんでした';
+    return `<span class="rank-count" title="${escapeHtml(title)}">${monitor.shopRankedCount}件</span>`;
+  }
+
   function render() {
     const query = $('#searchInput').value.trim().toLowerCase();
     const filtered = monitors.filter((monitor) =>
@@ -83,6 +93,7 @@
           <td><div class="monitor-title">${escapeHtml(monitor.keyword)}</div><div class="monitor-meta">${monitor.itemCode ? '商品: ' + escapeHtml(monitor.itemCode) : '商品指定なし'}</div></td>
           <td><span class="shop-code">${escapeHtml(monitor.shopCode)}</span></td>
           <td>${rankHtml(monitor)}</td>
+          <td>${shopRankedHtml(monitor)}</td>
           <td>${sparkline(monitor.history)}</td>
           <td class="muted">${formatTime(monitor.lastFetchedAt)}</td>
           <td><span class="state ${status.className}" title="${escapeHtml(monitor.error || '')}">${status.label}</span></td>
