@@ -11,7 +11,7 @@ const credentials = {
 
 const monitor = {
   id: "monitor-1",
-  keyword: "イヤホン",
+  keyword: "wireless earphones",
   shopCode: "target-shop",
   itemCode: "item-2",
   enabled: true,
@@ -23,12 +23,12 @@ test("buildSearchUrl uses the latest API without exposing the access key", () =>
   const url = buildSearchUrl(monitor, credentials, 2);
   assert.equal(url.pathname, "/ichibams/api/IchibaItem/Search/20260401");
   assert.equal(url.searchParams.get("applicationId"), "app-id");
-  assert.equal(url.searchParams.get("keyword"), "イヤホン");
+  assert.equal(url.searchParams.get("keyword"), "wireless earphones");
   assert.equal(url.searchParams.get("page"), "2");
   assert.equal(url.searchParams.has("accessKey"), false);
 });
 
-test("searchMonitor calculates an absolute rank and matches the target item", async () => {
+test("searchMonitor calculates an absolute rank, matches the target item, and counts shop entries", async () => {
   const fetchImpl = async (url, options) => {
     assert.equal(options.headers.accessKey, "access-key");
     const page = Number(new URL(url).searchParams.get("page"));
@@ -37,11 +37,18 @@ test("searchMonitor calculates an absolute rank and matches the target item", as
       shopCode: "other-shop"
     }));
     if (page === 2) {
+      items[1] = {
+        itemCode: "target-shop:item-1",
+        itemName: "target shop sibling item",
+        shopCode: "target-shop",
+        shopName: "target shop",
+        itemPrice: 900
+      };
       items[4] = {
         itemCode: "target-shop:item-2",
-        itemName: "対象商品",
+        itemName: "target item",
         shopCode: "target-shop",
-        shopName: "対象店舗",
+        shopName: "target shop",
         itemPrice: 1000
       };
     }
@@ -57,7 +64,9 @@ test("searchMonitor calculates an absolute rank and matches the target item", as
   });
   assert.equal(result.status, "ok");
   assert.equal(result.rank, 35);
-  assert.equal(result.item.itemName, "対象商品");
+  assert.equal(result.item.itemName, "target item");
+  assert.equal(result.shopRankedCount, 2);
+  assert.deepEqual(result.rankedItems.map((entry) => entry.rank), [32, 35]);
 });
 
 test("collectState appends history and calculates rank movement", async () => {
@@ -77,13 +86,20 @@ test("collectState appends history and calculates rank movement", async () => {
     search: async () => ({
       status: "ok",
       rank: 12,
-      item: { itemCode: "target-shop:item-2", itemName: "対象商品" }
+      shopRankedCount: 3,
+      rankedItems: [
+        { rank: 12, item: { itemCode: "target-shop:item-2", itemName: "target item" } }
+      ],
+      item: { itemCode: "target-shop:item-2", itemName: "target item" }
     })
   });
 
   assert.equal(state.monitors[0].currentRank, 12);
   assert.equal(state.monitors[0].previousRank, 20);
   assert.equal(state.monitors[0].delta, 8);
+  assert.equal(state.monitors[0].shopRankedCount, 3);
+  assert.equal(state.monitors[0].rankedItems.length, 1);
+  assert.equal(state.monitors[0].history[0].shopRankedCount, 3);
   assert.equal(state.monitors[0].history.length, 2);
   assert.equal(state.summary.foundCount, 1);
 });

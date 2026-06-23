@@ -134,7 +134,7 @@ a { color: inherit; }
 .danger:disabled { cursor: not-allowed; opacity: .45; }
 .text-button { padding: 6px 8px; border: 0; color: var(--blue); background: transparent; }
 .table-wrap { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; min-width: 900px; }
+table { width: 100%; border-collapse: collapse; min-width: 980px; }
 th, td { padding: 13px 15px; border-bottom: 1px solid #ededed; text-align: left; vertical-align: middle; }
 th { color: #777; background: #fafafa; font-size: 11px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
 tbody tr:hover { background: #fffafa; }
@@ -143,6 +143,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .monitor-meta { margin-top: 4px; color: #888; font-size: 11px; }
 .shop-code { font-family: Consolas, monospace; font-size: 12px; }
 .rank { font-size: 18px; font-weight: 760; }
+.rank-count { display: inline-block; padding: 5px 9px; border-radius: 999px; color: var(--blue); background: #eef5ff; font-weight: 750; }
 .rank-up { margin-left: 5px; color: var(--green); font-size: 11px; }
 .rank-down { margin-left: 5px; color: var(--red); font-size: 11px; }
 .muted { color: #999; }

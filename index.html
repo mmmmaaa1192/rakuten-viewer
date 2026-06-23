@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.71</title>
+<title>楽天市場 リサーチツール v3.72</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -362,6 +362,18 @@ tr.chart-row-dim td { opacity: 0.4; }
 .scan-target-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; background: #e8f0fe; border: 1px solid #c5d8f8; border-radius: 4px; padding: 3px 8px; color: #1a3e6e; }
 .scan-target-chip button { background: none; border: none; cursor: pointer; font-size: 13px; color: #888; padding: 0 0 0 2px; line-height: 1; }
 .scan-target-chip button:hover { color: #c00; }
+
+/* ===== AUTO MONITOR TAB ===== */
+#tab-auto-monitor { max-width: none; margin: 0; padding: 0; overflow: hidden; }
+.auto-monitor-wrap { display: flex; flex-direction: column; height: 100%; min-height: 0; background: #f4f4f5; }
+.auto-monitor-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 14px; background: #fff; border-bottom: 1px solid #e5e5e5;
+}
+.auto-monitor-title { font-size: 13px; font-weight: bold; color: #333; }
+.auto-monitor-desc { font-size: 12px; color: #777; margin-top: 2px; }
+.auto-monitor-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.auto-monitor-frame { width: 100%; flex: 1; min-height: 0; border: 0; background: #fff; }
 /* ===== INLINE GENRE PICKER ===== */
 .inline-genre-picker { border: 1px solid #e8e8e8; border-radius: 6px; overflow: hidden; margin-bottom: 14px; }
 .igp-toggle { display: block; width: 100%; text-align: left; background: #f8f8f8; border: none; padding: 8px 13px; font-size: 13px; color: #555; cursor: pointer; transition: background 0.12s, color 0.12s; }
@@ -587,7 +599,7 @@ tr.chart-row-dim td { opacity: 0.4; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge" id="version-badge-btn" style="cursor:pointer;text-decoration:underline dotted;" title="更新履歴">v3.71</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge" id="version-badge-btn" style="cursor:pointer;text-decoration:underline dotted;" title="更新履歴">v3.72</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -597,6 +609,7 @@ tr.chart-row-dim td { opacity: 0.4; }
 
   <div class="tab-nav">
     <div class="tab-nav-item tab-green active" data-tab="tracker">推移チェッカー</div>
+    <div class="tab-nav-item tab-green" data-tab="auto-monitor">店舗ランクイン監視</div>
     <div class="tab-nav-item tab-red" data-tab="ranking">ランキング</div>
     <div class="tab-nav-item tab-red" data-tab="scan">全カテゴリスキャン</div>
     <div class="tab-nav-item tab-blue" data-tab="keyword">キーワード順位</div>
@@ -610,7 +623,7 @@ tr.chart-row-dim td { opacity: 0.4; }
     <!-- ===== Sidebar ===== -->
     <aside id="side-menu" class="side-menu">
       <div class="side-menu-inner">
-        <div class="side-menu-title">カテゴリ選択 <span class="version-badge" style="color:#999;">v3.71</span></div>
+        <div class="side-menu-title">カテゴリ選択 <span class="version-badge" style="color:#999;">v3.72</span></div>
         <div class="genre-grid" id="side-genres"><div class="loading-msg">読み込み中...</div></div>
         <div class="selected-genre-box" style="margin-top:12px;">
           <span class="selected-genre-label">選択中：</span>
@@ -622,6 +635,23 @@ tr.chart-row-dim td { opacity: 0.4; }
 
     <!-- ===== Main Content ===== -->
     <div class="main-content">
+      <!-- ===== Tab: Auto Monitor ===== -->
+      <div id="tab-auto-monitor" class="tab-pane">
+        <div class="auto-monitor-wrap">
+          <div class="auto-monitor-bar">
+            <div>
+              <div class="auto-monitor-title">店舗ランクイン監視</div>
+              <div class="auto-monitor-desc">指定店舗の商品が、指定キーワードの楽天市場検索結果に何件ランクインしているかを自動収集します。</div>
+            </div>
+            <div class="auto-monitor-actions">
+              <a class="btn-secondary" href="./rakuten-auto-collector/" target="_blank" rel="noopener">別タブで開く</a>
+              <button class="btn-secondary" type="button" onclick="document.getElementById('auto-monitor-frame').contentWindow.location.reload();">再読み込み</button>
+            </div>
+          </div>
+          <iframe id="auto-monitor-frame" class="auto-monitor-frame" src="./rakuten-auto-collector/" title="店舗ランクイン監視"></iframe>
+        </div>
+      </div>
+
       <!-- ===== Tab: Ranking ===== -->
       <div id="tab-ranking" class="tab-pane">
         <div class="card">
@@ -1412,6 +1442,7 @@ document.getElementById('settings-save-btn').addEventListener('click', () => {
 });
 // ===== CHANGELOG MODAL =====
 const CHANGELOG = [
+  { v: 'v3.72', desc: '店舗ランクイン監視タブを追加し、指定店舗の商品が検索結果に何件入っているかをviewer内で確認できるようにした' },
   { v: 'v3.71', desc: '単価最安タブを追加し、ジャンル内の商品を容量・重量・個数あたり価格で比較' },
   { v: 'v3.70', desc: 'ジャンルAPIを2026-04-01版に更新し、APIのjaNameをカテゴリ名として表示' },
   { v: 'v3.69', desc: '推移チェッカー: 商品別ボタンを一番左（デフォルト位置）に移動' },
