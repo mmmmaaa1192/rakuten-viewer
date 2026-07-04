@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.72</title>
+<title>楽天市場 リサーチツール v3.73</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -599,7 +599,7 @@ tr.chart-row-dim td { opacity: 0.4; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge" id="version-badge-btn" style="cursor:pointer;text-decoration:underline dotted;" title="更新履歴">v3.72</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge" id="version-badge-btn" style="cursor:pointer;text-decoration:underline dotted;" title="更新履歴">v3.73</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -623,7 +623,7 @@ tr.chart-row-dim td { opacity: 0.4; }
     <!-- ===== Sidebar ===== -->
     <aside id="side-menu" class="side-menu">
       <div class="side-menu-inner">
-        <div class="side-menu-title">カテゴリ選択 <span class="version-badge" style="color:#999;">v3.72</span></div>
+        <div class="side-menu-title">カテゴリ選択 <span class="version-badge" style="color:#999;">v3.73</span></div>
         <div class="genre-grid" id="side-genres"><div class="loading-msg">読み込み中...</div></div>
         <div class="selected-genre-box" style="margin-top:12px;">
           <span class="selected-genre-label">選択中：</span>
@@ -1442,6 +1442,7 @@ document.getElementById('settings-save-btn').addEventListener('click', () => {
 });
 // ===== CHANGELOG MODAL =====
 const CHANGELOG = [
+  { v: 'v3.73', desc: 'ピン留めカテゴリ選択時に、ランキング・カテゴリ順位など右側の選択カテゴリ表示へ反映されない問題を修正' },
   { v: 'v3.72', desc: '店舗ランクイン監視タブを追加し、指定店舗の商品が検索結果に何件入っているかをviewer内で確認できるようにした' },
   { v: 'v3.71', desc: '単価最安タブを追加し、ジャンル内の商品を容量・重量・個数あたり価格で比較' },
   { v: 'v3.70', desc: 'ジャンルAPIを2026-04-01版に更新し、APIのjaNameをカテゴリ名として表示' },
@@ -1537,10 +1538,11 @@ class GenreNav {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY_PINS) || '[]'); } catch(e) { return []; }
   }
   _savePins(arr) { localStorage.setItem(STORAGE_KEY_PINS, JSON.stringify(arr)); }
+  _sameGenreId(a, b) { return String(a) === String(b); }
 
   _togglePin(genreId, genreName, path) {
     const pins = this._loadPins();
-    const idx = pins.findIndex(p => p.genreId === genreId);
+    const idx = pins.findIndex(p => this._sameGenreId(p.genreId, genreId));
     if (idx >= 0) {
       pins.splice(idx, 1);
     } else {
@@ -1583,7 +1585,7 @@ class GenreNav {
       const mkItem = (p, labelSegsFrom) => {
         const segs = p.path.split(' › ');
         const label = segs.slice(labelSegsFrom).join(' › ') || segs[segs.length - 1];
-        const isSel = this.selected.genreId === p.genreId;
+        const isSel = this._sameGenreId(this.selected.genreId, p.genreId);
         return `<div class="pinned-item${isSel ? ' is-selected' : ''}" data-gid="${p.genreId}">
           <span class="pinned-item-name" title="${esc(p.path)}">${esc(label)}</span>
           <button class="pinned-unpin" data-gid="${p.genreId}" title="ピン解除">×</button>
@@ -1594,7 +1596,7 @@ class GenreNav {
         if (gPins.length === 1) {
           html += mkItem(gPins[0], 1); // strip root prefix
         } else {
-          const anySelected = gPins.some(p => this.selected.genreId === p.genreId);
+          const anySelected = gPins.some(p => this._sameGenreId(this.selected.genreId, p.genreId));
           html += `<div class="pinned-group">
             <div class="pinned-group-header">
               <span style="font-size:10px;margin-right:2px;">${anySelected ? '▼' : '▶'}</span>
@@ -1625,8 +1627,8 @@ class GenreNav {
 
     // Pinned item clicks
     sec.querySelectorAll('.pinned-item').forEach(item => {
-      const gid = parseInt(item.dataset.gid);
-      const pin = pins.find(p => p.genreId === gid);
+      const gid = item.dataset.gid;
+      const pin = pins.find(p => this._sameGenreId(p.genreId, gid));
       if (!pin) return;
       item.querySelector('.pinned-item-name').addEventListener('click', () => {
         this.container.querySelectorAll('.genre-row').forEach(r => r.classList.remove('is-selected'));
@@ -1732,7 +1734,7 @@ class GenreNav {
     const pinBtn = document.createElement('button');
     pinBtn.className = 'genre-pin-btn';
     pinBtn.dataset.gid = g.genreId;
-    const isPinned = this._loadPins().some(p => p.genreId === g.genreId);
+    const isPinned = this._loadPins().some(p => this._sameGenreId(p.genreId, g.genreId));
     pinBtn.textContent = '📌';
     pinBtn.classList.toggle('pinned', isPinned);
     pinBtn.title = isPinned ? 'ピン留め中（クリックで解除）' : 'ピン留め';
