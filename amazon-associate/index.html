@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Amazonアソシエイト リサーチ & リンク管理</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #667085;
+      --line: #e4e7ec;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --amazon: #ff9900;
+      --amazon-dark: #c66b00;
+      --navy: #131921;
+      --blue: #146eb4;
+      --danger: #c62828;
+      --success: #137333;
+      --shadow: 0 8px 30px rgba(16, 24, 40, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: var(--bg); }
+    body {
+      min-height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+      font-size: 14px;
+    }
+    button, input, textarea, select { font: inherit; }
+    button { cursor: pointer; }
+    a { color: inherit; }
+
+    .app-header {
+      background: var(--navy);
+      color: #fff;
+      padding: 18px 24px;
+      border-bottom: 4px solid var(--amazon);
+    }
+    .header-inner {
+      width: min(1240px, 100%);
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: var(--amazon);
+      color: var(--navy);
+      font-size: 23px;
+      font-weight: 800;
+    }
+    .brand-title { font-size: 18px; font-weight: 800; }
+    .brand-sub { margin-top: 2px; color: #cfd6df; font-size: 12px; }
+    .version { color: #cfd6df; font-size: 11px; white-space: nowrap; }
+
+    main {
+      width: min(1240px, calc(100% - 32px));
+      margin: 22px auto 44px;
+    }
+    .notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding: 12px 14px;
+      border: 1px solid #f4c36c;
+      border-radius: 10px;
+      background: #fff8e8;
+      color: #704800;
+      font-size: 12px;
+      line-height: 1.65;
+    }
+    .notice strong { color: #4c3100; }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(310px, 0.82fr) minmax(480px, 1.5fr);
+      gap: 16px;
+      align-items: start;
+    }
+    .stack { display: grid; gap: 16px; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 15px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    .panel-title { font-size: 14px; font-weight: 800; }
+    .panel-kicker { color: var(--muted); font-size: 11px; }
+    .panel-body { padding: 17px 18px 19px; }
+
+    .field { margin-bottom: 14px; }
+    .field:last-child { margin-bottom: 0; }
+    .label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    label { color: #344054; font-size: 12px; font-weight: 700; }
+    .optional { color: #98a2b3; font-size: 10px; font-weight: 500; }
+    .hint { margin-top: 5px; color: var(--muted); font-size: 11px; line-height: 1.55; }
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid #d0d5dd;
+      border-radius: 7px;
+      background: #fff;
+      color: var(--ink);
+      padding: 9px 10px;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--amazon);
+      box-shadow: 0 0 0 3px rgba(255, 153, 0, .15);
+    }
+    textarea { resize: vertical; min-height: 74px; }
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .inline { display: flex; gap: 8px; }
+    .inline > input { flex: 1; min-width: 0; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 36px;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      padding: 8px 13px;
+      font-size: 12px;
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: transform .12s, background .12s, border-color .12s;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary { background: var(--amazon); color: #17120a; }
+    .btn-primary:hover { background: #f28f00; }
+    .btn-dark { background: var(--navy); color: #fff; }
+    .btn-secondary { border-color: #d0d5dd; background: #fff; color: #344054; }
+    .btn-secondary:hover { border-color: var(--amazon); }
+    .btn-danger { border-color: #fecaca; background: #fff; color: var(--danger); }
+    .btn-small { min-height: 30px; padding: 5px 9px; font-size: 11px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .actions .btn-primary { min-width: 130px; }
+
+    .link-preview {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+      padding: 11px 12px;
+      border: 1px dashed #f1b44c;
+      border-radius: 8px;
+      background: #fffbf2;
+    }
+    .link-label { color: #8a5200; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+    .link-value {
+      color: #344054;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+    .status { min-height: 18px; margin-top: 8px; color: var(--muted); font-size: 11px; }
+    .status.error { color: var(--danger); }
+    .status.ok { color: var(--success); }
+
+    .search-box {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 8px;
+    }
+    .search-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+      margin-top: 9px;
+    }
+
+    .library-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #fcfcfd;
+    }
+    .filter { flex: 1; min-width: 220px; max-width: 420px; }
+    .toolbar-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+    .count { color: var(--muted); font-size: 11px; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 820px; }
+    th {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--line);
+      background: #f9fafb;
+      color: var(--muted);
+      font-size: 10px;
+      text-align: left;
+      white-space: nowrap;
+    }
+    td {
+      padding: 10px;
+      border-bottom: 1px solid #edf0f3;
+      vertical-align: top;
+      font-size: 11px;
+    }
+    tbody tr:hover td { background: #fffcf7; }
+    .product-cell { display: flex; gap: 9px; min-width: 260px; }
+    .thumb {
+      width: 54px;
+      height: 54px;
+      flex: 0 0 54px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+      overflow: hidden;
+      color: #b9c0ca;
+      font-size: 22px;
+    }
+    .thumb img { width: 100%; height: 100%; object-fit: contain; }
+    .product-title {
+      display: -webkit-box;
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.45;
+      text-decoration: none;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .product-title:hover { color: var(--blue); }
+    .asin {
+      margin-top: 4px;
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 10px;
+    }
+    .price { color: #b12704; font-size: 13px; font-weight: 800; white-space: nowrap; }
+    .rating { color: #b45309; white-space: nowrap; }
+    .category {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 3px 7px;
+      background: #eef4ff;
+      color: #24549b;
+      font-size: 10px;
+      white-space: nowrap;
+    }
+    .memo { max-width: 180px; color: #475467; line-height: 1.5; white-space: pre-wrap; }
+    .row-actions { display: flex; flex-wrap: wrap; gap: 5px; min-width: 180px; }
+    .action-link {
+      border: 1px solid #d0d5dd;
+      border-radius: 5px;
+      background: #fff;
+      color: #344054;
+      padding: 4px 7px;
+      font-size: 10px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .action-link:hover { border-color: var(--amazon); }
+    .action-link.danger { color: var(--danger); }
+    .empty {
+      padding: 52px 20px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .empty-icon { margin-bottom: 8px; font-size: 32px; }
+    .empty-title { margin-bottom: 5px; color: #344054; font-weight: 800; }
+
+    #file-import { display: none; }
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 20;
+      max-width: min(360px, calc(100% - 36px));
+      border-radius: 9px;
+      background: #172033;
+      color: #fff;
+      padding: 11px 14px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .22);
+      font-size: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(8px);
+      transition: opacity .18s, transform .18s;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.error { background: #8f1d1d; }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .header-inner { align-items: flex-start; }
+    }
+    @media (max-width: 620px) {
+      main { width: min(100% - 20px, 1240px); margin-top: 12px; }
+      .app-header { padding: 13px 12px; }
+      .brand-title { font-size: 15px; }
+      .brand-sub, .version { display: none; }
+      .panel-body { padding: 14px; }
+      .row-2, .search-options { grid-template-columns: 1fr; }
+      .search-box { grid-template-columns: 1fr 1fr; }
+      .search-box input { grid-column: 1 / -1; }
+      .library-toolbar { align-items: stretch; }
+      .filter { max-width: none; width: 100%; }
+      .toolbar-actions { width: 100%; }
+      .toolbar-actions .btn { flex: 1; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-mark">a</div>
+        <div>
+          <div class="brand-title">Amazonアソシエイト リサーチ & リンク管理</div>
+          <div class="brand-sub">ASIN・商品メモ・投稿用リンクをひとつの画面で管理</div>
+        </div>
+      </div>
+      <div class="version">Amazon版 v1.0</div>
+    </div>
+  </header>
+
+  <main>
+    <div class="notice">
+      <span>🔒</span>
+      <div>
+        <strong>この画面にAmazonのSecret Access Keyは入力しません。</strong>
+        商品情報は手動登録、データはこのブラウザ内だけに保存されます。価格や在庫を投稿する場合は、公開前にAmazonの商品ページで最新情報を確認してください。
+      </div>
+    </div>
+
+    <div class="layout">
+      <div class="stack">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">1. アソシエイト設定</div>
+              <div class="panel-kicker">リンクに付けるトラッキングID</div>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="field">
+              <div class="label-row">
+                <label for="associate-tag">トラッキングID</label>
+                <span class="optional">ブラウザに保存</span>
+              </div>
+              <div class="inline">
+                <input id="associate-tag" type="text" placeholder="例: example-22" autocomplete="off" spellcheck="false">
+                <button class="btn btn-dark" id="save-tag" type="button">保存</button>
+              </div>
+              <div class="hint">Amazonアソシエイト・セントラルで発行されたIDを入力してください。</div>
+              <div class="status" id="tag-status"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">2. Amazon検索</div>
+              <div class="panel-kicker">タグ付き検索URLを作成</div>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="field">
+              <label for="search-keyword">検索キーワード</label>
+              <div class="search-box">
+                <input id="search-keyword" type="search" placeholder="例: 大型犬 足洗い マット">
+                <button class="btn btn-primary" id="open-search" type="button">Amazonで検索</button>
+                <button class="btn btn-secondary" id="copy-search" type="button">URLをコピー</button>
+              </div>
+              <div class="search-options">
+                <select id="search-sort" aria-label="並び順">
+                  <option value="">Amazonおすすめ順</option>
+                  <option value="price-asc-rank">価格の安い順</option>
+                  <option value="price-desc-rank">価格の高い順</option>
+                  <option value="review-rank">レビュー評価順</option>
+                  <option value="date-desc-rank">新着順</option>
+                </select>
+                <select id="search-department" aria-label="カテゴリー">
+                  <option value="">すべてのカテゴリー</option>
+                  <option value="hpc">ドラッグストア</option>
+                  <option value="beauty">ビューティー</option>
+                  <option value="pets">ペット用品</option>
+                  <option value="kitchen">ホーム＆キッチン</option>
+                  <option value="electronics">家電＆カメラ</option>
+                  <option value="fashion">ファッション</option>
+                  <option value="sports">スポーツ＆アウトドア</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" id="editor-panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title" id="editor-title">3. 商品を登録</div>
+              <div class="panel-kicker">URLからASINを自動抽出</div>
+            </div>
+            <button class="btn btn-secondary btn-small" id="cancel-edit" type="button" hidden>編集をやめる</button>
+          </div>
+          <div class="panel-body">
+            <form id="product-form">
+              <input id="edit-id" type="hidden">
+              <div class="field">
+                <div class="label-row">
+                  <label for="product-source">Amazon商品URL または ASIN</label>
+                  <span class="optional">必須</span>
+                </div>
+                <input id="product-source" type="text" placeholder="https://www.amazon.co.jp/dp/B0... または B0..." autocomplete="off" spellcheck="false">
+                <div class="status" id="asin-status"></div>
+              </div>
+
+              <div class="field">
+                <div class="label-row">
+                  <label for="product-title">商品名</label>
+                  <span class="optional">任意</span>
+                </div>
+                <input id="product-title" type="text" placeholder="商品名を入力">
+              </div>
+
+              <div class="row-2">
+                <div class="field">
+                  <label for="product-price">価格</label>
+                  <input id="product-price" type="number" min="0" step="1" inputmode="numeric" placeholder="例: 3980">
+                </div>
+                <div class="field">
+                  <label for="product-category">カテゴリー</label>
+                  <input id="product-category" type="text" placeholder="例: 犬用品">
+                </div>
+              </div>
+
+              <div class="row-2">
+                <div class="field">
+                  <label for="product-rating">評価</label>
+                  <input id="product-rating" type="number" min="0" max="5" step="0.1" inputmode="decimal" placeholder="例: 4.5">
+                </div>
+                <div class="field">
+                  <label for="product-reviews">レビュー件数</label>
+                  <input id="product-reviews" type="number" min="0" step="1" inputmode="numeric" placeholder="例: 128">
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="label-row">
+                  <label for="product-image">画像URL</label>
+                  <span class="optional">任意</span>
+                </div>
+                <input id="product-image" type="url" placeholder="https://...">
+              </div>
+
+              <div class="field">
+                <div class="label-row">
+                  <label for="product-note">メモ・推しポイント</label>
+                  <span class="optional">投稿下書きにも使用</span>
+                </div>
+                <textarea id="product-note" placeholder="どんな人向けか、気になった点、投稿で触れたいことなど"></textarea>
+              </div>
+
+              <div class="link-preview">
+                <div class="link-label">生成されるアソシエイトリンク</div>
+                <div class="link-value" id="link-preview">URLまたはASINを入力してください</div>
+              </div>
+
+              <div class="actions" style="margin-top:14px;">
+                <button class="btn btn-primary" id="save-product" type="submit">商品を保存</button>
+                <button class="btn btn-secondary" id="copy-current-link" type="button">リンクをコピー</button>
+                <a class="btn btn-secondary" id="open-current" href="https://www.amazon.co.jp/" target="_blank" rel="noopener">商品ページを開く</a>
+              </div>
+            </form>
+          </div>
+        </section>
+      </div>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">商品ライブラリ</div>
+            <div class="panel-kicker"><span id="product-count">0件</span>・このブラウザに保存</div>
+          </div>
+        </div>
+        <div class="library-toolbar">
+          <input class="filter" id="filter-products" type="search" placeholder="商品名・ASIN・カテゴリー・メモで絞り込み">
+          <div class="toolbar-actions">
+            <button class="btn btn-secondary btn-small" id="export-csv" type="button">CSV</button>
+            <button class="btn btn-secondary btn-small" id="export-json" type="button">JSONバックアップ</button>
+            <label class="btn btn-secondary btn-small" for="file-import">JSON読込</label>
+            <input id="file-import" type="file" accept=".json,application/json">
+          </div>
+        </div>
+        <div id="library-content"></div>
+      </section>
+    </div>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    "use strict";
+
+    var TAG_KEY = "amazon_associate_tag_v1";
+    var PRODUCTS_KEY = "amazon_associate_products_v1";
+    var JP_DOMAIN = "www.amazon.co.jp";
+    var editingId = "";
+    var toastTimer = null;
+
+    function byId(id) {
+      return document.getElementById(id);
+    }
+
+    function escapeHtml(value) {
+      return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function safeProducts() {
+      try {
+        var parsed = JSON.parse(localStorage.getItem(PRODUCTS_KEY) || "[]");
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (error) {
+        return [];
+      }
+    }
+
+    function storeProducts(products) {
+      localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products));
+    }
+
+    function getTag() {
+      return (localStorage.getItem(TAG_KEY) || "").trim();
+    }
+
+    function normalizeTag(value) {
+      return String(value || "").trim().replace(/^tag=/i, "");
+    }
+
+    function validTag(value) {
+      return /^[A-Za-z0-9_-]{2,50}$/.test(value);
+    }
+
+    function activeTag() {
+      var fieldTag = normalizeTag(byId("associate-tag").value);
+      if (validTag(fieldTag)) return fieldTag;
+      var savedTag = normalizeTag(getTag());
+      return validTag(savedTag) ? savedTag : "";
+    }
+
+    function extractAsin(value) {
+      var source = String(value || "").trim();
+      if (/^[A-Z0-9]{10}$/i.test(source)) return source.toUpperCase();
+
+      var decoded = source;
+      try { decoded = decodeURIComponent(source); } catch (error) {}
+      var patterns = [
+        /\/dp\/([A-Z0-9]{10})(?:[/?#]|$)/i,
+        /\/gp\/product\/([A-Z0-9]{10})(?:[/?#]|$)/i,
+        /\/gp\/aw\/d\/([A-Z0-9]{10})(?:[/?#]|$)/i,
+        /\/product\/([A-Z0-9]{10})(?:[/?#]|$)/i,
+        /[?&](?:asin|ASIN)=([A-Z0-9]{10})(?:&|$)/i
+      ];
+      for (var i = 0; i < patterns.length; i += 1) {
+        var match = decoded.match(patterns[i]);
+        if (match) return match[1].toUpperCase();
+      }
+      return "";
+    }
+
+    function canonicalUrl(asin) {
+      return asin ? "https://" + JP_DOMAIN + "/dp/" + encodeURIComponent(asin) : "";
+    }
+
+    function associateUrl(asin) {
+      var url = canonicalUrl(asin);
+      var tag = activeTag();
+      if (!url) return "";
+      return tag ? url + "?tag=" + encodeURIComponent(tag) : url;
+    }
+
+    function searchUrl() {
+      var keyword = byId("search-keyword").value.trim();
+      if (!keyword) return "";
+      var params = new URLSearchParams({ k: keyword });
+      var tag = activeTag();
+      var sort = byId("search-sort").value;
+      var department = byId("search-department").value;
+      if (tag) params.set("tag", tag);
+      if (sort) params.set("s", sort);
+      if (department) params.set("i", department);
+      return "https://" + JP_DOMAIN + "/s?" + params.toString();
+    }
+
+    function showToast(message, isError) {
+      var el = byId("toast");
+      el.textContent = message;
+      el.classList.toggle("error", Boolean(isError));
+      el.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function() { el.classList.remove("show"); }, 2600);
+    }
+
+    function fallbackCopy(text) {
+      var input = document.createElement("textarea");
+      input.value = text;
+      input.setAttribute("readonly", "");
+      input.style.position = "fixed";
+      input.style.opacity = "0";
+      document.body.appendChild(input);
+      input.select();
+      var ok = false;
+      try { ok = document.execCommand("copy"); } catch (error) {}
+      input.remove();
+      return ok;
+    }
+
+    async function copyText(text, successMessage) {
+      if (!text) {
+        showToast("コピーする内容がありません", true);
+        return;
+      }
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+        } else if (!fallbackCopy(text)) {
+          throw new Error("copy failed");
+        }
+        showToast(successMessage || "コピーしました");
+      } catch (error) {
+        window.prompt("以下をコピーしてください", text);
+      }
+    }
+
+    function formatPrice(value) {
+      var number = Number(value || 0);
+      return number > 0 ? "¥" + Math.round(number).toLocaleString("ja-JP") : "—";
+    }
+
+    function buildPosts(product) {
+      var title = product.title || product.asin;
+      var hook = product.note
+        ? product.note.trim()
+        : title + "、使ってる人いる？実際どうなのか気になってる。";
+      var link = associateUrlForProduct(product);
+      var post1 = hook;
+      var post2 = "#PR Amazonで詳細を見る\n" + link;
+      return post1 + "\n\n--- 2投稿目 ---\n" + post2;
+    }
+
+    function associateUrlForProduct(product) {
+      var tag = activeTag();
+      var url = canonicalUrl(product.asin);
+      return tag ? url + "?tag=" + encodeURIComponent(tag) : url;
+    }
+
+    function updateSourcePreview() {
+      var asin = extractAsin(byId("product-source").value);
+      var status = byId("asin-status");
+      var preview = byId("link-preview");
+      var openLink = byId("open-current");
+      if (!byId("product-source").value.trim()) {
+        status.textContent = "";
+        status.className = "status";
+        preview.textContent = "URLまたはASINを入力してください";
+        openLink.href = "https://" + JP_DOMAIN + "/";
+        return;
+      }
+      if (!asin) {
+        status.textContent = "ASINを抽出できません。10桁のASINかAmazonの商品URLを確認してください。";
+        status.className = "status error";
+        preview.textContent = "有効なASINが必要です";
+        openLink.href = "https://" + JP_DOMAIN + "/";
+        return;
+      }
+      status.textContent = "ASIN: " + asin;
+      status.className = "status ok";
+      var link = associateUrl(asin);
+      preview.textContent = link;
+      openLink.href = link;
+    }
+
+    function saveTag() {
+      var tag = normalizeTag(byId("associate-tag").value);
+      var status = byId("tag-status");
+      if (!tag) {
+        localStorage.removeItem(TAG_KEY);
+        status.textContent = "トラッキングIDを削除しました。通常の商品URLを生成します。";
+        status.className = "status";
+        updateSourcePreview();
+        renderProducts();
+        return;
+      }
+      if (!validTag(tag)) {
+        status.textContent = "トラッキングIDの形式を確認してください。";
+        status.className = "status error";
+        return;
+      }
+      localStorage.setItem(TAG_KEY, tag);
+      byId("associate-tag").value = tag;
+      status.textContent = "保存しました。今後のリンクに ?tag=" + tag + " を付けます。";
+      status.className = "status ok";
+      updateSourcePreview();
+      renderProducts();
+      showToast("トラッキングIDを保存しました");
+    }
+
+    function resetForm() {
+      editingId = "";
+      byId("edit-id").value = "";
+      byId("product-form").reset();
+      byId("editor-title").textContent = "3. 商品を登録";
+      byId("save-product").textContent = "商品を保存";
+      byId("cancel-edit").hidden = true;
+      updateSourcePreview();
+    }
+
+    function productFromForm(existing) {
+      var asin = extractAsin(byId("product-source").value);
+      if (!asin) return null;
+      var now = new Date().toISOString();
+      return {
+        id: existing && existing.id ? existing.id : now.replace(/\D/g, "") + Math.random().toString(36).slice(2, 7),
+        asin: asin,
+        url: canonicalUrl(asin),
+        title: byId("product-title").value.trim(),
+        price: Math.max(0, Number(byId("product-price").value || 0)),
+        rating: Math.min(5, Math.max(0, Number(byId("product-rating").value || 0))),
+        reviews: Math.max(0, Math.round(Number(byId("product-reviews").value || 0))),
+        category: byId("product-category").value.trim(),
+        imageUrl: byId("product-image").value.trim(),
+        note: byId("product-note").value.trim(),
+        createdAt: existing && existing.createdAt ? existing.createdAt : now,
+        updatedAt: now
+      };
+    }
+
+    function saveProduct(event) {
+      event.preventDefault();
+      var products = safeProducts();
+      var existing = editingId ? products.find(function(item) { return item.id === editingId; }) : null;
+      var product = productFromForm(existing);
+      if (!product) {
+        showToast("有効なAmazon商品URLまたはASINを入力してください", true);
+        byId("product-source").focus();
+        return;
+      }
+      var duplicate = products.find(function(item) {
+        return item.asin === product.asin && item.id !== product.id;
+      });
+      if (duplicate && !editingId) {
+        if (!window.confirm("同じASINが登録されています。既存データをこの内容で更新しますか？")) return;
+        product.id = duplicate.id;
+        product.createdAt = duplicate.createdAt;
+        products = products.map(function(item) { return item.id === duplicate.id ? product : item; });
+      } else if (editingId) {
+        products = products.map(function(item) { return item.id === editingId ? product : item; });
+      } else {
+        products.unshift(product);
+      }
+      storeProducts(products);
+      showToast(editingId ? "商品情報を更新しました" : "商品を保存しました");
+      resetForm();
+      renderProducts();
+    }
+
+    function editProduct(id) {
+      var product = safeProducts().find(function(item) { return item.id === id; });
+      if (!product) return;
+      editingId = id;
+      byId("edit-id").value = id;
+      byId("product-source").value = product.asin;
+      byId("product-title").value = product.title || "";
+      byId("product-price").value = product.price || "";
+      byId("product-category").value = product.category || "";
+      byId("product-rating").value = product.rating || "";
+      byId("product-reviews").value = product.reviews || "";
+      byId("product-image").value = product.imageUrl || "";
+      byId("product-note").value = product.note || "";
+      byId("editor-title").textContent = "3. 商品を編集";
+      byId("save-product").textContent = "変更を保存";
+      byId("cancel-edit").hidden = false;
+      updateSourcePreview();
+      byId("editor-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function deleteProduct(id) {
+      var products = safeProducts();
+      var product = products.find(function(item) { return item.id === id; });
+      if (!product) return;
+      if (!window.confirm("「" + (product.title || product.asin) + "」を削除しますか？")) return;
+      storeProducts(products.filter(function(item) { return item.id !== id; }));
+      if (editingId === id) resetForm();
+      renderProducts();
+      showToast("商品を削除しました");
+    }
+
+    function renderProducts() {
+      var all = safeProducts();
+      var query = byId("filter-products").value.trim().toLowerCase();
+      var products = all.filter(function(product) {
+        var haystack = [
+          product.title,
+          product.asin,
+          product.category,
+          product.note
+        ].join(" ").toLowerCase();
+        return !query || haystack.indexOf(query) >= 0;
+      });
+      byId("product-count").textContent = all.length + "件";
+
+      if (!products.length) {
+        byId("library-content").innerHTML =
+          '<div class="empty">' +
+            '<div class="empty-icon">📦</div>' +
+            '<div class="empty-title">' + (all.length ? "条件に合う商品がありません" : "まだ商品が登録されていません") + '</div>' +
+            '<div>' + (all.length ? "検索条件を変えてください。" : "左のフォームにAmazon商品URLかASINを入れて保存してください。") + '</div>' +
+          '</div>';
+        return;
+      }
+
+      var rows = products.map(function(product) {
+        var title = product.title || product.asin;
+        var image = product.imageUrl
+          ? '<img src="' + escapeHtml(product.imageUrl) + '" alt="" loading="lazy" onerror="this.parentNode.textContent=\'📦\'">'
+          : "📦";
+        var review = product.rating > 0
+          ? "★" + Number(product.rating).toFixed(1) + (product.reviews > 0 ? " (" + Number(product.reviews).toLocaleString("ja-JP") + ")" : "")
+          : "—";
+        return '<tr>' +
+          '<td><div class="product-cell"><div class="thumb">' + image + '</div><div>' +
+            '<a class="product-title" href="' + escapeHtml(associateUrlForProduct(product)) + '" target="_blank" rel="noopener">' + escapeHtml(title) + '</a>' +
+            '<div class="asin">' + escapeHtml(product.asin) + '</div>' +
+          '</div></div></td>' +
+          '<td><span class="price">' + formatPrice(product.price) + '</span></td>' +
+          '<td><span class="rating">' + review + '</span></td>' +
+          '<td>' + (product.category ? '<span class="category">' + escapeHtml(product.category) + '</span>' : "—") + '</td>' +
+          '<td><div class="memo">' + escapeHtml(product.note || "—") + '</div></td>' +
+          '<td><div class="row-actions">' +
+            '<button class="action-link" type="button" data-action="copy-link" data-id="' + escapeHtml(product.id) + '">リンク</button>' +
+            '<button class="action-link" type="button" data-action="copy-posts" data-id="' + escapeHtml(product.id) + '">2投稿</button>' +
+            '<button class="action-link" type="button" data-action="edit" data-id="' + escapeHtml(product.id) + '">編集</button>' +
+            '<a class="action-link" href="' + escapeHtml(associateUrlForProduct(product)) + '" target="_blank" rel="noopener">開く</a>' +
+            '<button class="action-link danger" type="button" data-action="delete" data-id="' + escapeHtml(product.id) + '">削除</button>' +
+          '</div></td>' +
+        '</tr>';
+      }).join("");
+
+      byId("library-content").innerHTML =
+        '<div class="table-wrap"><table>' +
+          '<thead><tr><th>商品</th><th>価格</th><th>評価</th><th>カテゴリー</th><th>メモ</th><th>操作</th></tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table></div>';
+    }
+
+    function handleLibraryAction(event) {
+      var button = event.target.closest("[data-action]");
+      if (!button) return;
+      var id = button.dataset.id;
+      var product = safeProducts().find(function(item) { return item.id === id; });
+      if (!product) return;
+      if (button.dataset.action === "copy-link") {
+        copyText(associateUrlForProduct(product), "アソシエイトリンクをコピーしました");
+      } else if (button.dataset.action === "copy-posts") {
+        copyText(buildPosts(product), "PR表記入りの2投稿下書きをコピーしました");
+      } else if (button.dataset.action === "edit") {
+        editProduct(id);
+      } else if (button.dataset.action === "delete") {
+        deleteProduct(id);
+      }
+    }
+
+    function csvCell(value) {
+      return '"' + String(value == null ? "" : value).replace(/"/g, '""') + '"';
+    }
+
+    function downloadFile(filename, content, mime) {
+      var blob = new Blob(["\uFEFF" + content], { type: mime });
+      var link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(function() { URL.revokeObjectURL(link.href); }, 500);
+    }
+
+    function timestamp() {
+      var date = new Date();
+      function pad(value) { return String(value).padStart(2, "0"); }
+      return date.getFullYear() + pad(date.getMonth() + 1) + pad(date.getDate()) + "_" + pad(date.getHours()) + pad(date.getMinutes());
+    }
+
+    function exportCsv() {
+      var products = safeProducts();
+      if (!products.length) {
+        showToast("書き出す商品がありません", true);
+        return;
+      }
+      var headers = ["ASIN", "商品名", "価格", "評価", "レビュー件数", "カテゴリー", "メモ", "通常URL", "アソシエイトURL", "更新日時"];
+      var rows = products.map(function(product) {
+        return [
+          product.asin,
+          product.title,
+          product.price || "",
+          product.rating || "",
+          product.reviews || "",
+          product.category,
+          product.note,
+          canonicalUrl(product.asin),
+          associateUrlForProduct(product),
+          product.updatedAt || ""
+        ];
+      });
+      var csv = [headers].concat(rows).map(function(row) {
+        return row.map(csvCell).join(",");
+      }).join("\r\n");
+      downloadFile("amazon_associate_products_" + timestamp() + ".csv", csv, "text/csv;charset=utf-8");
+      showToast("CSVを書き出しました");
+    }
+
+    function exportJson() {
+      var payload = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        associateTag: getTag(),
+        products: safeProducts()
+      };
+      downloadFile("amazon_associate_backup_" + timestamp() + ".json", JSON.stringify(payload, null, 2), "application/json;charset=utf-8");
+      showToast("JSONバックアップを書き出しました");
+    }
+
+    function importJson(file) {
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function() {
+        try {
+          var parsed = JSON.parse(String(reader.result || ""));
+          var products = Array.isArray(parsed) ? parsed : parsed.products;
+          if (!Array.isArray(products)) throw new Error("products not found");
+          var normalized = products.map(function(item) {
+            var asin = extractAsin(item.asin || item.url || "");
+            if (!asin) return null;
+            var now = new Date().toISOString();
+            return {
+              id: String(item.id || now.replace(/\D/g, "") + Math.random().toString(36).slice(2, 7)),
+              asin: asin,
+              url: canonicalUrl(asin),
+              title: String(item.title || ""),
+              price: Math.max(0, Number(item.price || 0)),
+              rating: Math.min(5, Math.max(0, Number(item.rating || 0))),
+              reviews: Math.max(0, Math.round(Number(item.reviews || 0))),
+              category: String(item.category || ""),
+              imageUrl: String(item.imageUrl || ""),
+              note: String(item.note || ""),
+              createdAt: item.createdAt || now,
+              updatedAt: item.updatedAt || now
+            };
+          }).filter(Boolean);
+          if (!normalized.length && products.length) throw new Error("valid ASIN not found");
+          if (!window.confirm(normalized.length + "件を読み込み、現在の商品ライブラリを置き換えますか？")) return;
+          storeProducts(normalized);
+          if (parsed.associateTag && validTag(normalizeTag(parsed.associateTag))) {
+            localStorage.setItem(TAG_KEY, normalizeTag(parsed.associateTag));
+            byId("associate-tag").value = normalizeTag(parsed.associateTag);
+          }
+          resetForm();
+          renderProducts();
+          showToast(normalized.length + "件を読み込みました");
+        } catch (error) {
+          showToast("JSONファイルを読み込めませんでした", true);
+        } finally {
+          byId("file-import").value = "";
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function runSearch(openInTab) {
+      var url = searchUrl();
+      if (!url) {
+        showToast("検索キーワードを入力してください", true);
+        byId("search-keyword").focus();
+        return;
+      }
+      if (openInTab) {
+        window.open(url, "_blank", "noopener");
+      } else {
+        copyText(url, "検索URLをコピーしました");
+      }
+    }
+
+    byId("associate-tag").value = getTag();
+    if (getTag()) {
+      byId("tag-status").textContent = "保存済み: " + getTag();
+      byId("tag-status").className = "status ok";
+    }
+    byId("save-tag").addEventListener("click", saveTag);
+    byId("associate-tag").addEventListener("input", updateSourcePreview);
+    byId("associate-tag").addEventListener("keydown", function(event) {
+      if (event.key === "Enter") saveTag();
+    });
+    byId("product-source").addEventListener("input", updateSourcePreview);
+    byId("product-form").addEventListener("submit", saveProduct);
+    byId("cancel-edit").addEventListener("click", resetForm);
+    byId("copy-current-link").addEventListener("click", function() {
+      var asin = extractAsin(byId("product-source").value);
+      copyText(associateUrl(asin), "アソシエイトリンクをコピーしました");
+    });
+    byId("open-search").addEventListener("click", function() { runSearch(true); });
+    byId("copy-search").addEventListener("click", function() { runSearch(false); });
+    byId("search-keyword").addEventListener("keydown", function(event) {
+      if (event.key === "Enter") runSearch(true);
+    });
+    byId("filter-products").addEventListener("input", renderProducts);
+    byId("library-content").addEventListener("click", handleLibraryAction);
+    byId("export-csv").addEventListener("click", exportCsv);
+    byId("export-json").addEventListener("click", exportJson);
+    byId("file-import").addEventListener("change", function(event) {
+      importJson(event.target.files && event.target.files[0]);
+    });
+
+    updateSourcePreview();
+    renderProducts();
+  </script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楽天市場 リサーチツール v3.73</title>
+<title>楽天市場 リサーチツール v3.74</title>
 <style>
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -53,17 +53,19 @@ header {
 .api-badge.old { background: rgba(255,200,100,0.3); }
 
 /* ===== TABS ===== */
-.tab-nav { display: flex; background: white; border-bottom: 2px solid #dbdbdb; padding: 0 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); position: sticky; top: 44px; z-index: 199; }
-.tab-nav-item { padding: 12px 20px; cursor: pointer; font-size: 14px; border-bottom: 3px solid transparent; margin-bottom: -2px; color: #777; transition: all 0.15s; user-select: none; }
+.tab-nav { display: flex; overflow-x: auto; background: white; border-bottom: 2px solid #dbdbdb; padding: 0 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); position: sticky; top: 44px; z-index: 199; }
+.tab-nav-item { flex-shrink: 0; white-space: nowrap; padding: 12px 20px; cursor: pointer; font-size: 14px; border-bottom: 3px solid transparent; margin-bottom: -2px; color: #777; transition: all 0.15s; user-select: none; }
 .tab-nav-item:hover { filter: brightness(0.92); }
 .tab-nav-item.tab-green  { background: #e8f5e9; color: #2e7d32; }
 .tab-nav-item.tab-red    { background: #fdecea; color: #bf0000; }
 .tab-nav-item.tab-blue   { background: #e8f0fe; color: #1a5cb0; }
 .tab-nav-item.tab-purple { background: #f3e5f5; color: #6a1b9a; }
+.tab-nav-item.tab-orange { background: #fff3e0; color: #b45309; }
 .tab-nav-item.tab-green.active  { border-bottom-color: #2e7d32; color: #1b5e20; font-weight: bold; background: #c8e6c9; }
 .tab-nav-item.tab-red.active    { border-bottom-color: #bf0000; color: #7f0000; font-weight: bold; background: #ffcdd2; }
 .tab-nav-item.tab-blue.active   { border-bottom-color: #1a5cb0; color: #0d3880; font-weight: bold; background: #c5d8fc; }
 .tab-nav-item.tab-purple.active { border-bottom-color: #6a1b9a; color: #4a0072; font-weight: bold; background: #e1bee7; }
+.tab-nav-item.tab-orange.active { border-bottom-color: #ff9900; color: #7c2d12; font-weight: bold; background: #fed7aa; }
 
 .tab-pane { display: none; padding: 20px 24px; max-width: 1200px; margin: 0 auto; box-sizing: border-box; }
 #tab-tracker { max-width: none; margin: 0; padding: 0; overflow: hidden; }
@@ -288,6 +290,8 @@ input[type="range"] { width: 100%; accent-color: #bf0000; margin-top: 4px; }
 .app-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
 .side-menu { width: 260px; flex-shrink: 0; min-height: 0; background: white; border-right: 1px solid #e0e0e0; overflow-y: auto; transition: width 0.2s, padding 0.2s; }
 .side-menu.collapsed { width: 0; padding: 0; overflow: hidden; }
+.app-body.amazon-mode .side-menu,
+.app-body.amazon-mode #side-backdrop { display: none; }
 .side-menu-inner { padding: 12px; min-width: 260px; }
 .side-menu-title { font-size: 13px; font-weight: bold; color: #bf0000; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #f0f0f0; }
 .main-content { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
@@ -364,7 +368,7 @@ tr.chart-row-dim td { opacity: 0.4; }
 .scan-target-chip button:hover { color: #c00; }
 
 /* ===== AUTO MONITOR TAB ===== */
-#tab-auto-monitor { max-width: none; margin: 0; padding: 0; overflow: hidden; }
+#tab-auto-monitor, #tab-amazon { max-width: none; margin: 0; padding: 0; overflow: hidden; }
 .auto-monitor-wrap { display: flex; flex-direction: column; height: 100%; min-height: 0; background: #f4f4f5; }
 .auto-monitor-bar {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
@@ -599,7 +603,7 @@ tr.chart-row-dim td { opacity: 0.4; }
   <header>
     <div style="display:flex;align-items:center;">
       <button class="tab-toggle-btn" id="side-toggle-btn" title="サイドバーの表示/非表示">☰</button>
-      <span class="header-title">楽天市場 リサーチツール <span class="version-badge" id="version-badge-btn" style="cursor:pointer;text-decoration:underline dotted;" title="更新履歴">v3.73</span></span>
+      <span class="header-title">楽天市場 リサーチツール <span class="version-badge" id="version-badge-btn" style="cursor:pointer;text-decoration:underline dotted;" title="更新履歴">v3.74</span></span>
     </div>
     <div class="header-right">
       <span class="api-badge" id="api-badge"></span>
@@ -617,13 +621,14 @@ tr.chart-row-dim td { opacity: 0.4; }
     <div class="tab-nav-item tab-blue" data-tab="url-rank">商品URL順位</div>
     <div class="tab-nav-item tab-purple" data-tab="unit-cost">単価最安</div>
     <div class="tab-nav-item tab-purple" data-tab="related">関連商品</div>
+    <div class="tab-nav-item tab-orange" data-tab="amazon">Amazonアソシエイト</div>
   </div>
 
   <div class="app-body">
     <!-- ===== Sidebar ===== -->
     <aside id="side-menu" class="side-menu">
       <div class="side-menu-inner">
-        <div class="side-menu-title">カテゴリ選択 <span class="version-badge" style="color:#999;">v3.73</span></div>
+        <div class="side-menu-title">カテゴリ選択 <span class="version-badge" style="color:#999;">v3.74</span></div>
         <div class="genre-grid" id="side-genres"><div class="loading-msg">読み込み中...</div></div>
         <div class="selected-genre-box" style="margin-top:12px;">
           <span class="selected-genre-label">選択中：</span>
@@ -649,6 +654,23 @@ tr.chart-row-dim td { opacity: 0.4; }
             </div>
           </div>
           <iframe id="auto-monitor-frame" class="auto-monitor-frame" src="./rakuten-auto-collector/" title="店舗ランクイン監視"></iframe>
+        </div>
+      </div>
+
+      <!-- ===== Tab: Amazon Associates ===== -->
+      <div id="tab-amazon" class="tab-pane">
+        <div class="auto-monitor-wrap">
+          <div class="auto-monitor-bar">
+            <div>
+              <div class="auto-monitor-title">Amazonアソシエイト</div>
+              <div class="auto-monitor-desc">ASIN・商品メモ・アソシエイトリンクをブラウザ内でまとめて管理します。</div>
+            </div>
+            <div class="auto-monitor-actions">
+              <a class="btn-secondary" href="./amazon-associate/" target="_blank" rel="noopener">別タブで開く</a>
+              <button class="btn-secondary" type="button" onclick="document.getElementById('amazon-frame').contentWindow.location.reload();">再読み込み</button>
+            </div>
+          </div>
+          <iframe id="amazon-frame" class="auto-monitor-frame" src="./amazon-associate/" title="Amazonアソシエイト"></iframe>
         </div>
       </div>
 
@@ -1442,6 +1464,7 @@ document.getElementById('settings-save-btn').addEventListener('click', () => {
 });
 // ===== CHANGELOG MODAL =====
 const CHANGELOG = [
+  { v: 'v3.74', desc: 'Amazonアソシエイトタブを追加し、ASIN管理・アソシエイトリンク生成・投稿下書き・CSV/JSON書き出しに対応' },
   { v: 'v3.73', desc: 'ピン留めカテゴリ選択時に、ランキング・カテゴリ順位など右側の選択カテゴリ表示へ反映されない問題を修正' },
   { v: 'v3.72', desc: '店舗ランクイン監視タブを追加し、指定店舗の商品が検索結果に何件入っているかをviewer内で確認できるようにした' },
   { v: 'v3.71', desc: '単価最安タブを追加し、ジャンル内の商品を容量・重量・個数あたり価格で比較' },
@@ -1842,6 +1865,7 @@ document.querySelectorAll('.tab-nav-item').forEach(item => {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     item.classList.add('active');
     document.getElementById('tab-' + item.dataset.tab).classList.add('active');
+    document.querySelector('.app-body').classList.toggle('amazon-mode', item.dataset.tab === 'amazon');
   });
 });
 
